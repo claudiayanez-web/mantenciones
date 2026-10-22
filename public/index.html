@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mantenciones - Retina Lab</title>
+<style>
+  :root {
+    --azul: #134678;
+    --azul-claro: #e8eef5;
+    --gris-fondo: #f3f3f3;
+    --borde: #dcdcdc;
+    --texto: #222;
+    --suave: #6b6b6b;
+    --ok: #1a7a3c;
+    --ok-fondo: #e3f3e8;
+    --error: #b3261e;
+    --error-fondo: #fbe9e7;
+    --aviso-fondo: #fff6d6;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: Arial, sans-serif;
+    background: var(--gris-fondo);
+    margin: 0;
+    color: var(--texto);
+    font-size: 14px;
+  }
+  button, input, select { font: inherit; }
+  :focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+
+  header {
+    background: var(--azul);
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 2px 0 0 0; font-size: 12px; opacity: 0.85; }
+  .usuario { font-size: 13px; display: flex; align-items: center; gap: 10px; }
+  .usuario button {
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+
+  /* ---------- Login ---------- */
+  #vistaLogin { max-width: 360px; margin: 60px auto; padding: 0 16px; }
+  #vistaLogin form {
+    background: white;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  }
+  #vistaLogin label { display: block; margin-top: 14px; font-weight: 600; }
+  #vistaLogin input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+  }
+  .boton {
+    width: 100%;
+    margin-top: 20px;
+    padding: 12px;
+    background: var(--azul);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .boton:disabled { opacity: 0.6; }
+  #errorLogin { color: var(--error); margin-top: 12px; min-height: 18px; }
+
+  /* ---------- Vista principal ---------- */
+  #vistaApp { display: none; flex-direction: column; height: 100%; }
+  nav.pestanas {
+    background: white;
+    border-bottom: 1px solid var(--borde);
+    padding: 0 20px;
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+  }
+  nav.pestanas button {
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 12px 14px;
+    cursor: pointer;
+    color: var(--suave);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  nav.pestanas button[aria-selected="true"] { color: var(--azul); border-bottom-color: var(--azul); }
+
+  .barra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+  }
+  .barra input[type="search"], .barra select {
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: white;
+  }
+  .barra input[type="search"] { min-width: 220px; flex: 1 1 220px; max-width: 360px; }
+  .barra .conteo { color: var(--suave); font-size: 13px; }
+  .barra .recargar {
+    margin-left: auto;
+    background: white;
+    border: 1px solid var(--azul);
+    color: var(--azul);
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .ayuda { padding: 0 20px 8px; color: var(--suave); font-size: 12px; }
+
+  .contenedorTabla {
+    flex: 1;
+    overflow: auto;
+    margin: 0 20px 20px;
+    background: white;
+    border-radius: 10px;
+    border: 1px solid var(--borde);
+  }
+  table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
+  th, td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #eee;
+    border-right: 1px solid #f2f2f2;
+    text-align: left;
+    vertical-align: top;
+    max-width: 280px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--azul-claro);
+    color: var(--azul);
+    font-size: 12px;
+    z-index: 2;
+    cursor: pointer;
+    user-select: none;
+  }
+  thead th .flecha { opacity: 0.6; margin-left: 4px; }
+  /* Primera columna (Centro) fija al hacer scroll horizontal */
+  th:first-child, td:first-child {
+    position: sticky;
+    left: 0;
+    background: white;
+    z-index: 1;
+    font-weight: 600;
+    border-right: 1px solid var(--borde);
+  }
+  thead th:first-child { background: var(--azul-claro); z-index: 3; }
+  tbody tr:hover td { background: #fafcff; }
+
+  td.editable { cursor: text; }
+  td.editable:hover { box-shadow: inset 0 0 0 1px #b9cbe0; }
+  td.bloqueada { color: var(--suave); background: #fafafa; }
+  td.editando { padding: 0; }
+  td.editando input {
+    width: 100%;
+    min-width: 140px;
+    border: 2px solid var(--azul);
+    padding: 6px 8px;
+    outline: none;
+  }
+  td.guardando { background: var(--aviso-fondo) !important; }
+  td.guardado { background: var(--ok-fondo) !important; transition: background 1.2s; }
+  td.conError { background: var(--error-fondo) !important; }
+
+  .estado-Activado { color: var(--ok); font-weight: 600; }
+  .estado-Pendiente { color: #9a6700; font-weight: 600; }
+
+  .mensajeCentro { padding: 40px 20px; text-align: center; color: var(--suave); }
+
+  #aviso {
+    position: fixed;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%);
+    background: var(--texto);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 10px;
+    max-width: 90vw;
+    display: none;
+    z-index: 10;
+  }
+  #aviso.error { background: var(--error); }
+
+  @media (max-width: 640px) {
+    header { padding: 14px 16px; }
+    .barra { padding: 10px 12px; }
+    .contenedorTabla { margin: 0 8px 12px; }
+    .barra .recargar { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Mantenciones</h1>
+    <p>Operaciones Retina Lab</p>
+  </div>
+  <div class="usuario" id="cajaUsuario" hidden>
+    <span id="nombreUsuario"></span>
+    <button id="btnSalir" type="button">Salir</button>
+  </div>
+</header>
+
+<!-- Login -->
+<div id="vistaLogin">
+  <form id="formLogin">
+    <label for="usuario">Usuario</label>
+    <input id="usuario" autocomplete="username" required />
+    <label for="clave">Clave</label>
+    <input id="clave" type="password" autocomplete="current-password" required />
+    <button class="boton" type="submit">Ingresar</button>
+    <div id="errorLogin" role="alert"></div>
+  </form>
+</div>
+
+<!-- App -->
+<div id="vistaApp">
+  <nav class="pestanas" id="pestanas" role="tablist"></nav>
+
+  <div class="barra">
+    <input type="search" id="buscar" placeholder="Buscar centro, empresa, correo..." aria-label="Buscar" />
+    <select id="filtroEstado" aria-label="Filtrar por estado"><option value="">Todos los estados</option></select>
+    <select id="filtroEmpresa" aria-label="Filtrar por empresa"><option value="">Todas las empresas</option></select>
+    <span class="conteo" id="conteo"></span>
+    <button class="recargar" id="btnRecargar" type="button">Recargar</button>
+  </div>
+  <div class="ayuda">Haz clic en una celda para editarla. Enter guarda, Esc cancela, Tab pasa a la siguiente. Las celdas grises no se editan desde aquí.</div>
+
+  <div class="contenedorTabla" id="contenedorTabla">
+    <div class="mensajeCentro">Cargando...</div>
+  </div>
+</div>
+
+<div id="aviso" role="status"></div>
+
+<script>
+const estado = {
+  usuario: null,
+  hojas: [],
+  hojaActual: null,
+  datos: null,          // respuesta del servidor: columnas, filas, columnaClave
+  orden: { columna: null, asc: true }
+};
+
+// ---------- Utilidades ----------
+
+async function api(url, opciones = {}) {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    ...opciones
+  });
+  const datos = await res.json().catch(() => ({ ok: false, error: 'Respuesta inválida del servidor' }));
+  if (res.status === 401 && url !== '/api/login') mostrarLogin();
+  return datos;
+}
+
+let temporizadorAviso;
+function avisar(texto, esError = false) {
+  const el = document.getElementById('aviso');
+  el.textContent = texto;
+  el.className = esError ? 'error' : '';
+  el.style.display = 'block';
+  clearTimeout(temporizadorAviso);
+  temporizadorAviso = setTimeout(() => { el.style.display = 'none'; }, esError ? 6000 : 2500);
+}
+
+// ---------- Login ----------
+
+function mostrarLogin() {
+  document.getElementById('vistaLogin').style.display = 'block';
+  document.getElementById('vistaApp').style.display = 'none';
+  document.getElementById('cajaUsuario').hidden = true;
+}
+
+function mostrarApp() {
+  document.getElementById('vistaLogin').style.display = 'none';
+  document.getElementById('vistaApp').style.display = 'flex';
+  document.getElementById('cajaUsuario').hidden = false;
+  document.getElementById('nombreUsuario').textContent = estado.usuario;
+}
+
+document.getElementById('formLogin').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const boton = e.target.querySelector('button');
+  const error = document.getElementById('errorLogin');
+  boton.disabled = true;
+  error.textContent = '';
+  const r = await api('/api/login', {
+    method: 'POST',
+    body: JSON.stringify({
+      usuario: document.getElementById('usuario').value,
+      clave: document.getElementById('clave').value
+    })
+  });
+  boton.disabled = false;
+  if (!r.ok) { error.textContent = r.error; return; }
+  document.getElementById('clave').value = '';
+  iniciar();
+});
+
+document.getElementById('btnSalir').addEventListener('click', async () => {
+  await api('/api/logout', { method: 'POST' });
+  mostrarLogin();
+});
+
+// ---------- Inicio y pestañas ----------
+
+async function iniciar() {
+  const r = await api('/api/yo');
+  if (!r.ok) { mostrarLogin(); return; }
+  estado.usuario = r.usuario;
+  estado.hojas = r.hojas;
+  mostrarApp();
+  dibujarPestanas();
+  cambiarHoja(estado.hojaActual || r.hojas[0].id);
+}
+
+function dibujarPestanas() {
+  const nav = document.getElementById('pestanas');
+  nav.innerHTML = '';
+  estado.hojas.forEach(h => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.role = 'tab';
+    b.textContent = h.titulo;
+    b.dataset.hoja = h.id;
+    b.addEventListener('click', () => cambiarHoja(h.id));
+    nav.appendChild(b);
+  });
+}
+
+async function cambiarHoja(id) {
+  estado.hojaActual = id;
+  estado.orden = { columna: null, asc: true };
+  document.querySelectorAll('#pestanas button').forEach(b => {
+    b.setAttribute('aria-selected', b.dataset.hoja === id ? 'true' : 'false');
+  });
+  await cargarHoja();
+}
+
+async function cargarHoja() {
+  const contenedor = document.getElementById('contenedorTabla');
+  contenedor.innerHTML = '<div class="mensajeCentro">Cargando...</div>';
+  const r = await api('/api/hojas/' + estado.hojaActual);
+  if (!r.ok) {
+    contenedor.innerHTML = '';
+    const div = document.createElement('div');
+    div.className = 'mensajeCentro';
+    div.textContent = r.error + ' Usa Recargar para intentar de nuevo.';
+    contenedor.appendChild(div);
+    return;
+  }
+  // La columna clave (Centro) va primero, el resto en el orden del Sheet
+  const clave = r.columnaClave;
+  r.columnas.sort((a, b) => (b.nombre === clave) - (a.nombre === clave));
+  estado.datos = r;
+  llenarFiltros();
+  dibujarTabla();
+}
+
+document.getElementById('btnRecargar').addEventListener('click', cargarHoja);
+
+// ---------- Filtros ----------
+
+function llenarFiltros() {
+  llenarSelect('filtroEstado', 'Estado', 'Todos los estados');
+  llenarSelect('filtroEmpresa', 'Empresa', 'Todas las empresas');
+}
+
+function llenarSelect(id, columna, textoTodos) {
+  const select = document.getElementById(id);
+  const previo = select.value;
+  const existe = estado.datos.columnas.some(c => c.nombre === columna);
+  select.hidden = !existe;
+  select.innerHTML = '';
+  const opcionTodos = new Option(textoTodos, '');
+  select.add(opcionTodos);
+  if (!existe) return;
+  const valores = [...new Set(estado.datos.filas.map(f => f.celdas[columna]).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  valores.forEach(v => select.add(new Option(v, v)));
+  if (valores.includes(previo)) select.value = previo;
+}
+
+['buscar', 'filtroEstado', 'filtroEmpresa'].forEach(id => {
+  document.getElementById(id).addEventListener('input', dibujarTabla);
+});
+
+function filasVisibles() {
+  const texto = document.getElementById('buscar').value.trim().toLowerCase();
+  const fEstado = document.getElementById('filtroEstado').value;
+  const fEmpresa = document.getElementById('filtroEmpresa').value;
+
+  let filas = estado.datos.filas.filter(f => {
+    if (fEstado && f.celdas['Estado'] !== fEstado) return false;
+    if (fEmpresa && f.celdas['Empresa'] !== fEmpresa) return false;
+    if (texto && !Object.values(f.celdas).some(v => String(v).toLowerCase().includes(texto))) return false;
+    return true;
+  });
+
+  const { columna, asc } = estado.orden;
+  if (columna) {
+    filas = [...filas].sort((a, b) => {
+      const va = a.celdas[columna] || '';
+      const vb = b.celdas[columna] || '';
+      const na = parseFloat(va.replace(',', '.'));
+      const nb = parseFloat(vb.replace(',', '.'));
+      const cmp = (!isNaN(na) && !isNaN(nb) && /^-?[\d.,]+$/.test(va) && /^-?[\d.,]+$/.test(vb))
+        ? na - nb
+        : va.localeCompare(vb, 'es', { numeric: true });
+      return asc ? cmp : -cmp;
+    });
+  }
+  return filas;
+}
+
+// ---------- Tabla ----------
+
+function dibujarTabla() {
+  const { columnas } = estado.datos;
+  const filas = filasVisibles();
+  document.getElementById('conteo').textContent = filas.length + ' de ' + estado.datos.filas.length + ' filas';
+
+  const tabla = document.createElement('table');
+  const thead = tabla.createTHead();
+  const trHead = thead.insertRow();
+  columnas.forEach(c => {
+    const th = document.createElement('th');
+    th.textContent = c.nombre;
+    th.title = c.editable ? 'Ordenar por ' + c.nombre : c.nombre + ' (no editable)';
+    if (estado.orden.columna === c.nombre) {
+      const flecha = document.createElement('span');
+      flecha.className = 'flecha';
+      flecha.textContent = estado.orden.asc ? '▲' : '▼';
+      th.appendChild(flecha);
+    }
+    th.addEventListener('click', () => {
+      estado.orden = {
+        columna: c.nombre,
+        asc: estado.orden.columna === c.nombre ? !estado.orden.asc : true
+      };
+      dibujarTabla();
+    });
+    trHead.appendChild(th);
+  });
+
+  const tbody = tabla.createTBody();
+  filas.forEach(f => {
+    const tr = tbody.insertRow();
+    columnas.forEach(c => {
+      const td = tr.insertCell();
+      const valor = f.celdas[c.nombre] || '';
+      td.textContent = valor;
+      td.title = valor;
+      td.dataset.fila = f.fila;
+      td.dataset.columna = c.nombre;
+      if (c.nombre === 'Estado' && valor) td.classList.add('estado-' + valor.replace(/\s+/g, ''));
+      if (c.editable) {
+        td.classList.add('editable');
+        td.tabIndex = 0;
+        td.addEventListener('click', () => empezarEdicion(td));
+        td.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); empezarEdicion(td); }
+        });
+      } else {
+        td.classList.add('bloqueada');
+      }
+    });
+  });
+
+  const contenedor = document.getElementById('contenedorTabla');
+  const scrollX = contenedor.scrollLeft, scrollY = contenedor.scrollTop;
+  contenedor.innerHTML = '';
+  if (!filas.length) {
+    contenedor.innerHTML = '<div class="mensajeCentro">No hay filas con esos filtros.</div>';
+    return;
+  }
+  contenedor.appendChild(tabla);
+  contenedor.scrollLeft = scrollX;
+  contenedor.scrollTop = scrollY;
+}
+
+// ---------- Edición ----------
+
+function buscarFila(numero) {
+  return estado.datos.filas.find(f => f.fila === Number(numero));
+}
+
+function empezarEdicion(td) {
+  if (td.classList.contains('editando') || td.classList.contains('guardando')) return;
+  const fila = buscarFila(td.dataset.fila);
+  const columna = td.dataset.columna;
+  const anterior = fila.celdas[columna] || '';
+
+  td.classList.remove('guardado', 'conError');
+  td.classList.add('editando');
+  td.textContent = '';
+  const input = document.createElement('input');
+  input.value = anterior;
+  input.setAttribute('aria-label', columna + ' de ' + (fila.celdas[estado.datos.columnaClave] || 'fila ' + fila.fila));
+  td.appendChild(input);
+  input.focus();
+  input.select();
+
+  let terminado = false;
+  const terminar = async (guardar, moverSiguiente) => {
+    if (terminado) return;
+    terminado = true;
+    td.classList.remove('editando');
+    const nuevo = input.value;
+    td.textContent = anterior;
+
+    if (guardar && nuevo !== anterior) {
+      await guardarCelda(td, fila, columna, anterior, nuevo);
+    }
+    if (moverSiguiente) {
+      const editables = [...document.querySelectorAll('td.editable')];
+      const siguiente = editables[editables.indexOf(td) + 1];
+      if (siguiente) empezarEdicion(siguiente);
+    } else {
+      td.focus();
+    }
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); terminar(true, false); }
+    else if (e.key === 'Escape') { e.preventDefault(); terminar(false, false); }
+    else if (e.key === 'Tab') { e.preventDefault(); terminar(true, true); }
+  });
+  input.addEventListener('blur', () => terminar(true, false));
+}
+
+async function guardarCelda(td, fila, columna, anterior, nuevo) {
+  td.classList.add('guardando');
+  td.textContent = nuevo;
+
+  const r = await api('/api/hojas/' + estado.hojaActual + '/editar', {
+    method: 'POST',
+    body: JSON.stringify({
+      fila: fila.fila,
+      columna,
+      clave: fila.celdas[estado.datos.columnaClave] || '',
+      anterior,
+      nuevo
+    })
+  });
+
+  td.classList.remove('guardando');
+
+  if (r.ok) {
+    fila.celdas[columna] = r.valor;
+    td.textContent = r.valor;
+    td.title = r.valor;
+    td.classList.add('guardado');
+    setTimeout(() => td.classList.remove('guardado'), 1500);
+    return;
+  }
+
+  td.classList.add('conError');
+  if (r.conflicto && r.actual !== undefined) {
+    // Alguien cambió la celda en el Sheet: mostramos el valor real
+    fila.celdas[columna] = r.actual;
+    td.textContent = r.actual;
+    td.title = r.actual;
+    avisar(r.error + '. Ahora muestra el valor actual del Sheet; vuelve a editarla si corresponde.', true);
+  } else {
+    td.textContent = anterior;
+    avisar(r.error || 'No se pudo guardar', true);
+  }
+}
+
+iniciar();
+</script>
+</body>
+</html>
