@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Mantenciones - Retina Lab</title>
+<link rel="icon" type="image/jpeg" href="logo-retina.jpg" />
+<link rel="apple-touch-icon" href="logo-retina.jpg" />
 <style>
   :root {
     --azul: #134678;
@@ -90,7 +92,15 @@
     position: relative;
   }
   .marca { padding: 28px 24px 22px; border-bottom: 1px solid var(--borde); }
-  .marca h1 { margin: 0 0 8px; font-size: 24px; color: var(--azul); }
+  .marca h1 {
+    margin: 0 0 10px;
+    font-size: 24px;
+    color: var(--azul);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo { width: 34px; height: 34px; border-radius: 6px; flex-shrink: 0; }
   .marca .nombre { font-size: 14px; color: var(--texto); }
   .marca .rol { font-size: 12px; color: var(--suave); margin-top: 3px; }
   .menuLateral .tituloMenu {
@@ -496,7 +506,7 @@
       <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
     </button>
     <div class="marca">
-      <h1>Retina</h1>
+      <h1><img class="logo" src="logo-retina.jpg" alt="" />Retina</h1>
       <div class="nombre" id="nombreUsuario"></div>
       <div class="rol">Mantenciones</div>
     </div>
@@ -516,6 +526,7 @@
     <button id="btnAbrirMenu" type="button" aria-label="Abrir menú" aria-controls="menuLateral">
       <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
+    <img class="logo" src="logo-retina.jpg" alt="" style="width: 28px; height: 28px;" />
     <strong>Retina</strong>
   </div>
   <div class="encabezadoHoja">
