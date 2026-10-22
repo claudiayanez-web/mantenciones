@@ -199,4 +199,37 @@ app.post('/api/hojas/:hoja/editar', requiereSesion, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log('Mantenciones escuchando en puerto ' + PORT));
+// Agrega una fila nueva al final de la hoja. celdas: { nombreColumna: valor }
+app.post('/api/hojas/:hoja/agregar', requiereSesion, async (req, res) => {
+  const config = HOJAS[req.params.hoja];
+  if (!config) return res.status(404).json({ ok: false, error: 'Planilla no encontrada' });
+
+  const celdas = req.body.celdas;
+  if (!celdas || typeof celdas !== 'object' || Array.isArray(celdas)) {
+    return res.status(400).json({ ok: false, error: 'Datos inválidos' });
+  }
+  // Solo textos, y nunca las columnas bloqueadas (esas se calculan en el Sheet)
+  const limpias = {};
+  for (const [columna, valor] of Object.entries(celdas)) {
+    if (config.bloqueadas.includes(columna) || typeof valor !== 'string') continue;
+    if (valor.trim()) limpias[columna] = valor.trim();
+  }
+  if (!Object.keys(limpias).length) {
+    return res.status(400).json({ ok: false, error: 'Completa al menos el nombre del centro' });
+  }
+
+  try {
+    const resultado = await llamarScript({
+      accion: 'agregar',
+      hoja: req.params.hoja,
+      usuario: req.usuario,
+      celdas: limpias
+    });
+    res.status(resultado.ok ? 200 : 409).json(resultado);
+  } catch (err) {
+    console.error('Error al agregar', req.params.hoja, err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo agregar. Intenta de nuevo.' });
+  }
+});
+
+app.listen(PORT,() => console.log('Mantenciones escuchando en puerto ' + PORT));

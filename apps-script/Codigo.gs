@@ -1,0 +1,262 @@
+/**
+ * Página de mantenciones - Apps Script
+ * Paso 1: planilla SAMS
+ *
+ * Para agregar otra planilla más adelante, solo se suma un bloque en HOJAS.
+ */
+
+const HOJAS = {
+  sams: {
+    nombre: 'SAMS',
+    archivoId: '1s25_K3_onbvd27gRGesywnS5V7Ty72nI4Kgqw9MxnKI',
+    pestana: 'SAMS',
+    filaEncabezado: 1,
+    columnaClave: 'Centro'   // se usa para confirmar que la fila no cambió de lugar
+  }
+};
+
+// ---------- Puntos de entrada ----------
+
+function doGet() {
+  return responder({ ok: false, error: 'No autorizado' });
+}
+
+function doPost(e) {
+  try {
+    const body = JSON.parse(e.postData.contents);
+    const secreto = PropertiesService.getScriptProperties().getProperty('SECRETO');
+
+    if (!secreto || body.secreto !== secreto) {
+      return responder({ ok: false, error: 'No autorizado' });
+    }
+
+    const config = HOJAS[body.hoja];
+    if (!config) return responder({ ok: false, error: 'Hoja no permitida' });
+
+    switch (body.accion) {
+      case 'leer':    return responder(leer(config));
+      case 'editar':  return responder(editar(config, body));
+      case 'agregar': return responder(agregar(config, body));
+      default:        return responder({ ok: false, error: 'Acción no válida' });
+    }
+  } catch (err) {
+    return responder({ ok: false, error: err.message });
+  }
+}
+
+// ---------- Acciones ----------
+
+function leer(config) {
+  const sheet = abrirPestana(config);
+  const rango = sheet.getDataRange();
+  const valores = rango.getDisplayValues();
+  const formulas = rango.getFormulas();
+  const inicioDatos = config.filaEncabezado;
+  const encabezados = valores[config.filaEncabezado - 1].map(h => String(h).trim());
+
+  const columnas = [];
+  encabezados.forEach((nombre, i) => {
+    if (!nombre) return;
+    const tieneFormula = formulas.slice(inicioDatos).some(f => f[i] !== '');
+    columnas.push({ nombre: nombre, indice: i, editable: !tieneFormula });
+  });
+
+  const filas = [];
+  for (let r = inicioDatos; r < valores.length; r++) {
+    const fila = valores[r];
+    if (fila.every(v => v === '')) continue;
+    const celdas = {};
+    columnas.forEach(c => { celdas[c.nombre] = fila[c.indice]; });
+    filas.push({ fila: r + 1, celdas: celdas });
+  }
+
+  return {
+    ok: true,
+    hoja: config.nombre,
+    columnaClave: config.columnaClave,
+    columnas: columnas.map(c => ({ nombre: c.nombre, editable: c.editable })),
+    filas: filas
+  };
+}
+
+function editar(config, body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = abrirPestana(config);
+    const ubicacion = ubicarCelda(sheet, config, body.fila, body.columna, body.clave);
+    if (!ubicacion.ok) return ubicacion;
+
+    const celda = ubicacion.celda;
+    if (celda.getFormula()) {
+      return { ok: false, error: 'Esa celda es una fórmula y no se puede editar' };
+    }
+
+    const actual = celda.getDisplayValue();
+    const anterior = body.anterior == null ? '' : String(body.anterior);
+
+    if (actual !== anterior) {
+      return {
+        ok: false,
+        conflicto: true,
+        error: 'La celda cambió desde que cargaste la página',
+        actual: actual
+      };
+    }
+
+    celda.setValue(body.nuevo == null ? '' : body.nuevo);
+    SpreadsheetApp.flush();
+    const guardado = celda.getDisplayValue();
+
+    registrar([new Date(), body.usuario || '', config.nombre, body.fila, body.clave, body.columna, actual, guardado]);
+
+    return { ok: true, valor: guardado };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Agrega una fila al final. body.celdas: { nombreColumna: valor }
+// Las columnas con fórmula (por ejemplo Días restantes) se copian de la última fila,
+// junto con su formato y validaciones (listas desplegables).
+function agregar(config, body) {
+  const celdas = body.celdas;
+  if (!celdas || typeof celdas !== 'object') return { ok: false, error: 'Datos inválidos' };
+
+  const nombre = String(celdas[config.columnaClave] || '').trim();
+  if (!nombre) return { ok: false, error: 'Falta el nombre en ' + config.columnaClave };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = abrirPestana(config);
+    const ultimaFila = sheet.getLastRow();
+    const ultimaColumna = sheet.getLastColumn();
+    const encabezados = sheet.getRange(config.filaEncabezado, 1, 1, ultimaColumna)
+      .getDisplayValues()[0].map(h => String(h).trim());
+
+    const colClave = encabezados.indexOf(config.columnaClave);
+    if (colClave === -1) return { ok: false, error: 'No se encontró la columna ' + config.columnaClave };
+
+    // No permitir dos centros con el mismo nombre
+    if (ultimaFila > config.filaEncabezado) {
+      const existentes = sheet.getRange(config.filaEncabezado + 1, colClave + 1, ultimaFila - config.filaEncabezado, 1)
+        .getDisplayValues().map(f => normalizar(f[0]));
+      if (existentes.includes(normalizar(nombre))) {
+        return { ok: false, error: 'Ya existe un centro llamado "' + nombre + '"' };
+      }
+    }
+
+    const nuevaFila = ultimaFila + 1;
+    const destino = sheet.getRange(nuevaFila, 1, 1, ultimaColumna);
+
+    // Copiar la última fila de datos trae fórmulas, formato y validaciones
+    let formulas = new Array(ultimaColumna).fill('');
+    if (ultimaFila > config.filaEncabezado) {
+      sheet.getRange(ultimaFila, 1, 1, ultimaColumna).copyTo(destino);
+      formulas = destino.getFormulas()[0];
+    }
+
+    const usadas = [];
+    const fila = encabezados.map((encabezado, i) => {
+      if (formulas[i]) return formulas[i];  // se mantiene la fórmula, ya ajustada a la fila nueva
+      if (!encabezado || !(encabezado in celdas)) return '';
+      usadas.push(encabezado);
+      return comoTexto(celdas[encabezado]);
+    });
+    destino.setValues([fila]);
+    SpreadsheetApp.flush();
+
+    registrar([new Date(), body.usuario || '', config.nombre, nuevaFila, nombre, '(centro nuevo)', '', usadas.join(', ')]);
+
+    return { ok: true, fila: nuevaFila };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ---------- Ayudantes ----------
+
+function abrirPestana(config) {
+  const sheet = SpreadsheetApp.openById(config.archivoId).getSheetByName(config.pestana);
+  if (!sheet) throw new Error('No se encontró la pestaña ' + config.pestana);
+  return sheet;
+}
+
+function ubicarCelda(sheet, config, fila, columna, clave) {
+  fila = Number(fila);
+  const ultimaFila = sheet.getLastRow();
+  const ultimaColumna = sheet.getLastColumn();
+
+  if (!Number.isInteger(fila) || fila <= config.filaEncabezado || fila > ultimaFila) {
+    return { ok: false, error: 'Fila no válida' };
+  }
+  if (!columna) return { ok: false, error: 'Columna no válida' };
+
+  const encabezados = sheet.getRange(config.filaEncabezado, 1, 1, ultimaColumna)
+    .getDisplayValues()[0].map(h => String(h).trim());
+
+  const col = encabezados.indexOf(columna);
+  if (col === -1) return { ok: false, error: 'Columna no encontrada' };
+
+  const colClave = encabezados.indexOf(config.columnaClave);
+  const claveActual = sheet.getRange(fila, colClave + 1).getDisplayValue();
+  if (claveActual !== String(clave)) {
+    return { ok: false, conflicto: true, error: 'La fila cambió de lugar en la planilla. Recarga la página.' };
+  }
+
+  return { ok: true, celda: sheet.getRange(fila, col + 1) };
+}
+
+// Compara nombres sin importar mayúsculas, tildes ni espacios extra
+function normalizar(texto) {
+  return String(texto).normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+// Un valor escrito en la página nunca debe convertirse en fórmula
+function comoTexto(valor) {
+  const v = valor == null ? '' : String(valor).trim();
+  return /^[=+]/.test(v) ? "'" + v : v;
+}
+
+function registrar(fila) {
+  const id = PropertiesService.getScriptProperties().getProperty('LOG_ID');
+  if (!id) return;
+  SpreadsheetApp.openById(id).getSheetByName('Ediciones').appendRow(fila);
+}
+
+function responder(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------- Para correr a mano desde el editor ----------
+
+// Correr UNA vez: genera la clave secreta y crea la planilla de log.
+function configurar() {
+  const props = PropertiesService.getScriptProperties();
+
+  if (!props.getProperty('SECRETO')) {
+    props.setProperty('SECRETO', (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, ''));
+  }
+
+  if (!props.getProperty('LOG_ID')) {
+    const log = SpreadsheetApp.create('Log página mantenciones');
+    const ediciones = log.getSheets()[0];
+    ediciones.setName('Ediciones');
+    ediciones.appendRow(['Fecha', 'Usuario', 'Planilla', 'Fila', 'Clave', 'Columna', 'Valor anterior', 'Valor nuevo']);
+    props.setProperty('LOG_ID', log.getId());
+  }
+
+  Logger.log('SECRETO: ' + props.getProperty('SECRETO'));
+  Logger.log('Log: ' + SpreadsheetApp.openById(props.getProperty('LOG_ID')).getUrl());
+}
+
+// Prueba de lectura sin pasar por la web app.
+function probar() {
+  const r = leer(HOJAS.sams);
+  Logger.log('Columnas: ' + JSON.stringify(r.columnas));
+  Logger.log('Filas: ' + r.filas.length);
+  Logger.log('Ejemplo: ' + JSON.stringify(r.filas[0]));
+}

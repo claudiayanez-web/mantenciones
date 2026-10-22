@@ -26,6 +26,8 @@
     margin: 0;
     color: var(--texto);
     font-size: 14px;
+    display: flex;
+    flex-direction: column;
   }
   button, input, select { font: inherit; }
   :focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
@@ -41,18 +43,11 @@
   }
   header h1 { margin: 0; font-size: 20px; }
   header p { margin: 2px 0 0 0; font-size: 12px; opacity: 0.85; }
-  .usuario { font-size: 13px; display: flex; align-items: center; gap: 10px; }
-  .usuario button {
-    background: transparent;
-    color: white;
-    border: 1px solid rgba(255,255,255,0.6);
-    border-radius: 6px;
-    padding: 5px 10px;
-    cursor: pointer;
-  }
+  header[hidden] { display: none; }
+  .icono { width: 20px; height: 20px; flex-shrink: 0; }
 
   /* ---------- Login ---------- */
-  #vistaLogin { max-width: 360px; margin: 60px auto; padding: 0 16px; }
+  #vistaLogin { width: 100%; max-width: 360px; margin: 60px auto; padding: 0 16px; }
   #vistaLogin form {
     background: white;
     border-radius: 14px;
@@ -82,33 +77,105 @@
   #errorLogin { color: var(--error); margin-top: 12px; min-height: 18px; }
 
   /* ---------- Vista principal ---------- */
-  #vistaApp { display: none; flex-direction: column; height: 100%; }
-  nav.pestanas {
+  #vistaApp { display: none; flex: 1; min-height: 0; }
+
+  /* Menú lateral: marca y usuario arriba, planillas al medio, cerrar sesión abajo */
+  .menuLateral {
+    width: 250px;
+    flex-shrink: 0;
     background: white;
-    border-bottom: 1px solid var(--borde);
-    padding: 0 20px;
+    border-right: 1px solid var(--borde);
     display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .marca { padding: 28px 24px 22px; border-bottom: 1px solid var(--borde); }
+  .marca h1 { margin: 0 0 8px; font-size: 24px; color: var(--azul); }
+  .marca .nombre { font-size: 14px; color: var(--texto); }
+  .marca .rol { font-size: 12px; color: var(--suave); margin-top: 3px; }
+  .menuLateral .tituloMenu {
+    margin: 18px 0 6px;
+    padding: 0 28px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--suave);
+  }
+  nav.pestanas {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 14px 14px;
+    display: flex;
+    flex-direction: column;
     gap: 4px;
-    overflow-x: auto;
   }
   nav.pestanas button {
+    display: flex;
+    align-items: center;
+    gap: 14px;
     background: none;
     border: none;
-    border-bottom: 3px solid transparent;
+    border-radius: 10px;
     padding: 12px 14px;
     cursor: pointer;
-    color: var(--suave);
+    color: var(--texto);
     font-weight: 600;
-    white-space: nowrap;
+    font-size: 15px;
+    text-align: left;
   }
-  nav.pestanas button[aria-selected="true"] { color: var(--azul); border-bottom-color: var(--azul); }
+  nav.pestanas button:hover { background: #f6f8fb; }
+  nav.pestanas button[aria-selected="true"] { background: var(--azul-claro); color: var(--azul); }
+  .pieMenu { padding: 14px; border-top: 1px solid var(--borde); }
+  .botonMenu {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: white;
+    border: 1px solid #cfd4da;
+    border-radius: 10px;
+    padding: 10px;
+    color: var(--texto);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .botonMenu:hover { border-color: var(--azul); color: var(--azul); }
+  /* La X y la barra superior solo se usan en celular */
+  .cerrarMenu {
+    display: none;
+    position: absolute;
+    top: 16px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--borde);
+    border-radius: 50%;
+    background: white;
+    color: var(--suave);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+  }
+  .barraSuperior { display: none; }
+  .fondoMenu { display: none; }
+
+  /* Zona de contenido */
+  .contenido { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .encabezadoHoja { padding: 20px 20px 12px; }
+  .encabezadoHoja h2 { margin: 0; font-size: 22px; color: var(--azul); }
+  .encabezadoHoja p { margin: 4px 0 0; color: var(--suave); font-size: 13px; }
 
   .barra {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 10px;
-    padding: 12px 20px;
+    margin: 0 20px 8px;
+    padding: 10px 12px;
+    background: white;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
   }
   .barra input[type="search"], .barra select {
     padding: 8px 10px;
@@ -117,7 +184,6 @@
     background: white;
   }
   .barra input[type="search"] { min-width: 220px; flex: 1 1 220px; max-width: 360px; }
-  .barra .conteo { color: var(--suave); font-size: 13px; }
   .barra .recargar {
     margin-left: auto;
     background: white;
@@ -172,25 +238,162 @@
     border-right: 1px solid var(--borde);
   }
   thead th:first-child { background: var(--azul-claro); z-index: 3; }
+  tbody tr { cursor: pointer; }
   tbody tr:hover td { background: #fafcff; }
-
-  td.editable { cursor: text; }
-  td.editable:hover { box-shadow: inset 0 0 0 1px #b9cbe0; }
-  td.bloqueada { color: var(--suave); background: #fafafa; }
-  td.editando { padding: 0; }
-  td.editando input {
-    width: 100%;
-    min-width: 140px;
-    border: 2px solid var(--azul);
-    padding: 6px 8px;
-    outline: none;
-  }
-  td.guardando { background: var(--aviso-fondo) !important; }
-  td.guardado { background: var(--ok-fondo) !important; transition: background 1.2s; }
-  td.conError { background: var(--error-fondo) !important; }
+  tbody tr.seleccionada td { background: var(--azul-claro); }
+  /* Días restantes: rojo hasta 15, amarillo de 16 a 30 */
+  tbody tr td.dias-rojo { background: var(--error-fondo); color: var(--error); font-weight: 600; }
+  tbody tr td.dias-amarillo { background: var(--aviso-fondo); color: #9a6700; font-weight: 600; }
 
   .estado-Activado { color: var(--ok); font-weight: 600; }
   .estado-Pendiente { color: #9a6700; font-weight: 600; }
+
+  /* ---------- Selector de columnas ---------- */
+  .selectorColumnas { position: relative; }
+  .botonSecundario {
+    background: white;
+    border: 1px solid var(--azul);
+    color: var(--azul);
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .listaColumnas {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 6;
+    background: white;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    padding: 8px 0;
+    min-width: 240px;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  .listaColumnas label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .listaColumnas label:hover { background: var(--azul-claro); }
+  .listaColumnas label.fija { color: var(--suave); cursor: default; }
+  .listaColumnas .restablecer {
+    display: block;
+    width: calc(100% - 28px);
+    margin: 6px 14px 2px;
+    padding: 6px;
+    background: none;
+    border: none;
+    border-top: 1px solid #eee;
+    color: var(--azul);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  /* ---------- Panel lateral ---------- */
+  .panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 420px;
+    max-width: 100vw;
+    background: white;
+    box-shadow: -4px 0 18px rgba(0,0,0,0.15);
+    z-index: 8;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel[hidden] { display: none; }
+  .panelCabecera {
+    background: var(--azul);
+    color: white;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .panelCabecera .sub { font-size: 12px; opacity: 0.85; }
+  .panelCabecera h2 { margin: 2px 0 0; font-size: 18px; word-break: break-word; }
+  .panelCabecera button {
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .panelAyuda { padding: 10px 16px; color: var(--suave); font-size: 12px; border-bottom: 1px solid #eee; }
+  .panelCuerpo { flex: 1; overflow-y: auto; padding: 6px 16px 20px; }
+  .campo { margin-top: 12px; }
+  .campo label, .campo .etiqueta {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--azul);
+    margin-bottom: 4px;
+  }
+  .campo input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+  }
+  .campo input:focus { border-color: var(--azul); outline: none; box-shadow: 0 0 0 1px var(--azul); }
+  .campo .valorBloqueado {
+    padding: 8px 10px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background: #f5f5f5;
+    color: var(--suave);
+    min-height: 36px;
+    word-break: break-word;
+  }
+  .campo.bloqueado .etiqueta { color: var(--suave); }
+  .campo .valorBloqueado.dias-rojo { background: var(--error-fondo); color: var(--error); font-weight: 600; }
+  .campo .valorBloqueado.dias-amarillo { background: var(--aviso-fondo); color: #9a6700; font-weight: 600; }
+  .campo .valorLectura {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+    min-height: 34px;
+    word-break: break-word;
+  }
+  .campo .vacio { color: #aaa; }
+  .campo.cambiado input { border-color: var(--azul); background: #f4f8fc; }
+  .campo.guardando input { background: var(--aviso-fondo); }
+  .campo.guardado input { background: var(--ok-fondo); transition: background 1.2s; }
+  .campo.conError input { background: var(--error-fondo); border-color: var(--error); }
+  .panelPie {
+    display: flex;
+    gap: 10px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--borde);
+    background: white;
+  }
+  .panelPie:empty { display: none; }
+  .panelPie button { flex: 1; padding: 10px 12px; }
+  .botonPrimario {
+    background: var(--azul);
+    color: white;
+    border: 1px solid var(--azul);
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .botonPrimario:hover { background: #0f3a64; }
+  button:disabled { opacity: 0.6; cursor: wait; }
 
   .mensajeCentro { padding: 40px 20px; text-align: center; color: var(--suave); }
 
@@ -206,27 +409,71 @@
     max-width: 90vw;
     display: none;
     z-index: 10;
+    pointer-events: none;  /* no bloquea los botones que quedan debajo */
   }
+  /* Con el panel abierto, el aviso sube para no tapar Guardar / Agregar */
+  .panel:not([hidden]) ~ #aviso { bottom: 84px; }
   #aviso.error { background: var(--error); }
 
   @media (max-width: 640px) {
     header { padding: 14px 16px; }
-    .barra { padding: 10px 12px; }
+    /* En celular el menú lateral se abre desde la izquierda y se cierra con la X */
+    .menuLateral {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 82vw;
+      max-width: 280px;
+      z-index: 9;
+      transform: translateX(-100%);
+      transition: transform 0.2s;
+      box-shadow: 4px 0 18px rgba(0,0,0,0.15);
+    }
+    #vistaApp.menuAbierto .menuLateral { transform: none; }
+    #vistaApp.menuAbierto .fondoMenu {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      z-index: 8;
+    }
+    .cerrarMenu { display: flex; }
+    .barraSuperior {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: white;
+      border-bottom: 1px solid var(--borde);
+      padding: 10px 12px;
+    }
+    .barraSuperior button {
+      display: flex;
+      background: none;
+      border: 1px solid var(--borde);
+      border-radius: 8px;
+      padding: 6px;
+      color: var(--azul);
+      cursor: pointer;
+    }
+    .barraSuperior strong { color: var(--azul); font-size: 18px; }
+    .encabezadoHoja { padding: 14px 12px 10px; }
+    .barra { margin: 0 8px 8px; }
+    .barra input[type="search"] { min-width: 0; flex-basis: 100%; max-width: none; }
+    .ayuda { padding: 0 12px 8px; }
     .contenedorTabla { margin: 0 8px 12px; }
     .barra .recargar { margin-left: 0; }
+    .panel { width: 100vw; }
   }
 </style>
 </head>
 <body>
 
-<header>
+<!-- Encabezado solo para la pantalla de ingreso -->
+<header id="encabezadoLogin">
   <div>
     <h1>Mantenciones</h1>
     <p>Operaciones Retina Lab</p>
-  </div>
-  <div class="usuario" id="cajaUsuario" hidden>
-    <span id="nombreUsuario"></span>
-    <button id="btnSalir" type="button">Salir</button>
   </div>
 </header>
 
@@ -244,21 +491,69 @@
 
 <!-- App -->
 <div id="vistaApp">
-  <nav class="pestanas" id="pestanas" role="tablist"></nav>
+  <aside class="menuLateral" id="menuLateral">
+    <button class="cerrarMenu" id="btnCerrarMenu" type="button" aria-label="Cerrar menú">
+      <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+    <div class="marca">
+      <h1>Retina</h1>
+      <div class="nombre" id="nombreUsuario"></div>
+      <div class="rol">Mantenciones</div>
+    </div>
+    <div class="tituloMenu" id="tituloMenu">Planillas</div>
+    <nav class="pestanas" id="pestanas" role="tablist" aria-labelledby="tituloMenu"></nav>
+    <div class="pieMenu">
+      <button class="botonMenu" id="btnSalir" type="button">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+  <div class="fondoMenu" id="fondoMenu"></div>
+
+  <main class="contenido">
+  <div class="barraSuperior">
+    <button id="btnAbrirMenu" type="button" aria-label="Abrir menú" aria-controls="menuLateral">
+      <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <strong>Retina</strong>
+  </div>
+  <div class="encabezadoHoja">
+    <h2 id="tituloHoja"></h2>
+    <p id="conteo"></p>
+  </div>
 
   <div class="barra">
     <input type="search" id="buscar" placeholder="Buscar centro, empresa, correo..." aria-label="Buscar" />
     <select id="filtroEstado" aria-label="Filtrar por estado"><option value="">Todos los estados</option></select>
     <select id="filtroEmpresa" aria-label="Filtrar por empresa"><option value="">Todas las empresas</option></select>
-    <span class="conteo" id="conteo"></span>
+    <div class="selectorColumnas">
+      <button class="botonSecundario" id="btnColumnas" type="button" aria-expanded="false" aria-controls="listaColumnas">Columnas</button>
+      <div class="listaColumnas" id="listaColumnas" hidden></div>
+    </div>
     <button class="recargar" id="btnRecargar" type="button">Recargar</button>
+    <button class="botonPrimario" id="btnAgregar" type="button">+ Agregar centro</button>
   </div>
-  <div class="ayuda">Haz clic en una celda para editarla. Enter guarda, Esc cancela, Tab pasa a la siguiente. Las celdas grises no se editan desde aquí.</div>
+  <div class="ayuda">Haz clic en una fila para ver todos los datos del centro. Para cambiar algo usa el botón "Editar" del panel. Usa "Columnas" para elegir qué se muestra en la tabla.</div>
 
   <div class="contenedorTabla" id="contenedorTabla">
     <div class="mensajeCentro">Cargando...</div>
   </div>
+  </main>
 </div>
+
+<aside class="panel" id="panel" role="dialog" aria-labelledby="panelTitulo" hidden>
+  <div class="panelCabecera">
+    <div>
+      <div class="sub" id="panelSub">Centro</div>
+      <h2 id="panelTitulo"></h2>
+    </div>
+    <button id="btnCerrarPanel" type="button" aria-label="Cerrar panel">&times;</button>
+  </div>
+  <div class="panelAyuda" id="panelAyuda"></div>
+  <div class="panelCuerpo" id="panelCuerpo"></div>
+  <div class="panelPie" id="panelPie"></div>
+</aside>
 
 <div id="aviso" role="status"></div>
 
@@ -268,10 +563,47 @@ const estado = {
   hojas: [],
   hojaActual: null,
   datos: null,          // respuesta del servidor: columnas, filas, columnaClave
-  orden: { columna: null, asc: true }
+  orden: { columna: null, asc: true },
+  visibles: new Set(),  // nombres de columnas que se muestran en la tabla
+  filaAbierta: null,    // número de fila que muestra el panel lateral
+  modoPanel: null       // 'ver', 'editar' o 'nuevo'
 };
 
+// Columnas que se muestran si el usuario no ha elegido otras
+const COLUMNAS_POR_DEFECTO = [
+  'Centro', 'Estado', 'Empresa', 'Barrio', 'Bam - Starlink - Internet',
+  'Version', 'Fecha mantención', 'Días restantes'
+];
+
 // ---------- Utilidades ----------
+
+// Compara nombres sin importar mayúsculas, tildes ni espacios extra
+function normalizar(texto) {
+  return String(texto).normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+// Solo para mostrar: "Región de Los Lagos (X)" -> "Los Lagos (X)"
+function acortarRegion(valor) {
+  return valor
+    .replace(/^Regi[oó]n\s+del?\s+/i, '')
+    .replace(/^Ays[eé]n del General Carlos Ib[aá][ñn]ez del Campo/i, 'Aysén')
+    .replace(/^Magallanes y (de )?la Ant[aá]rtica Chilena/i, 'Magallanes');
+}
+
+function valorVisible(columna, valor) {
+  return normalizar(columna) === 'region' ? acortarRegion(valor) : valor;
+}
+
+// Clase de color para Días restantes: rojo hasta 15, amarillo de 16 a 30
+function claseDias(columna, valor) {
+  if (normalizar(columna) !== 'dias restantes') return '';
+  const n = parseInt(String(valor).trim(), 10);
+  if (isNaN(n)) return '';
+  if (n <= 15) return 'dias-rojo';
+  if (n <= 30) return 'dias-amarillo';
+  return '';
+}
 
 async function api(url, opciones = {}) {
   const res = await fetch(url, {
@@ -299,15 +631,26 @@ function avisar(texto, esError = false) {
 function mostrarLogin() {
   document.getElementById('vistaLogin').style.display = 'block';
   document.getElementById('vistaApp').style.display = 'none';
-  document.getElementById('cajaUsuario').hidden = true;
+  document.getElementById('encabezadoLogin').hidden = false;
 }
 
 function mostrarApp() {
   document.getElementById('vistaLogin').style.display = 'none';
   document.getElementById('vistaApp').style.display = 'flex';
-  document.getElementById('cajaUsuario').hidden = false;
+  document.getElementById('encabezadoLogin').hidden = true;
   document.getElementById('nombreUsuario').textContent = estado.usuario;
 }
+
+// ---------- Menú lateral en celular ----------
+
+function abrirMenu(abrir) {
+  document.getElementById('vistaApp').classList.toggle('menuAbierto', abrir);
+  if (abrir) document.getElementById('btnCerrarMenu').focus();
+}
+
+document.getElementById('btnAbrirMenu').addEventListener('click', () => abrirMenu(true));
+document.getElementById('btnCerrarMenu').addEventListener('click', () => abrirMenu(false));
+document.getElementById('fondoMenu').addEventListener('click', () => abrirMenu(false));
 
 document.getElementById('formLogin').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -352,16 +695,23 @@ function dibujarPestanas() {
     const b = document.createElement('button');
     b.type = 'button';
     b.role = 'tab';
-    b.textContent = h.titulo;
+    b.innerHTML = '<svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>';
+    const texto = document.createElement('span');
+    texto.textContent = h.titulo;
+    b.appendChild(texto);
     b.dataset.hoja = h.id;
-    b.addEventListener('click', () => cambiarHoja(h.id));
+    b.addEventListener('click', () => { abrirMenu(false); cambiarHoja(h.id); });
     nav.appendChild(b);
   });
 }
 
 async function cambiarHoja(id) {
+  if (!cerrarPanel()) return;
   estado.hojaActual = id;
   estado.orden = { columna: null, asc: true };
+  const hoja = estado.hojas.find(h => h.id === id);
+  document.getElementById('tituloHoja').textContent = hoja ? hoja.titulo : '';
+  document.getElementById('conteo').textContent = '';
   document.querySelectorAll('#pestanas button').forEach(b => {
     b.setAttribute('aria-selected', b.dataset.hoja === id ? 'true' : 'false');
   });
@@ -384,11 +734,93 @@ async function cargarHoja() {
   const clave = r.columnaClave;
   r.columnas.sort((a, b) => (b.nombre === clave) - (a.nombre === clave));
   estado.datos = r;
+  cargarVisibles();
   llenarFiltros();
   dibujarTabla();
+  // Si el panel estaba abierto en modo lectura, se vuelve a dibujar con los datos recién leídos.
+  // Si se está editando o agregando, no se toca para no perder lo escrito.
+  if (estado.filaAbierta !== null && estado.modoPanel === 'ver') {
+    const fila = buscarFila(estado.filaAbierta);
+    if (fila) dibujarPanel(fila);
+    else cerrarPanel();
+  }
 }
 
 document.getElementById('btnRecargar').addEventListener('click', cargarHoja);
+
+// ---------- Columnas visibles ----------
+
+function claveAlmacen() {
+  return 'mantenciones.columnas.' + estado.hojaActual;
+}
+
+function cargarVisibles() {
+  const nombres = estado.datos.columnas.map(c => c.nombre);
+  let guardadas = null;
+  try { guardadas = JSON.parse(localStorage.getItem(claveAlmacen())); } catch {}
+
+  let elegidas;
+  if (Array.isArray(guardadas)) {
+    elegidas = nombres.filter(n => guardadas.includes(n));
+  }
+  if (!elegidas || !elegidas.length) {
+    const porDefecto = COLUMNAS_POR_DEFECTO.map(normalizar);
+    elegidas = nombres.filter(n => porDefecto.includes(normalizar(n)));
+  }
+  estado.visibles = new Set(elegidas);
+  estado.visibles.add(estado.datos.columnaClave);  // Centro siempre se ve
+  dibujarListaColumnas();
+}
+
+function guardarVisibles() {
+  try { localStorage.setItem(claveAlmacen(), JSON.stringify([...estado.visibles])); } catch {}
+}
+
+function dibujarListaColumnas() {
+  const lista = document.getElementById('listaColumnas');
+  lista.innerHTML = '';
+  estado.datos.columnas.forEach(c => {
+    const label = document.createElement('label');
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.checked = estado.visibles.has(c.nombre);
+    if (c.nombre === estado.datos.columnaClave) {
+      check.disabled = true;
+      label.classList.add('fija');
+    }
+    check.addEventListener('change', () => {
+      if (check.checked) estado.visibles.add(c.nombre);
+      else estado.visibles.delete(c.nombre);
+      guardarVisibles();
+      dibujarTabla();
+    });
+    label.append(check, c.nombre);
+    lista.appendChild(label);
+  });
+  const restablecer = document.createElement('button');
+  restablecer.type = 'button';
+  restablecer.className = 'restablecer';
+  restablecer.textContent = 'Volver a las columnas por defecto';
+  restablecer.addEventListener('click', () => {
+    try { localStorage.removeItem(claveAlmacen()); } catch {}
+    cargarVisibles();
+    dibujarTabla();
+  });
+  lista.appendChild(restablecer);
+}
+
+function abrirListaColumnas(abrir) {
+  document.getElementById('listaColumnas').hidden = !abrir;
+  document.getElementById('btnColumnas').setAttribute('aria-expanded', abrir ? 'true' : 'false');
+}
+
+document.getElementById('btnColumnas').addEventListener('click', () => {
+  abrirListaColumnas(document.getElementById('listaColumnas').hidden);
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.selectorColumnas')) abrirListaColumnas(false);
+});
 
 // ---------- Filtros ----------
 
@@ -440,6 +872,15 @@ function filasVisibles() {
         : va.localeCompare(vb, 'es', { numeric: true });
       return asc ? cmp : -cmp;
     });
+  } else {
+    // Orden por defecto: Activados primero, Pendientes al final, el resto al medio
+    const rango = (f) => {
+      const v = normalizar(f.celdas['Estado'] || '');
+      if (v.startsWith('activad')) return 0;
+      if (v.startsWith('pendient')) return 2;
+      return 1;
+    };
+    filas = [...filas].sort((a, b) => rango(a) - rango(b) || a.fila - b.fila);
   }
   return filas;
 }
@@ -447,9 +888,9 @@ function filasVisibles() {
 // ---------- Tabla ----------
 
 function dibujarTabla() {
-  const { columnas } = estado.datos;
+  const columnas = estado.datos.columnas.filter(c => estado.visibles.has(c.nombre));
   const filas = filasVisibles();
-  document.getElementById('conteo').textContent = filas.length + ' de ' + estado.datos.filas.length + ' filas';
+  document.getElementById('conteo').textContent = 'Mostrando ' + filas.length + ' de ' + estado.datos.filas.length + ' centros';
 
   const tabla = document.createElement('table');
   const thead = tabla.createTHead();
@@ -457,18 +898,19 @@ function dibujarTabla() {
   columnas.forEach(c => {
     const th = document.createElement('th');
     th.textContent = c.nombre;
-    th.title = c.editable ? 'Ordenar por ' + c.nombre : c.nombre + ' (no editable)';
+    th.title = 'Ordenar por ' + c.nombre;
     if (estado.orden.columna === c.nombre) {
       const flecha = document.createElement('span');
       flecha.className = 'flecha';
       flecha.textContent = estado.orden.asc ? '▲' : '▼';
       th.appendChild(flecha);
     }
+    // Clic: ascendente, descendente y de vuelta al orden por defecto
     th.addEventListener('click', () => {
-      estado.orden = {
-        columna: c.nombre,
-        asc: estado.orden.columna === c.nombre ? !estado.orden.asc : true
-      };
+      const { columna, asc } = estado.orden;
+      if (columna !== c.nombre) estado.orden = { columna: c.nombre, asc: true };
+      else if (asc) estado.orden = { columna: c.nombre, asc: false };
+      else estado.orden = { columna: null, asc: true };
       dibujarTabla();
     });
     trHead.appendChild(th);
@@ -477,24 +919,21 @@ function dibujarTabla() {
   const tbody = tabla.createTBody();
   filas.forEach(f => {
     const tr = tbody.insertRow();
+    tr.tabIndex = 0;
+    tr.dataset.fila = f.fila;
+    if (f.fila === estado.filaAbierta) tr.classList.add('seleccionada');
+    tr.addEventListener('click', () => abrirPanel(f.fila));
+    tr.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); abrirPanel(f.fila); }
+    });
     columnas.forEach(c => {
       const td = tr.insertCell();
       const valor = f.celdas[c.nombre] || '';
-      td.textContent = valor;
+      td.textContent = valorVisible(c.nombre, valor);
       td.title = valor;
-      td.dataset.fila = f.fila;
-      td.dataset.columna = c.nombre;
       if (c.nombre === 'Estado' && valor) td.classList.add('estado-' + valor.replace(/\s+/g, ''));
-      if (c.editable) {
-        td.classList.add('editable');
-        td.tabIndex = 0;
-        td.addEventListener('click', () => empezarEdicion(td));
-        td.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') { e.preventDefault(); empezarEdicion(td); }
-        });
-      } else {
-        td.classList.add('bloqueada');
-      }
+      const dias = claseDias(c.nombre, valor);
+      if (dias) td.classList.add(dias);
     });
   });
 
@@ -510,59 +949,268 @@ function dibujarTabla() {
   contenedor.scrollTop = scrollY;
 }
 
-// ---------- Edición ----------
+// ---------- Panel lateral: ver, editar y agregar ----------
+// Modos: 'ver' (solo lectura), 'editar' (después de presionar Editar), 'nuevo' (agregar centro)
 
 function buscarFila(numero) {
   return estado.datos.filas.find(f => f.fila === Number(numero));
 }
 
-function empezarEdicion(td) {
-  if (td.classList.contains('editando') || td.classList.contains('guardando')) return;
-  const fila = buscarFila(td.dataset.fila);
-  const columna = td.dataset.columna;
-  const anterior = fila.celdas[columna] || '';
-
-  td.classList.remove('guardado', 'conError');
-  td.classList.add('editando');
-  td.textContent = '';
-  const input = document.createElement('input');
-  input.value = anterior;
-  input.setAttribute('aria-label', columna + ' de ' + (fila.celdas[estado.datos.columnaClave] || 'fila ' + fila.fila));
-  td.appendChild(input);
-  input.focus();
-  input.select();
-
-  let terminado = false;
-  const terminar = async (guardar, moverSiguiente) => {
-    if (terminado) return;
-    terminado = true;
-    td.classList.remove('editando');
-    const nuevo = input.value;
-    td.textContent = anterior;
-
-    if (guardar && nuevo !== anterior) {
-      await guardarCelda(td, fila, columna, anterior, nuevo);
-    }
-    if (moverSiguiente) {
-      const editables = [...document.querySelectorAll('td.editable')];
-      const siguiente = editables[editables.indexOf(td) + 1];
-      if (siguiente) empezarEdicion(siguiente);
-    } else {
-      td.focus();
-    }
-  };
-
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); terminar(true, false); }
-    else if (e.key === 'Escape') { e.preventDefault(); terminar(false, false); }
-    else if (e.key === 'Tab') { e.preventDefault(); terminar(true, true); }
+function marcarFilaSeleccionada() {
+  document.querySelectorAll('tbody tr').forEach(tr => {
+    tr.classList.toggle('seleccionada', Number(tr.dataset.fila) === estado.filaAbierta);
   });
-  input.addEventListener('blur', () => terminar(true, false));
 }
 
-async function guardarCelda(td, fila, columna, anterior, nuevo) {
-  td.classList.add('guardando');
-  td.textContent = nuevo;
+function camposDelPanel() {
+  return [...document.querySelectorAll('#panelCuerpo input[data-columna]')];
+}
+
+function hayCambiosSinGuardar() {
+  if (document.getElementById('panel').hidden) return false;
+  if (estado.modoPanel === 'editar') {
+    const fila = buscarFila(estado.filaAbierta);
+    return !!fila && camposDelPanel().some(i => i.value !== (fila.celdas[i.dataset.columna] || ''));
+  }
+  if (estado.modoPanel === 'nuevo') return camposDelPanel().some(i => i.value.trim() !== '');
+  return false;
+}
+
+// Pregunta antes de perder lo escrito
+function puedeDejarPanel() {
+  return !hayCambiosSinGuardar() || confirm('Tienes cambios sin guardar. ¿Quieres descartarlos?');
+}
+
+function abrirPanel(numero, modo = 'ver') {
+  // Clic en la misma fila mientras se edita: no hacer nada
+  if (numero === estado.filaAbierta && estado.modoPanel !== 'ver' && modo === 'ver') return;
+  if (numero !== estado.filaAbierta && !puedeDejarPanel()) return;
+  const fila = buscarFila(numero);
+  if (!fila) return;
+  estado.filaAbierta = fila.fila;
+  estado.modoPanel = modo;
+  dibujarPanel(fila);
+}
+
+function abrirNuevo() {
+  if (!puedeDejarPanel()) return;
+  estado.filaAbierta = null;
+  estado.modoPanel = 'nuevo';
+  dibujarPanel(null);
+}
+
+function dibujarPanel(fila) {
+  const modo = estado.modoPanel;
+  const clave = estado.datos.columnaClave;
+  abrirListaColumnas(false);
+
+  document.getElementById('panelSub').textContent = modo === 'nuevo' ? 'Nuevo registro' : clave;
+  document.getElementById('panelTitulo').textContent =
+    modo === 'nuevo' ? 'Agregar centro' : (fila.celdas[clave] || 'Fila ' + fila.fila);
+  document.getElementById('panelAyuda').textContent = {
+    ver: 'Para cambiar algún dato presiona "Editar".',
+    editar: 'Cambia los campos que necesites y presiona "Guardar cambios". Los campos grises no se editan desde aquí.',
+    nuevo: 'Completa los datos y presiona "Agregar centro". ' + clave + ' es obligatorio. Los campos grises se completan en el Sheet.'
+  }[modo];
+
+  const cuerpo = document.getElementById('panelCuerpo');
+  cuerpo.innerHTML = '';
+  // Todas las columnas, también las ocultas en la tabla
+  estado.datos.columnas.forEach((c, i) => {
+    const campo = document.createElement('div');
+    campo.className = 'campo';
+    const valor = fila ? (fila.celdas[c.nombre] || '') : '';
+
+    if (modo !== 'ver' && c.editable) {
+      const id = 'campo-' + i;
+      const label = document.createElement('label');
+      label.htmlFor = id;
+      label.textContent = c.nombre + (modo === 'nuevo' && c.nombre === clave ? ' *' : '');
+      const input = document.createElement('input');
+      input.id = id;
+      input.value = valor;  // valor completo, también en REGION
+      input.dataset.columna = c.nombre;
+      input.addEventListener('input', () => {
+        campo.classList.remove('conError');
+        campo.classList.toggle('cambiado', input.value !== valor);
+      });
+      campo.append(label, input);
+    } else {
+      if (!c.editable) campo.classList.add('bloqueado');
+      const etiqueta = document.createElement('div');
+      etiqueta.className = 'etiqueta';
+      etiqueta.textContent = c.nombre + (modo !== 'ver' && !c.editable ? ' (no editable)' : '');
+      const texto = document.createElement('div');
+      texto.className = c.editable ? 'valorLectura' : 'valorBloqueado';
+      if (modo === 'nuevo') texto.textContent = 'Se completa en el Sheet';
+      else if (valor) texto.textContent = valor;
+      else { texto.textContent = '—'; texto.classList.add('vacio'); }
+      const dias = claseDias(c.nombre, valor);
+      if (dias) texto.classList.add(dias);
+      campo.append(etiqueta, texto);
+    }
+    cuerpo.appendChild(campo);
+  });
+
+  // Botones al pie según el modo
+  const pie = document.getElementById('panelPie');
+  pie.innerHTML = '';
+  const boton = (texto, clase, accion) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = clase;
+    b.textContent = texto;
+    b.addEventListener('click', accion);
+    pie.appendChild(b);
+    return b;
+  };
+  if (modo === 'ver') {
+    boton('Editar', 'botonPrimario', () => { estado.modoPanel = 'editar'; dibujarPanel(fila); });
+  } else if (modo === 'editar') {
+    boton('Guardar cambios', 'botonPrimario', guardarCambios);
+    boton('Cancelar', 'botonSecundario', () => {
+      if (!puedeDejarPanel()) return;
+      estado.modoPanel = 'ver';
+      dibujarPanel(fila);
+    });
+  } else {
+    boton('Agregar centro', 'botonPrimario', agregarCentro);
+    boton('Cancelar', 'botonSecundario', cerrarPanel);
+  }
+
+  const panel = document.getElementById('panel');
+  const estabaCerrado = panel.hidden;
+  panel.hidden = false;
+  if (estabaCerrado || modo === 'nuevo') cuerpo.scrollTop = 0;
+  marcarFilaSeleccionada();
+  const primerCampo = camposDelPanel()[0];
+  if (modo !== 'ver' && primerCampo) primerCampo.focus();
+  else document.getElementById('btnCerrarPanel').focus();
+}
+
+function cerrarPanel() {
+  const panel = document.getElementById('panel');
+  if (panel.hidden) return true;
+  if (!puedeDejarPanel()) return false;
+  const numero = estado.filaAbierta;
+  panel.hidden = true;
+  estado.filaAbierta = null;
+  estado.modoPanel = null;
+  marcarFilaSeleccionada();
+  const tr = document.querySelector('tbody tr[data-fila="' + numero + '"]');
+  if (tr) tr.focus();
+  return true;
+}
+
+document.getElementById('btnCerrarPanel').addEventListener('click', cerrarPanel);
+document.getElementById('btnAgregar').addEventListener('click', abrirNuevo);
+
+function botonesPie(activos) {
+  document.querySelectorAll('#panelPie button').forEach(b => { b.disabled = !activos; });
+}
+
+async function guardarCambios() {
+  const fila = buscarFila(estado.filaAbierta);
+  const clave = estado.datos.columnaClave;
+  const cambiados = camposDelPanel().filter(i => i.value !== (fila.celdas[i.dataset.columna] || ''));
+  if (!cambiados.length) {
+    estado.modoPanel = 'ver';
+    dibujarPanel(fila);
+    avisar('No había cambios que guardar');
+    return;
+  }
+  const campoClave = cambiados.find(i => i.dataset.columna === clave);
+  if (campoClave && !campoClave.value.trim()) {
+    campoClave.closest('.campo').classList.add('conError');
+    avisar(clave + ' no puede quedar vacío', true);
+    return;
+  }
+
+  botonesPie(false);
+  let errores = 0;
+  // Uno por uno, con el mismo guardado de siempre
+  for (const input of cambiados) {
+    const ok = await guardarCampo(input.closest('.campo'), input, fila, input.dataset.columna);
+    if (!ok) errores++;
+  }
+  dibujarTabla();
+
+  if (!errores) {
+    estado.modoPanel = 'ver';
+    dibujarPanel(fila);
+    avisar(cambiados.length === 1 ? 'Cambio guardado' : cambiados.length + ' cambios guardados');
+  } else {
+    botonesPie(true);
+    document.getElementById('panelTitulo').textContent = fila.celdas[clave] || 'Fila ' + fila.fila;
+  }
+}
+
+async function agregarCentro() {
+  const clave = estado.datos.columnaClave;
+  const celdas = {};
+  camposDelPanel().forEach(i => {
+    const v = i.value.trim();
+    if (v) celdas[i.dataset.columna] = v;
+  });
+
+  const campoClave = camposDelPanel().find(i => i.dataset.columna === clave);
+  const nombre = celdas[clave] || '';
+  if (!nombre) {
+    campoClave.closest('.campo').classList.add('conError');
+    campoClave.focus();
+    avisar('Escribe el nombre en ' + clave, true);
+    return;
+  }
+  if (estado.datos.filas.some(f => normalizar(f.celdas[clave] || '') === normalizar(nombre))) {
+    campoClave.closest('.campo').classList.add('conError');
+    campoClave.focus();
+    avisar('Ya existe un centro llamado "' + nombre + '"', true);
+    return;
+  }
+
+  botonesPie(false);
+  const r = await api('/api/hojas/' + estado.hojaActual + '/agregar', {
+    method: 'POST',
+    body: JSON.stringify({ celdas })
+  });
+  if (!r.ok) {
+    botonesPie(true);
+    avisar(r.error || 'No se pudo agregar el centro', true);
+    return;
+  }
+
+  // Volver a leer la planilla y mostrar el centro nuevo
+  estado.modoPanel = 'ver';
+  await cargarHoja();
+  const nueva = estado.datos.filas.find(f => normalizar(f.celdas[clave] || '') === normalizar(nombre));
+  if (nueva) abrirPanel(nueva.fila);
+  else { document.getElementById('panel').hidden = true; estado.modoPanel = null; }
+  avisar('Centro "' + nombre + '" agregado');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('vistaApp').classList.contains('menuAbierto')) {
+    abrirMenu(false);
+    document.getElementById('btnAbrirMenu').focus();
+  } else if (!document.getElementById('listaColumnas').hidden) {
+    abrirListaColumnas(false);
+    document.getElementById('btnColumnas').focus();
+  } else if (!document.getElementById('panel').hidden) {
+    e.preventDefault();
+    cerrarPanel();
+  }
+});
+
+// Guarda una celda; devuelve true si quedó guardada
+async function guardarCampo(campo, input, fila, columna) {
+  const anterior = fila.celdas[columna] || '';
+  const nuevo = input.value;
+  if (input.readOnly || nuevo === anterior) return true;
+
+  campo.classList.remove('guardado', 'conError');
+  campo.classList.add('guardando');
+  input.readOnly = true;
 
   const r = await api('/api/hojas/' + estado.hojaActual + '/editar', {
     method: 'POST',
@@ -575,28 +1223,28 @@ async function guardarCelda(td, fila, columna, anterior, nuevo) {
     })
   });
 
-  td.classList.remove('guardando');
+  input.readOnly = false;
+  campo.classList.remove('guardando');
 
   if (r.ok) {
     fila.celdas[columna] = r.valor;
-    td.textContent = r.valor;
-    td.title = r.valor;
-    td.classList.add('guardado');
-    setTimeout(() => td.classList.remove('guardado'), 1500);
-    return;
+    input.value = r.valor;
+    campo.classList.remove('cambiado');
+    campo.classList.add('guardado');
+    setTimeout(() => campo.classList.remove('guardado'), 1500);
+    return true;
   }
 
-  td.classList.add('conError');
+  campo.classList.add('conError');
   if (r.conflicto && r.actual !== undefined) {
     // Alguien cambió la celda en el Sheet: mostramos el valor real
     fila.celdas[columna] = r.actual;
-    td.textContent = r.actual;
-    td.title = r.actual;
-    avisar(r.error + '. Ahora muestra el valor actual del Sheet; vuelve a editarla si corresponde.', true);
+    input.value = r.actual;
+    avisar(columna + ': ' + r.error + '. Ahora muestra el valor actual del Sheet; vuelve a editarla si corresponde.', true);
   } else {
-    td.textContent = anterior;
-    avisar(r.error || 'No se pudo guardar', true);
+    avisar(columna + ': ' + (r.error || 'No se pudo guardar'), true);
   }
+  return false;
 }
 
 iniciar();
