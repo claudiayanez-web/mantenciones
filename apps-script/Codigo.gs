@@ -148,6 +148,8 @@ function agregar(config, body) {
     }
 
     const nuevaFila = ultimaFila + 1;
+    // Si la pestaña no tiene filas vacías al final, se crea una
+    if (sheet.getMaxRows() < nuevaFila) sheet.insertRowAfter(ultimaFila);
     const destino = sheet.getRange(nuevaFila, 1, 1, ultimaColumna);
 
     // Copiar la última fila de datos trae fórmulas, formato y validaciones
