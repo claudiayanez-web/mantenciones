@@ -257,6 +257,7 @@
 
   .estado-Activado { color: var(--ok); font-weight: 600; }
   .estado-Pendiente { color: #9a6700; font-weight: 600; }
+  .estado-Desactivado { color: var(--suave); font-weight: 600; }
 
   /* ---------- Selector de columnas ---------- */
   .selectorColumnas { position: relative; }
@@ -354,13 +355,15 @@
     color: var(--azul);
     margin-bottom: 4px;
   }
-  .campo input {
+  .campo input, .campo select {
     width: 100%;
     padding: 8px 10px;
     border: 1px solid #ccc;
     border-radius: 8px;
+    background: white;
   }
-  .campo input:focus { border-color: var(--azul); outline: none; box-shadow: 0 0 0 1px var(--azul); }
+  .campo select + input { margin-top: 6px; }
+  .campo input:focus, .campo select:focus { border-color: var(--azul); outline: none; box-shadow: 0 0 0 1px var(--azul); }
   .campo .valorBloqueado {
     padding: 8px 10px;
     border: 1px solid #eee;
@@ -380,10 +383,10 @@
     word-break: break-word;
   }
   .campo .vacio { color: #aaa; }
-  .campo.cambiado input { border-color: var(--azul); background: #f4f8fc; }
-  .campo.guardando input { background: var(--aviso-fondo); }
+  .campo.cambiado input, .campo.cambiado select { border-color: var(--azul); background: #f4f8fc; }
+  .campo.guardando input, .campo.guardando select { background: var(--aviso-fondo); }
   .campo.guardado input { background: var(--ok-fondo); transition: background 1.2s; }
-  .campo.conError input { background: var(--error-fondo); border-color: var(--error); }
+  .campo.conError input, .campo.conError select { background: var(--error-fondo); border-color: var(--error); }
   .panelPie {
     display: flex;
     gap: 10px;
@@ -582,9 +585,21 @@ const estado = {
 
 // Columnas que se muestran si el usuario no ha elegido otras
 const COLUMNAS_POR_DEFECTO = [
-  'Centro', 'Estado', 'Empresa', 'Barrio', 'Bam - Starlink - Internet',
+  'Centro', 'Estado', 'INICIO', 'FIN', 'Empresa', 'Barrio', 'Bam - Starlink - Internet',
   'Version', 'Fecha mantención', 'Días restantes'
 ];
+
+// Columnas que se editan con lista desplegable (nombres normalizados).
+// fijas: opciones que siempre aparecen; además se suman los valores que ya hay en la planilla.
+// otro: permite escribir un valor nuevo que no esté en la lista.
+const LISTAS = {
+  'estado': { fijas: ['Activado', 'Pendiente', 'Desactivado'], otro: false },
+  'bam - starlink - internet': { fijas: ['BAM', 'Starlink', 'Internet Centro'], otro: true },
+  'empresa': { fijas: [], otro: true },
+  'region': { fijas: [], otro: true },
+  'version': { fijas: [], otro: true }
+};
+const OTRO = '__otro__';
 
 // ---------- Utilidades ----------
 
@@ -761,8 +776,9 @@ document.getElementById('btnRecargar').addEventListener('click', cargarHoja);
 
 // ---------- Columnas visibles ----------
 
+// v3: al sumar INICIO y FIN a las columnas por defecto, todos vuelven a ver el nuevo conjunto una vez
 function claveAlmacen() {
-  return 'mantenciones.columnas.' + estado.hojaActual;
+  return 'mantenciones.columnas.v3.' + estado.hojaActual;
 }
 
 function cargarVisibles() {
@@ -884,11 +900,12 @@ function filasVisibles() {
       return asc ? cmp : -cmp;
     });
   } else {
-    // Orden por defecto: Activados primero, Pendientes al final, el resto al medio
+    // Orden por defecto: Activados primero, luego otros estados, Pendientes y al final Desactivados
     const rango = (f) => {
       const v = normalizar(f.celdas['Estado'] || '');
       if (v.startsWith('activad')) return 0;
       if (v.startsWith('pendient')) return 2;
+      if (v.startsWith('desactivad')) return 3;
       return 1;
     };
     filas = [...filas].sort((a, b) => rango(a) - rango(b) || a.fila - b.fila);
@@ -1045,7 +1062,14 @@ function dibujarPanel(fila) {
         campo.classList.remove('conError');
         campo.classList.toggle('cambiado', input.value !== valor);
       });
-      campo.append(label, input);
+      const lista = LISTAS[normalizar(c.nombre)];
+      if (lista) {
+        const select = crearLista(c.nombre, input, opcionesDeLista(c.nombre, lista, valor), lista.otro);
+        label.htmlFor = select.id;
+        campo.append(label, select, input);
+      } else {
+        campo.append(label, input);
+      }
     } else {
       if (!c.editable) campo.classList.add('bloqueado');
       const etiqueta = document.createElement('div');
@@ -1062,6 +1086,8 @@ function dibujarPanel(fila) {
     }
     cuerpo.appendChild(campo);
   });
+
+  if (modo !== 'ver') completarFinAlDesactivar();
 
   // Botones al pie según el modo
   const pie = document.getElementById('panelPie');
@@ -1094,9 +1120,90 @@ function dibujarPanel(fila) {
   panel.hidden = false;
   if (estabaCerrado || modo === 'nuevo') cuerpo.scrollTop = 0;
   marcarFilaSeleccionada();
-  const primerCampo = camposDelPanel()[0];
+  const primerCampo = cuerpo.querySelector('input:not([hidden]), select');
   if (modo !== 'ver' && primerCampo) primerCampo.focus();
   else document.getElementById('btnCerrarPanel').focus();
+}
+
+// Fecha de hoy como se escribe en el Sheet: 15/10/2026
+function fechaHoy() {
+  const d = new Date();
+  return d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
+}
+
+// Al pasar Estado a Desactivado, si FIN está vacío se completa con la fecha de hoy
+// (se puede cambiar antes de guardar). Si se vuelve a otro estado, se quita.
+function completarFinAlDesactivar() {
+  const campos = camposDelPanel();
+  const estadoInput = campos.find(i => normalizar(i.dataset.columna) === 'estado');
+  const finInput = campos.find(i => normalizar(i.dataset.columna) === 'fin');
+  if (!estadoInput || !finInput) return;
+
+  let completadoAuto = false;
+  estadoInput.addEventListener('input', () => {
+    const desactivado = normalizar(estadoInput.value) === 'desactivado';
+    if (desactivado && !finInput.value.trim()) {
+      finInput.value = fechaHoy();
+      completadoAuto = true;
+      finInput.dispatchEvent(new Event('input'));
+      avisar('FIN se completó con la fecha de hoy. Puedes cambiarla antes de guardar.');
+    } else if (!desactivado && completadoAuto && finInput.value === fechaHoy()) {
+      finInput.value = '';
+      completadoAuto = false;
+      finInput.dispatchEvent(new Event('input'));
+    }
+  });
+}
+
+// Opciones de una lista: las fijas, luego las que ya existen en la planilla y el valor actual
+function opcionesDeLista(columna, lista, valorActual) {
+  const vistas = new Set();
+  const agregar = (v, destino) => {
+    const n = normalizar(v);
+    if (!n || vistas.has(n)) return;
+    vistas.add(n);
+    destino.push(v.trim());
+  };
+  const fijas = [], existentes = [];
+  lista.fijas.forEach(v => agregar(v, fijas));
+  estado.datos.filas.forEach(f => agregar(f.celdas[columna] || '', existentes));
+  agregar(valorActual, existentes);
+  existentes.sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+  return fijas.concat(existentes);
+}
+
+// El input sigue siendo el que guarda el valor; la lista solo lo llena.
+// Con "Otro" el input se muestra para escribir un valor nuevo.
+function crearLista(columna, input, opciones, permiteOtro) {
+  const select = document.createElement('select');
+  select.id = input.id;
+  input.id = input.id + '-texto';
+  input.placeholder = 'Escribe el nuevo valor';
+  input.setAttribute('aria-label', columna + ' (nuevo valor)');
+  select.add(new Option('— Sin valor —', ''));
+  const esRegion = normalizar(columna) === 'region';
+  opciones.forEach(o => select.add(new Option(esRegion ? acortarRegion(o) : o, o)));
+  if (permiteOtro) select.add(new Option('Otro (escribir)…', OTRO));
+
+  const sincronizar = () => {
+    const enLista = [...select.options].some(o => o.value === input.value && o.value !== OTRO);
+    select.value = enLista ? input.value : OTRO;
+    input.hidden = enLista;
+  };
+  select.addEventListener('change', () => {
+    if (select.value === OTRO) {
+      input.hidden = false;
+      input.value = '';
+      input.focus();
+    } else {
+      input.hidden = true;
+      input.value = select.value;
+    }
+    input.dispatchEvent(new Event('input'));
+  });
+  input.sincronizar = sincronizar;
+  sincronizar();
+  return select;
 }
 
 function cerrarPanel() {
@@ -1251,6 +1358,7 @@ async function guardarCampo(campo, input, fila, columna) {
     // Alguien cambió la celda en el Sheet: mostramos el valor real
     fila.celdas[columna] = r.actual;
     input.value = r.actual;
+    if (input.sincronizar) input.sincronizar();
     avisar(columna + ': ' + r.error + '. Ahora muestra el valor actual del Sheet; vuelve a editarla si corresponde.', true);
   } else {
     avisar(columna + ': ' + (r.error || 'No se pudo guardar'), true);
