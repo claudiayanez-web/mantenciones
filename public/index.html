@@ -363,6 +363,8 @@
     background: white;
   }
   .campo select + input { margin-top: 6px; }
+  .campo .notaCampo { margin-top: 4px; font-size: 12px; color: var(--suave); }
+  .campo .notaCampo[hidden] { display: none; }
   .campo input:focus, .campo select:focus { border-color: var(--azul); outline: none; box-shadow: 0 0 0 1px var(--azul); }
   .campo .valorBloqueado {
     padding: 8px 10px;
@@ -600,6 +602,9 @@ const LISTAS = {
   'version': { fijas: [], otro: true }
 };
 const OTRO = '__otro__';
+
+// Columnas que se editan con calendario (nombres normalizados). En el Sheet van como 15/10/2026.
+const CALENDARIOS = ['inicio', 'fin'];
 
 // ---------- Utilidades ----------
 
@@ -1067,6 +1072,10 @@ function dibujarPanel(fila) {
         const select = crearLista(c.nombre, input, opcionesDeLista(c.nombre, lista, valor), lista.otro);
         label.htmlFor = select.id;
         campo.append(label, select, input);
+      } else if (CALENDARIOS.includes(normalizar(c.nombre))) {
+        const { fecha, nota } = crearCalendario(input);
+        label.htmlFor = fecha.id;
+        campo.append(label, fecha, input, nota);
       } else {
         campo.append(label, input);
       }
@@ -1144,15 +1153,55 @@ function completarFinAlDesactivar() {
     const desactivado = normalizar(estadoInput.value) === 'desactivado';
     if (desactivado && !finInput.value.trim()) {
       finInput.value = fechaHoy();
+      if (finInput.sincronizar) finInput.sincronizar();
       completadoAuto = true;
       finInput.dispatchEvent(new Event('input'));
       avisar('FIN se completó con la fecha de hoy. Puedes cambiarla antes de guardar.');
     } else if (!desactivado && completadoAuto && finInput.value === fechaHoy()) {
       finInput.value = '';
+      if (finInput.sincronizar) finInput.sincronizar();
       completadoAuto = false;
       finInput.dispatchEvent(new Event('input'));
     }
   });
+}
+
+// "15/10/2026" <-> "2026-10-15" (formato del calendario del navegador)
+function fechaAIso(texto) {
+  const m = String(texto).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  return m ? m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0') : '';
+}
+function isoAFecha(iso) {
+  const [a, m, d] = iso.split('-');
+  return Number(d) + '/' + Number(m) + '/' + a;
+}
+
+// Igual que las listas: el input oculto guarda el valor y el calendario lo llena.
+// Si la celda tiene un texto que no es fecha (por ejemplo "Dic"), se muestra como nota
+// y se mantiene hasta que se elija una fecha.
+function crearCalendario(input) {
+  const fecha = document.createElement('input');
+  fecha.type = 'date';
+  fecha.id = input.id;
+  input.id = input.id + '-texto';
+  input.hidden = true;
+  const nota = document.createElement('div');
+  nota.className = 'notaCampo';
+
+  const sincronizar = () => {
+    const texto = input.value.trim();
+    fecha.value = fechaAIso(texto);
+    nota.hidden = !texto || !!fecha.value;
+    nota.textContent = 'Hoy dice "' + texto + '". Elige una fecha para reemplazarlo.';
+  };
+  fecha.addEventListener('change', () => {
+    input.value = fecha.value ? isoAFecha(fecha.value) : '';
+    nota.hidden = true;
+    input.dispatchEvent(new Event('input'));
+  });
+  input.sincronizar = sincronizar;
+  sincronizar();
+  return { fecha, nota };
 }
 
 // Opciones de una lista: las fijas, luego las que ya existen en la planilla y el valor actual
