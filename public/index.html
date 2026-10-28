@@ -171,29 +171,32 @@
 
   /* Zona de contenido */
   .contenido { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .encabezadoHoja { padding: 20px 20px 12px; }
+  .encabezadoHoja { padding: 20px 20px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .accionesHoja { display: flex; align-items: center; gap: 8px; }
+  .accionesHoja .botonIcono { padding: 8px; }
   .encabezadoHoja h2 { margin: 0; font-size: 22px; color: var(--azul); }
   .encabezadoHoja p { margin: 4px 0 0; color: var(--suave); font-size: 13px; }
 
-  .barra {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    margin: 0 20px 8px;
-    padding: 10px 12px;
-    background: white;
-    border: 1px solid var(--borde);
-    border-radius: 10px;
-  }
-  .barra input[type="search"], .barra select {
+  /* Filtros de la tabla: estados como botones arriba; búsqueda, empresa y columnas abajo */
+  .barra { display: grid; gap: 10px; margin: 0 20px 10px; }
+  .filaBarra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .barra select {
     padding: 8px 10px;
-    border: 1px solid #ccc;
+    border: 1px solid #d6dbe3;
     border-radius: 8px;
     background: white;
   }
-  .barra input[type="search"] { min-width: 220px; flex: 1 1 220px; max-width: 360px; }
-  .barra .recargar { margin-left: auto; }
+  .buscador { position: relative; flex: 1 1 260px; max-width: 420px; }
+  .buscador svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--suave); pointer-events: none; }
+  .buscador input {
+    width: 100%;
+    padding: 8px 10px 8px 34px;
+    border: 1px solid #d6dbe3;
+    border-radius: 8px;
+    background: white;
+  }
+  .chips[hidden], .accionesHoja[hidden] { display: none; }
+  .chips .punto { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
   /* Botón de recargar: solo el ícono de flechas en círculo; gira mientras trae los datos */
   .botonIcono {
     display: inline-flex;
@@ -715,7 +718,7 @@
     .barraSuperior strong { color: var(--azul); font-size: 18px; }
     .encabezadoHoja { padding: 14px 12px 10px; }
     .barra { margin: 0 8px 8px; }
-    .barra input[type="search"] { min-width: 0; flex-basis: 100%; max-width: none; }
+    .buscador { flex-basis: 100%; max-width: none; }
     .ayuda { padding: 0 12px 8px; }
     .contenedorTabla { margin: 0 8px 12px; }
     /* En celular: mapa arriba y lista abajo */
@@ -723,7 +726,6 @@
     .tiempoBarra, .tiempoContenedor { margin-left: 8px; margin-right: 8px; }
     .filaTiempo { grid-template-columns: 130px 1fr; }
     .mapaLista { width: auto; height: 45%; border-right: none; border-top: 1px solid var(--borde); }
-    .barra .recargar { margin-left: 0; }
     .panel { width: 100vw; }
   }
 </style>
@@ -794,25 +796,38 @@
     <strong>Retina</strong>
   </div>
   <div class="encabezadoHoja">
-    <h2 id="tituloHoja"></h2>
-    <p><span id="conteo"></span> <span id="actualizado"></span></p>
+    <div>
+      <h2 id="tituloHoja"></h2>
+      <p><span id="conteo"></span> <span id="actualizado"></span></p>
+    </div>
+    <div class="accionesHoja" id="accionesHoja">
+      <button class="botonIcono recargar" id="btnRecargar" type="button" title="Recargar datos" aria-label="Recargar datos">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
+      </button>
+      <button class="botonPrimario" id="btnAgregar" type="button">+ Agregar centro</button>
+    </div>
   </div>
 
   <div class="vista" id="vistaTabla">
   <div class="barra">
-    <input type="search" id="buscar" placeholder="Buscar centro, empresa, correo..." aria-label="Buscar" />
-    <select id="filtroEstado" aria-label="Filtrar por estado"><option value="">Todos los estados</option></select>
-    <select id="filtroEmpresa" aria-label="Filtrar por empresa"><option value="">Todas las empresas</option></select>
-    <div class="selectorColumnas">
-      <button class="botonSecundario" id="btnColumnas" type="button" aria-expanded="false" aria-controls="listaColumnas">Columnas</button>
-      <div class="listaColumnas" id="listaColumnas" hidden></div>
+    <!-- Los botones de estado manejan el select oculto filtroEstado -->
+    <div class="chips" id="chipsEstado" role="group" aria-label="Filtrar por estado"></div>
+    <select id="filtroEstado" aria-label="Filtrar por estado" hidden><option value="">Todos los estados</option></select>
+    <div class="filaBarra">
+      <div class="buscador">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        <input type="search" id="buscar" placeholder="Buscar centro, empresa, correo..." aria-label="Buscar" />
+      </div>
+      <select id="filtroEmpresa" aria-label="Filtrar por empresa"><option value="">Todas las empresas</option></select>
+      <div class="selectorColumnas">
+        <button class="botonIcono" id="btnColumnas" type="button" title="Elegir columnas" aria-label="Elegir columnas" aria-expanded="false" aria-controls="listaColumnas">
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/></svg>
+        </button>
+        <div class="listaColumnas" id="listaColumnas" hidden></div>
+      </div>
     </div>
-    <button class="botonIcono recargar" id="btnRecargar" type="button" title="Recargar datos" aria-label="Recargar datos">
-      <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
-    </button>
-    <button class="botonPrimario" id="btnAgregar" type="button">+ Agregar centro</button>
   </div>
-  <div class="ayuda">Haz clic en una fila para ver todos los datos del centro. Para cambiar algo usa el botón "Editar" del panel. Usa "Columnas" para elegir qué se muestra en la tabla.</div>
+  <div class="ayuda">Haz clic en una fila para ver todos los datos del centro. Para cambiar algo usa el botón "Editar" del panel. Usa el botón de columnas para elegir qué se muestra en la tabla.</div>
 
   <div class="contenedorTabla" id="contenedorTabla">
     <div class="mensajeCentro">Cargando...</div>
@@ -1122,6 +1137,7 @@ function mostrarVista(vista) {
   document.getElementById('vistaTabla').hidden = vista !== 'tabla';
   document.getElementById('vistaMapa').hidden = vista !== 'mapa';
   document.getElementById('vistaTiempo').hidden = vista !== 'tiempo';
+  document.getElementById('accionesHoja').hidden = vista !== 'tabla';
   document.getElementById('btnTiempo').setAttribute('aria-selected', vista === 'tiempo' ? 'true' : 'false');
   document.querySelectorAll('#pestanas button').forEach(b => {
     b.setAttribute('aria-selected', vista === 'tabla' && b.dataset.hoja === estado.hojaActual ? 'true' : 'false');
@@ -1266,6 +1282,45 @@ document.addEventListener('click', (e) => {
 function llenarFiltros() {
   llenarSelect('filtroEstado', 'Estado', 'Todos los estados');
   llenarSelect('filtroEmpresa', 'Empresa', 'Todas las empresas');
+  dibujarChipsEstado();
+}
+
+// Mismos colores que las filas de la tabla
+const COLOR_ESTADO = { activado: '#2e8b57', pendiente: '#d4a017', desactivado: '#9ca3af' };
+
+// Un botón por estado, con su cantidad de centros. Cambian el select oculto filtroEstado.
+function dibujarChipsEstado() {
+  const select = document.getElementById('filtroEstado');
+  const caja = document.getElementById('chipsEstado');
+  caja.innerHTML = '';
+  select.hidden = true;  // llenarSelect lo vuelve a mostrar; aquí lo reemplazan los botones
+  caja.hidden = !estado.datos.columnas.some(c => c.nombre === 'Estado');
+  if (caja.hidden) return;
+  const cuenta = v => estado.datos.filas.filter(f => !v || f.celdas['Estado'] === v).length;
+  [...select.options].forEach(o => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', o.value === select.value ? 'true' : 'false');
+    const color = COLOR_ESTADO[normalizar(o.value)];
+    if (color) {
+      const punto = document.createElement('span');
+      punto.className = 'punto';
+      punto.style.background = color;
+      b.appendChild(punto);
+    }
+    const texto = document.createElement('span');
+    texto.textContent = o.value ? o.text : 'Todos';
+    const n = document.createElement('span');
+    n.className = 'cuenta';
+    n.textContent = cuenta(o.value);
+    b.append(texto, n);
+    b.addEventListener('click', () => {
+      select.value = o.value;
+      dibujarChipsEstado();
+      dibujarTabla();
+    });
+    caja.appendChild(b);
+  });
 }
 
 function llenarSelect(id, columna, textoTodos) {
