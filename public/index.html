@@ -546,6 +546,97 @@
   .popupCentro .dato span:first-child { color: var(--suave); min-width: 92px; }
   .popupCentro .botonPrimario { width: 100%; margin-top: 8px; }
 
+  /* ---------- Línea de tiempo ---------- */
+  /* Colores validados para daltonismo; "vigente" además lleva etiqueta y Pendiente borde punteado */
+  .vistaTiempo { --t-vigente: #2e8b57; --t-desactivado: #4f79b5; --t-pendiente: #b8860b; }
+  .tiempoBarra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 18px;
+    margin: 0 20px 8px;
+    padding: 10px 12px;
+    background: white;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+  }
+  .tiempoBarra input {
+    flex: 1 1 220px;
+    max-width: 360px;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+  }
+  .leyendaTiempo { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--suave); }
+  .leyendaTiempo span { display: inline-flex; align-items: center; gap: 6px; }
+  .muestraTiempo { display: inline-block; width: 18px; height: 10px; border-radius: 3px; }
+  .muestraTiempo.vigente { background: var(--t-vigente); }
+  .muestraTiempo.desactivado { background: var(--t-desactivado); }
+  .muestraTiempo.pendiente { background: white; border: 2px dashed var(--t-pendiente); }
+  .muestraHoy { display: inline-block; width: 0; height: 14px; border-left: 2px dashed var(--error); }
+
+  .tiempoContenedor {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    margin: 0 20px 20px;
+    background: white;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+  }
+  .tiempoTabla { min-width: 760px; }
+  .filaTiempo { display: grid; grid-template-columns: 210px 1fr; border-bottom: 1px solid #f0f0f0; }
+  .filaTiempo.encabezado { position: sticky; top: 0; z-index: 2; background: var(--azul-claro); border-bottom: 1px solid var(--borde); }
+  .nombreTiempo {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: white;
+    padding: 8px 12px;
+    border-right: 1px solid var(--borde);
+    min-width: 0;
+  }
+  .encabezado .nombreTiempo { background: var(--azul-claro); color: var(--azul); font-size: 12px; font-weight: 600; z-index: 3; }
+  .nombreTiempo strong { display: block; color: var(--azul); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nombreTiempo span { display: block; font-size: 12px; color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pistaTiempo { position: relative; min-height: 46px; }
+  .encabezado .pistaTiempo { min-height: 30px; }
+  .anioTiempo { position: absolute; top: 0; bottom: 0; border-left: 1px solid #ececec; }
+  .encabezado .anioTiempo { border-left-color: #c9d6e4; }
+  .encabezado .anioTiempo span { position: absolute; top: 8px; left: 6px; font-size: 12px; color: var(--azul); font-weight: 600; }
+  .hoyTiempo { position: absolute; top: 0; bottom: 0; border-left: 2px dashed var(--error); opacity: 0.6; }
+  .encabezado .hoyTiempo span { position: absolute; top: 8px; left: 4px; font-size: 11px; color: var(--error); font-weight: 600; white-space: nowrap; }
+  .barraTiempo {
+    position: absolute;
+    top: 15px;
+    height: 16px;
+    min-width: 6px;
+    border: none;
+    border-radius: 4px;
+    padding: 0;
+    cursor: pointer;
+    background: var(--t-desactivado);
+  }
+  .barraTiempo.vigente { background: var(--t-vigente); }
+  .barraTiempo.pendiente { background: white; border: 2px dashed var(--t-pendiente); }
+  .barraTiempo:hover, .barraTiempo:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+  .etiquetaVigente { position: absolute; top: 15px; font-size: 11px; line-height: 16px; color: var(--ok); font-weight: 600; white-space: nowrap; padding-left: 6px; }
+  .tiempoVacio { padding: 30px 20px; text-align: center; color: var(--suave); }
+  .tooltipTiempo {
+    position: fixed;
+    z-index: 20;
+    max-width: 280px;
+    background: white;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+    padding: 8px 10px;
+    font-size: 13px;
+    pointer-events: none;
+  }
+  .tooltipTiempo strong { color: var(--azul); display: block; margin-bottom: 2px; }
+  .tooltipTiempo .suave { color: var(--suave); font-size: 12px; }
+
   .mensajeCentro { padding: 40px 20px; text-align: center; color: var(--suave); }
 
   #aviso {
@@ -615,6 +706,8 @@
     .contenedorTabla { margin: 0 8px 12px; }
     /* En celular: mapa arriba y lista abajo */
     .vistaMapa { flex-direction: column-reverse; margin: 0 8px 12px; }
+    .tiempoBarra, .tiempoContenedor { margin-left: 8px; margin-right: 8px; }
+    .filaTiempo { grid-template-columns: 130px 1fr; }
     .mapaLista { width: auto; height: 45%; border-right: none; border-top: 1px solid var(--borde); }
     .barra .recargar { margin-left: 0; }
     .panel { width: 100vw; }
@@ -657,11 +750,15 @@
     <div class="menuNavegacion">
       <div class="tituloMenu" id="tituloMenu">Planillas</div>
       <nav class="pestanas" id="pestanas" role="tablist" aria-labelledby="tituloMenu"></nav>
-      <div class="tituloMenu" id="tituloMapas">Mapas</div>
+      <div class="tituloMenu" id="tituloMapas">Vistas</div>
       <nav class="pestanas" aria-labelledby="tituloMapas">
         <button type="button" id="btnMapa" aria-selected="false">
           <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3zM9 3v15M15 6v15"/></svg>
           <span>Mapa de barrios</span>
+        </button>
+        <button type="button" id="btnTiempo" aria-selected="false">
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18M7 8h6M10 12h8M7 16h5"/></svg>
+          <span>Línea de tiempo</span>
         </button>
       </nav>
     </div>
@@ -724,6 +821,20 @@
     </div>
     <div class="mapa" id="mapa"></div>
   </div>
+
+  <!-- Línea de tiempo: centros con más de un periodo (SAMS + Historial) -->
+  <div class="vista vistaTiempo" id="vistaTiempo" hidden>
+    <div class="tiempoBarra">
+      <input type="search" id="buscarTiempo" placeholder="Buscar centro o empresa" aria-label="Buscar centro o empresa" />
+      <div class="leyendaTiempo" aria-label="Leyenda">
+        <span><i class="muestraTiempo vigente"></i>Vigente</span>
+        <span><i class="muestraTiempo desactivado"></i>Desactivado</span>
+        <span><i class="muestraTiempo pendiente"></i>Pendiente</span>
+        <span><i class="muestraHoy"></i>Hoy</span>
+      </div>
+    </div>
+    <div class="tiempoContenedor" id="tiempoContenedor"></div>
+  </div>
   </main>
 </div>
 
@@ -741,6 +852,7 @@
 </aside>
 
 <div id="aviso" role="status"></div>
+<div class="tooltipTiempo" id="tooltipTiempo" hidden></div>
 
 <script>
 const estado = {
@@ -993,6 +1105,8 @@ function mostrarVista(vista) {
   estado.vista = vista;
   document.getElementById('vistaTabla').hidden = vista !== 'tabla';
   document.getElementById('vistaMapa').hidden = vista !== 'mapa';
+  document.getElementById('vistaTiempo').hidden = vista !== 'tiempo';
+  document.getElementById('btnTiempo').setAttribute('aria-selected', vista === 'tiempo' ? 'true' : 'false');
   document.querySelectorAll('#pestanas button').forEach(b => {
     b.setAttribute('aria-selected', vista === 'tabla' && b.dataset.hoja === estado.hojaActual ? 'true' : 'false');
   });
@@ -1202,6 +1316,7 @@ function dibujarTabla() {
   const filas = filasVisibles();
   // El mapa usa los mismos datos: si está a la vista, se actualiza con cada cambio
   if (estado.vista === 'mapa') dibujarMapa();
+  else if (estado.vista === 'tiempo') dibujarLineaTiempo();
   else document.getElementById('conteo').textContent = 'Mostrando ' + filas.length + ' de ' + estado.datos.filas.length + (hojaConCodigo() ? ' periodos' : ' centros');
 
   const tabla = document.createElement('table');
@@ -1572,6 +1687,7 @@ async function desactivarCentro(fila, fin, caja) {
   estado.hojas.filter(h => h.id !== estado.hojaActual).forEach(async h => {
     const otra = await api('/api/hojas/' + h.id);
     if (otra.ok) estado.cache[h.id] = prepararDatos(otra);
+    if (estado.vista === 'tiempo') dibujarLineaTiempo();
   });
 }
 
@@ -2204,6 +2320,234 @@ function exportarCsvMapa() {
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+// ---------- Línea de tiempo ----------
+// Centros con más de un periodo, juntando SAMS (vigentes) e Historial (terminados).
+// Cada fila es un centro y cada barra un periodo, de INICIO a FIN (o hasta hoy si sigue vigente).
+
+async function abrirLineaTiempo() {
+  abrirMenu(false);
+  if (!cerrarPanel()) return;
+  mostrarVista('tiempo');
+  document.getElementById('tituloHoja').textContent = 'Línea de tiempo';
+  document.getElementById('conteo').textContent = 'Cargando…';
+  // Necesita todas las planillas
+  for (const h of estado.hojas) {
+    if (datosDeHoja(h.id)) continue;
+    const r = await api('/api/hojas/' + h.id);
+    if (r.ok) estado.cache[h.id] = prepararDatos(r);
+  }
+  tiempoRecienAbierto = true;
+  if (estado.vista === 'tiempo') dibujarLineaTiempo();
+}
+
+function datosDeHoja(id) {
+  return id === estado.hojaActual && estado.datos ? estado.datos : estado.cache[id];
+}
+
+// Periodos agrupados por centro: por SIEP (se mantiene entre periodos) o, si falta, por nombre
+function gruposConVariosPeriodos() {
+  const grupos = new Map();
+  estado.hojas.forEach(h => {
+    const datos = datosDeHoja(h.id);
+    if (!datos) return;
+    const col = n => datos.columnas.find(c => normalizar(c.nombre) === n)?.nombre;
+    const [cCentro, cSiep, cInicio, cFin, cEstado, cEmpresa] = ['centro', 'siep', 'inicio', 'fin', 'estado', 'empresa'].map(col);
+    datos.filas.forEach(f => {
+      const centro = String(f.celdas[cCentro] || '').trim();
+      if (!centro) return;
+      const siep = String(f.celdas[cSiep] || '').trim().replace(/^0+/, '');
+      const clave = siep ? 's:' + siep : 'n:' + normalizar(centro);
+      if (!grupos.has(clave)) grupos.set(clave, []);
+      grupos.get(clave).push({
+        hoja: h, fila: f, centro,
+        empresa: f.celdas[cEmpresa] || '',
+        estado: f.celdas[cEstado] || '',
+        inicioTexto: f.celdas[cInicio] || '', finTexto: f.celdas[cFin] || '',
+        inicio: fechaAIso(f.celdas[cInicio] || ''), fin: fechaAIso(f.celdas[cFin] || ''),
+        codigo: datos.columnaClave !== cCentro ? f.celdas[datos.columnaClave] || '' : ''
+      });
+    });
+  });
+  // Un centro sin SIEP se junta con el grupo que tenga su mismo nombre
+  for (const [clave, periodos] of grupos) {
+    if (!clave.startsWith('n:')) continue;
+    const destino = [...grupos.entries()].find(([k, ps]) => k.startsWith('s:') && ps.some(p => normalizar(p.centro) === clave.slice(2)));
+    if (destino) { destino[1].push(...periodos); grupos.delete(clave); }
+  }
+  return [...grupos.values()]
+    .filter(periodos => periodos.length > 1)
+    .map(periodos => {
+      periodos.sort((a, b) => (a.inicio || '9999').localeCompare(b.inicio || '9999'));
+      const ultimo = periodos[periodos.length - 1];
+      return { nombre: ultimo.centro, empresa: ultimo.empresa, periodos };
+    })
+    .sort((a, b) => b.periodos.length - a.periodos.length || a.nombre.localeCompare(b.nombre, 'es', { numeric: true }));
+}
+
+function tipoPeriodo(p) {
+  const e = normalizar(p.estado);
+  if (!p.fin && e.startsWith('activad')) return 'vigente';
+  if (e.startsWith('pendient')) return 'pendiente';
+  return 'desactivado';
+}
+
+function duracionTexto(desdeIso, hastaIso) {
+  const meses = Math.max(0, Math.round((Date.parse(hastaIso) - Date.parse(desdeIso)) / (1000 * 60 * 60 * 24 * 30.44)));
+  if (meses < 12) return meses + (meses === 1 ? ' mes' : ' meses');
+  const a = Math.floor(meses / 12), m = meses % 12;
+  return a + (a === 1 ? ' año' : ' años') + (m ? ' y ' + m + (m === 1 ? ' mes' : ' meses') : '');
+}
+
+function dibujarLineaTiempo() {
+  const contenedor = document.getElementById('tiempoContenedor');
+  const q = normalizar(document.getElementById('buscarTiempo').value);
+  const todos = gruposConVariosPeriodos();
+  const grupos = q
+    ? todos.filter(g => normalizar(g.nombre).includes(q) || normalizar(g.empresa).includes(q) || g.periodos.some(p => normalizar(p.centro).includes(q)))
+    : todos;
+
+  const nPeriodos = grupos.reduce((s, g) => s + g.periodos.length, 0);
+  document.getElementById('conteo').textContent = (q ? grupos.length + ' de ' + todos.length : todos.length) +
+    ' centros con más de un periodo · ' + nPeriodos + ' periodos';
+
+  const scroll = [contenedor.scrollLeft, contenedor.scrollTop];
+  contenedor.innerHTML = '';
+  if (!grupos.length) {
+    contenedor.innerHTML = '<div class="tiempoVacio">' + (q ? 'Ningún centro coincide con la búsqueda.' : 'Todavía no hay centros con más de un periodo.') + '</div>';
+    return;
+  }
+
+  // Escala: desde el 1 de enero del primer año hasta el fin de año del último FIN,
+  // dejando al menos ~5 meses después de hoy para que se lea la etiqueta "vigente".
+  // Todo en UTC para que "1 de enero" no se corra al 31 de diciembre por la zona horaria.
+  const ms = iso => Date.parse(iso + 'T00:00:00Z');
+  const hoy = new Date().toISOString().slice(0, 10);
+  const fechas = grupos.flatMap(g => g.periodos.flatMap(p => [p.inicio, p.fin])).filter(Boolean).concat(hoy).sort();
+  const anioDesde = +fechas[0].slice(0, 4);
+  const desde = ms(anioDesde + '-01-01');
+  const hasta = Math.max(ms((+fechas[fechas.length - 1].slice(0, 4) + 1) + '-01-01'), ms(hoy) + 150 * 86400000);
+  const pos = iso => ((ms(iso) - desde) / (hasta - desde)) * 100;
+  const anios = [];
+  for (let a = anioDesde; ms(a + '-01-01') < hasta; a++) anios.push(a);
+
+  const pista = (conAnios) => {
+    const p = document.createElement('div');
+    p.className = 'pistaTiempo';
+    anios.forEach(a => {
+      const l = document.createElement('div');
+      l.className = 'anioTiempo';
+      l.style.left = pos(a + '-01-01') + '%';
+      if (conAnios) l.innerHTML = '<span>' + a + '</span>';
+      p.appendChild(l);
+    });
+    const h = document.createElement('div');
+    h.className = 'hoyTiempo';
+    h.style.left = pos(hoy) + '%';
+    if (conAnios) h.innerHTML = '<span>Hoy</span>';
+    p.appendChild(h);
+    return p;
+  };
+
+  const tabla = document.createElement('div');
+  tabla.className = 'tiempoTabla';
+  const encabezado = document.createElement('div');
+  encabezado.className = 'filaTiempo encabezado';
+  encabezado.innerHTML = '<div class="nombreTiempo">Centro</div>';
+  encabezado.appendChild(pista(true));
+  tabla.appendChild(encabezado);
+
+  grupos.forEach(g => {
+    const fila = document.createElement('div');
+    fila.className = 'filaTiempo';
+    const nombre = document.createElement('div');
+    nombre.className = 'nombreTiempo';
+    const sinFecha = g.periodos.filter(p => !p.inicio).length;
+    nombre.innerHTML = '<strong></strong><span></span>';
+    nombre.querySelector('strong').textContent = g.nombre;
+    nombre.querySelector('span').textContent = (g.empresa ? g.empresa + ' · ' : '') + g.periodos.length + ' periodos' +
+      (sinFecha ? ' (' + sinFecha + ' sin fecha)' : '');
+    nombre.title = g.nombre;
+    fila.appendChild(nombre);
+
+    const p = pista(false);
+    g.periodos.filter(x => x.inicio).forEach(periodo => {
+      const tipo = tipoPeriodo(periodo);
+      const fin = periodo.fin || (tipo === 'desactivado' ? periodo.inicio : hoy);
+      const barra = document.createElement('button');
+      barra.type = 'button';
+      barra.className = 'barraTiempo ' + tipo;
+      barra.style.left = pos(periodo.inicio) + '%';
+      barra.style.width = Math.max(0, pos(fin) - pos(periodo.inicio)) + '%';
+      const finTexto = periodo.finTexto || (tipo === 'vigente' ? 'vigente' : 'sin fecha de fin');
+      barra.setAttribute('aria-label', periodo.centro + ': ' + periodo.inicioTexto + ' a ' + finTexto + ', ' + (periodo.estado || 'sin estado'));
+      barra.addEventListener('mouseenter', e => mostrarTooltipTiempo(e, periodo, tipo, fin));
+      barra.addEventListener('mousemove', moverTooltipTiempo);
+      barra.addEventListener('mouseleave', ocultarTooltipTiempo);
+      barra.addEventListener('focus', e => mostrarTooltipTiempo(e, periodo, tipo, fin));
+      barra.addEventListener('blur', ocultarTooltipTiempo);
+      barra.addEventListener('click', () => { ocultarTooltipTiempo(); abrirPeriodoDesdeTiempo(periodo); });
+      p.appendChild(barra);
+      if (tipo === 'vigente') {
+        const etiqueta = document.createElement('span');
+        etiqueta.className = 'etiquetaVigente';
+        etiqueta.style.left = pos(fin) + '%';
+        etiqueta.textContent = 'vigente';
+        p.appendChild(etiqueta);
+      }
+    });
+    fila.appendChild(p);
+    tabla.appendChild(fila);
+  });
+
+  contenedor.appendChild(tabla);
+  // Al abrir, si no cabe (celular), se parte mostrando lo más reciente, cerca de "Hoy"
+  if (tiempoRecienAbierto) {
+    contenedor.scrollLeft = contenedor.scrollWidth;
+    tiempoRecienAbierto = false;
+  } else {
+    [contenedor.scrollLeft, contenedor.scrollTop] = scroll;
+  }
+}
+let tiempoRecienAbierto = false;
+
+function mostrarTooltipTiempo(e, p, tipo, finIso) {
+  const t = document.getElementById('tooltipTiempo');
+  const fin = p.finTexto || (tipo === 'vigente' ? 'vigente' : '—');
+  t.innerHTML = '<strong></strong><div class="fechas"></div><div class="suave"></div>';
+  t.querySelector('strong').textContent = p.codigo || p.centro;
+  t.querySelector('.fechas').textContent = p.inicioTexto + ' → ' + fin + ' (' + duracionTexto(p.inicio, finIso) + ')';
+  t.querySelector('.suave').textContent = (p.estado || 'Sin estado') + ' · ' + p.hoja.titulo + ' · clic para ver la ficha';
+  t.hidden = false;
+  moverTooltipTiempo(e);
+}
+function moverTooltipTiempo(e) {
+  const t = document.getElementById('tooltipTiempo');
+  const r = e.clientX !== undefined && e.type !== 'focus' ? { x: e.clientX, y: e.clientY } : (() => { const b = e.target.getBoundingClientRect(); return { x: b.left, y: b.bottom }; })();
+  const x = Math.min(r.x + 12, window.innerWidth - t.offsetWidth - 8);
+  const y = r.y + 16 + t.offsetHeight > window.innerHeight ? r.y - t.offsetHeight - 10 : r.y + 16;
+  t.style.left = Math.max(8, x) + 'px';
+  t.style.top = y + 'px';
+}
+function ocultarTooltipTiempo() {
+  document.getElementById('tooltipTiempo').hidden = true;
+}
+
+// Abre la ficha del periodo sin salir de la línea de tiempo
+function abrirPeriodoDesdeTiempo(p) {
+  if (p.hoja.id !== estado.hojaActual) {
+    if (!cerrarPanel()) return;
+    const datos = estado.cache[p.hoja.id];   // antes de cambiar hojaActual
+    if (!datos) return;
+    estado.hojaActual = p.hoja.id;
+    estado.orden = { columna: null, asc: true };
+    mostrarHoja(datos);
+  }
+  abrirPanel(p.fila.fila);
+}
+
+document.getElementById('btnTiempo').addEventListener('click', abrirLineaTiempo);
+document.getElementById('buscarTiempo').addEventListener('input', dibujarLineaTiempo);
 
 document.getElementById('btnMapa').addEventListener('click', abrirMapa);
 document.getElementById('buscarMapa').addEventListener('input', dibujarListaBarrios);
