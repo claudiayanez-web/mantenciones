@@ -519,15 +519,24 @@ function ahora(ss, formato) {
   return Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), formato);
 }
 
+// El motivo del último intento fallido se devuelve a la página y queda en "Ejecuciones" del editor
 function enviarConReintento(url, opciones) {
+  let motivo = '';
   for (let intento = 1; intento <= 3; intento++) {
     try {
-      const code = UrlFetchApp.fetch(url, opciones).getResponseCode();
+      const respuesta = UrlFetchApp.fetch(url, opciones);
+      const code = respuesta.getResponseCode();
       if (code >= 200 && code < 300) return;
-    } catch (err) {}
+      motivo = 'n8n respondió ' + code + ': ' + respuesta.getContentText().slice(0, 200);
+    } catch (err) {
+      motivo = err.message;
+      // Sin el permiso para conectarse a servicios externos no sirve reintentar
+      if (/permis|authoriz|autoriz/i.test(motivo)) break;
+    }
     if (intento < 3) Utilities.sleep(1500 * intento);
   }
-  throw new Error('n8n no respondió después de 3 intentos');
+  console.error('Aviso a n8n falló: ' + url + ' → ' + motivo);
+  throw new Error(motivo);
 }
 
 // ---------- Ayudantes ----------
@@ -606,6 +615,16 @@ function configurar() {
 
   Logger.log('SECRETO: ' + props.getProperty('SECRETO'));
   Logger.log('Log: ' + SpreadsheetApp.openById(props.getProperty('LOG_ID')).getUrl());
+}
+
+// Correr a mano después de pegar una versión nueva: pide el permiso para conectarse a
+// servicios externos (lo necesitan los avisos a n8n) y comprueba que n8n responde.
+// Solo abre la página principal de n8n: no dispara ningún flujo ni manda mensajes.
+function probarAvisos() {
+  const props = PropertiesService.getScriptProperties();
+  Logger.log('Propiedad WEBHOOKS: ' + (props.getProperty('WEBHOOKS') || '(no está: avisos encendidos)'));
+  const r = UrlFetchApp.fetch('https://n8n-n8n.ax8fpu.easypanel.host/', { muteHttpExceptions: true });
+  Logger.log('n8n respondió ' + r.getResponseCode() + ' (200 = conexión OK)');
 }
 
 // Prueba de lectura sin pasar por la web app.

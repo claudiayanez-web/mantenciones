@@ -1113,13 +1113,13 @@ async function api(url, opciones = {}) {
 }
 
 let temporizadorAviso;
-function avisar(texto, esError = false) {
+function avisar(texto, esError = false, duracionMs) {
   const el = document.getElementById('aviso');
   el.textContent = texto;
   el.className = esError ? 'error' : '';
   el.style.display = 'block';
   clearTimeout(temporizadorAviso);
-  temporizadorAviso = setTimeout(() => { el.style.display = 'none'; }, esError ? 6000 : 2500);
+  temporizadorAviso = setTimeout(() => { el.style.display = 'none'; }, duracionMs || (esError ? 6000 : 2500));
 }
 
 // ---------- Login ----------
@@ -1181,6 +1181,7 @@ async function iniciar() {
   if (!r.ok) { mostrarLogin(); return; }
   estado.usuario = r.usuario;
   estado.admin = !!r.admin;
+  estado.tecnico = r.tecnico || '';  // nombre de técnico de este usuario en Solicitudes
   estado.hojas = r.hojas;
   mostrarApp();
   dibujarPestanas();
@@ -2778,8 +2779,10 @@ function tarjetaTicket(t) {
     const dias = desde ? (Date.now() - desde) / 86400000 : 0;
     clase = dias >= TICKETS.diasGestionLarga ? 'urgente' : 'gestion';
     if (clase === 'urgente') etiqueta = 'lleva mucho';
-    meta = (normalizar(t.estado).includes('terreno') ? 'Terreno' : 'Centro') + ' · ' + (t.tecnico || '') + ' · ' + haceCuanto(desde);
-    botones = [['Cerrar', 'cerrar', true]];
+    const enTerreno = normalizar(t.estado).includes('terreno');
+    meta = (enTerreno ? 'Terreno' : 'Centro') + ' · ' + (t.tecnico || '') + ' · ' + haceCuanto(desde);
+    // Lo que no se resolvió con ayuda del centro puede pasar a terreno
+    botones = enTerreno ? [['Cerrar', 'cerrar', true]] : [['Cerrar', 'cerrar', true], ['Pasar a terreno', 'gestionTerreno']];
   } else {
     clase = 'finalizado';
     meta = (t.tecnico || '') + ' · ' + horaDe(fechaTicket(t.fechaTecnico)) + (t.tipo ? ' · ' + t.tipo : '');
@@ -2846,6 +2849,17 @@ function abrirDialogoTicket(modo, t) {
   try { miTecnico = localStorage.getItem(CLAVE_MI_TECNICO) || ''; } catch {}
   const tecnico = campoSelect('Técnico', solicitudes.tecnicos, (t && t.tecnico) || miTecnico);
   campos.appendChild(tecnico.label);
+  // Solo un administrador elige el técnico; los demás actúan a su propio nombre
+  // (el servidor lo vuelve a comprobar)
+  let sinTecnico = false;
+  if (!estado.admin) {
+    if (estado.tecnico && ![...tecnico.select.options].some(o => o.value === estado.tecnico)) {
+      tecnico.select.add(new Option(estado.tecnico, estado.tecnico));
+    }
+    tecnico.select.value = estado.tecnico;
+    tecnico.select.disabled = true;
+    sinTecnico = !estado.tecnico;
+  }
 
   let centro, opciones, observaciones;
   if (modo === 'nuevo') {
@@ -2883,6 +2897,10 @@ function abrirDialogoTicket(modo, t) {
   }
 
   const error = form.querySelector('.error');
+  if (sinTecnico) {
+    error.textContent = 'Tu usuario no tiene un técnico asignado. Pídeselo a un administrador.';
+    form.querySelector('.confirmar').disabled = true;
+  }
   const cerrar = () => dialogo.close();
   dialogo.querySelector('.cerrarDialogo').addEventListener('click', cerrar);
   form.querySelector('.cancelar').addEventListener('click', cerrar);
@@ -2918,7 +2936,8 @@ function abrirDialogoTicket(modo, t) {
     try { localStorage.setItem(CLAVE_MI_TECNICO, datos.tecnico); } catch {}
     dialogo.close();
     const listo = { aceptar: 'Ticket aceptado', nuevo: 'Ticket #' + r.id + ' creado' }[modo] || ('Ticket ' + (r.estado === 'Finalizado' ? 'finalizado' : 'en ' + (r.estado || 'gestión').toLowerCase()));
-    avisar(r.aviso ? listo + '. ' + r.aviso : listo, !!r.aviso);
+    // Un aviso a n8n que falló se deja más tiempo en pantalla para que se alcance a leer
+    avisar(r.aviso ? listo + '. ' + r.aviso : listo, !!r.aviso, r.aviso ? 15000 : 0);
     cargarSolicitudes({ silencioso: true });
   });
   dialogo.showModal();

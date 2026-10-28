@@ -13,6 +13,7 @@ const {
   MANTENCIONES_SECRETO,
   USUARIOS = '',
   ADMINS = '',
+  TECNICOS = '',
   SESION_SECRETO
 } = process.env;
 
@@ -53,6 +54,18 @@ const admins = ADMINS.split(',').map(u => u.trim().toLowerCase()).filter(Boolean
 function esAdmin(usuario) {
   return admins.includes(usuario);
 }
+
+// Nombre de técnico de cada usuario, como aparece en la lista de técnicos de la planilla Mantenciones.
+// TECNICOS=sebastian:Sebastián Arzola,wilmer:Wilmer Ruiz (separados por coma)
+const tecnicos = Object.fromEntries(
+  TECNICOS.split(',')
+    .map(par => par.trim())
+    .filter(par => par.includes(':'))
+    .map(par => {
+      const i = par.indexOf(':');
+      return [par.slice(0, i).trim().toLowerCase(), par.slice(i + 1).trim()];
+    })
+);
 
 const DURACION_SESION_MS = 12 * 60 * 60 * 1000; // 12 horas
 
@@ -167,6 +180,7 @@ app.get('/api/yo', requiereSesion, (req, res) => {
     ok: true,
     usuario: req.usuario,
     admin: esAdmin(req.usuario),
+    tecnico: tecnicos[req.usuario] || '',
     hojas: Object.entries(HOJAS).map(([id, h]) => ({ id, titulo: h.titulo, desactivable: !!h.desactivable }))
   });
 });
@@ -343,6 +357,14 @@ app.post('/api/solicitudes/:accion', requiereSesion, async (req, res) => {
     if (cuerpo) Object.assign(cuerpo, { fila: b.fila, id: String(b.id) });
   }
   if (!cuerpo) return res.status(400).json({ ok: false, error: 'Faltan datos' });
+
+  // Cada técnico actúa a su nombre; solo un administrador puede elegir a otro técnico
+  if (!esAdmin(req.usuario)) {
+    if (!tecnicos[req.usuario]) {
+      return res.status(403).json({ ok: false, error: 'Tu usuario no tiene un técnico asignado. Pídeselo a un administrador.' });
+    }
+    cuerpo.tecnico = tecnicos[req.usuario];
+  }
 
   try {
     const resultado = await llamarScript({ ...cuerpo, usuario: req.usuario });
