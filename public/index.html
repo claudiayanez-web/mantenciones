@@ -860,6 +860,15 @@ function dibujarPestanas() {
 
 async function cambiarHoja(id) {
   if (!cerrarPanel()) return;
+  // Volver desde el mapa a la misma planilla: los datos ya están cargados, no hace falta
+  // pedirlos de nuevo a Google (eso demora varios segundos). Para datos frescos está "Recargar".
+  if (id === estado.hojaActual && estado.datos && estado.vista !== 'tabla') {
+    mostrarVista('tabla');
+    const hoja = estado.hojas.find(h => h.id === id);
+    document.getElementById('tituloHoja').textContent = hoja ? hoja.titulo : '';
+    dibujarTabla();
+    return;
+  }
   estado.hojaActual = id;
   estado.orden = { columna: null, asc: true };
   mostrarVista('tabla');
