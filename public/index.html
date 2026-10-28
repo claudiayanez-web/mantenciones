@@ -1231,7 +1231,10 @@ function dibujarPanel(fila) {
     cuerpo.appendChild(campo);
   });
 
-  if (modo !== 'ver') completarFinAlDesactivar();
+  if (modo !== 'ver') {
+    completarFinAlDesactivar();
+    completarBarrioPorUbicacion();
+  }
 
   // Botones al pie según el modo
   const pie = document.getElementById('panelPie');
@@ -1300,6 +1303,42 @@ function completarFinAlDesactivar() {
       finInput.dispatchEvent(new Event('input'));
     }
   });
+}
+
+// Al cambiar LAT o LON se busca en qué polígono de barrios.geojson cae el punto
+// y se completa Barrio con su código (por ejemplo 10B). Se puede cambiar antes de guardar.
+// Si el punto queda fuera de todos los barrios, Barrio no se toca.
+function completarBarrioPorUbicacion() {
+  const campos = camposDelPanel();
+  const latInput = campos.find(i => MAPA.columnasLat.includes(normalizar(i.dataset.columna)));
+  const lonInput = campos.find(i => MAPA.columnasLon.includes(normalizar(i.dataset.columna)));
+  const barrioInput = campos.find(i => normalizar(i.dataset.columna) === 'barrio');
+  if (!latInput || !lonInput || !barrioInput) return;
+
+  const numero = v => parseFloat(String(v ?? '').trim().replace(',', '.'));
+  const actualizar = async () => {
+    const lat = numero(latInput.value), lon = numero(lonInput.value);
+    if (!isFinite(lat) || !isFinite(lon)) return;
+    try {
+      await cargarBarrios();
+    } catch (err) {
+      avisar('No se pudo calcular el barrio: ' + err.message, true);
+      return;
+    }
+    const barrio = barrioDe(lon, lat);
+    if (!barrio) {
+      avisar('Esa ubicación queda fuera de los barrios del mapa. Barrio no se cambió.');
+      return;
+    }
+    if (barrioInput.value.trim() !== barrio.codigo) {
+      barrioInput.value = barrio.codigo;
+      barrioInput.dispatchEvent(new Event('input'));
+      avisar('Barrio se completó con ' + barrio.codigo + ' según la ubicación.');
+    }
+  };
+  // 'change' ocurre al salir del campo, no con cada tecla
+  latInput.addEventListener('change', actualizar);
+  lonInput.addEventListener('change', actualizar);
 }
 
 // "15/10/2026" <-> "2026-10-15" (formato del calendario del navegador)
@@ -1641,6 +1680,31 @@ function barrioDe(lon, lat) {
     && puntoEnPoligono(lon, lat, b.feature.geometry)) || null;
 }
 
+// Polígonos de barrios.geojson. Los usa el mapa y también el panel para completar Barrio.
+let promesaBarrios = null;
+function cargarBarrios() {
+  if (!promesaBarrios) {
+    promesaBarrios = (async () => {
+      const r = await fetch(MAPA.geojson);
+      if (!r.ok) throw new Error('No se pudo leer ' + MAPA.geojson);
+      const fc = await r.json();
+      barriosMapa = fc.features.filter(f => f.geometry).map((f, i) => {
+        const puntos = (f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates.flat(2) : f.geometry.coordinates.flat());
+        const lons = puntos.map(p => p[0]), lats = puntos.map(p => p[1]);
+        const codigo = f.properties?.[MAPA.propiedadBarrio] ?? i + 1;
+        return {
+          feature: f,
+          codigo: String(codigo),
+          nombre: MAPA.nombreBarrio(codigo),
+          color: COLORES_BARRIOS[i % COLORES_BARRIOS.length],
+          caja: [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)]
+        };
+      });
+    })().catch(err => { promesaBarrios = null; throw err; });
+  }
+  return promesaBarrios;
+}
+
 async function iniciarMapa() {
   if (mapa) return;
   await cargarLeaflet();
@@ -1655,22 +1719,8 @@ async function iniciarMapa() {
   L.control.layers({ 'Mapa': calles, 'Satélite': satelite, 'Topográfico': topografico }).addTo(mapa);
   capaCentros = L.layerGroup().addTo(mapa);
 
-  const r = await fetch(MAPA.geojson);
-  if (!r.ok) throw new Error('No se pudo leer ' + MAPA.geojson);
-  const fc = await r.json();
-  const porFeature = new Map();
-  barriosMapa = fc.features.filter(f => f.geometry).map((f, i) => {
-    const puntos = (f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates.flat(2) : f.geometry.coordinates.flat());
-    const lons = puntos.map(p => p[0]), lats = puntos.map(p => p[1]);
-    const b = {
-      feature: f,
-      nombre: MAPA.nombreBarrio(f.properties?.[MAPA.propiedadBarrio] ?? i + 1),
-      color: COLORES_BARRIOS[i % COLORES_BARRIOS.length],
-      caja: [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)]
-    };
-    porFeature.set(f, b);
-    return b;
-  });
+  await cargarBarrios();
+  const porFeature = new Map(barriosMapa.map(b => [b.feature, b]));
 
   capaBarrios = L.geoJSON({ type: 'FeatureCollection', features: barriosMapa.map(b => b.feature) }, {
     style: f => { const c = porFeature.get(f).color; return { color: c, weight: 1.5, fillColor: c, fillOpacity: 0.18 }; },
