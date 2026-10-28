@@ -612,6 +612,7 @@ const COLUMNAS_POR_DEFECTO = [
 // otro: permite escribir un valor nuevo que no esté en la lista.
 const LISTAS = {
   'estado': { fijas: ['Activado', 'Pendiente', 'Desactivado'], otro: false },
+  'ups': { fijas: ['Si', 'No'], otro: false },
   'bam - starlink - internet': { fijas: ['BAM', 'Starlink', 'Internet Centro'], otro: true },
   'empresa': { fijas: [], otro: true },
   'region': { fijas: [], otro: true },
@@ -1256,10 +1257,11 @@ function crearLista(columna, input, opciones, permiteOtro) {
   opciones.forEach(o => select.add(new Option(esRegion ? acortarRegion(o) : o, o)));
   if (permiteOtro) select.add(new Option('Otro (escribir)…', OTRO));
 
+  // Sin importar mayúsculas: "si" en el Sheet muestra la opción "Si"
   const sincronizar = () => {
-    const enLista = [...select.options].some(o => o.value === input.value && o.value !== OTRO);
-    select.value = enLista ? input.value : OTRO;
-    input.hidden = enLista;
+    const opcion = [...select.options].find(o => o.value !== OTRO && normalizar(o.value) === normalizar(input.value));
+    select.value = opcion ? opcion.value : OTRO;
+    input.hidden = !!opcion;
   };
   select.addEventListener('change', () => {
     if (select.value === OTRO) {
