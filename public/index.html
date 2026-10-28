@@ -636,7 +636,7 @@
   </div>
   <div class="encabezadoHoja">
     <h2 id="tituloHoja"></h2>
-    <p id="conteo"></p>
+    <p><span id="conteo"></span> <span id="actualizado"></span></p>
   </div>
 
   <div class="vista" id="vistaTabla">
@@ -888,10 +888,13 @@ function mostrarVista(vista) {
   document.getElementById('btnMapa').setAttribute('aria-selected', vista === 'mapa' ? 'true' : 'false');
 }
 
-async function cargarHoja() {
+// silencioso: recarga automática, sin "Cargando..." y sin tocar nada si se está editando
+async function cargarHoja(opciones) {
+  const silencioso = opciones?.silencioso === true;
   const contenedor = document.getElementById('contenedorTabla');
-  contenedor.innerHTML = '<div class="mensajeCentro">Cargando...</div>';
+  if (!silencioso) contenedor.innerHTML = '<div class="mensajeCentro">Cargando...</div>';
   const r = await api('/api/hojas/' + estado.hojaActual);
+  if (silencioso && (!r.ok || estaEditando())) return;  // se intenta de nuevo en la próxima vuelta
   if (!r.ok) {
     contenedor.innerHTML = '';
     const div = document.createElement('div');
@@ -904,6 +907,8 @@ async function cargarHoja() {
   const clave = r.columnaClave;
   r.columnas.sort((a, b) => (b.nombre === clave) - (a.nombre === clave));
   estado.datos = r;
+  estado.ultimaCarga = Date.now();
+  mostrarHoraActualizacion();
   cargarVisibles();
   llenarFiltros();
   dibujarTabla();
@@ -916,7 +921,31 @@ async function cargarHoja() {
   }
 }
 
-document.getElementById('btnRecargar').addEventListener('click', cargarHoja);
+document.getElementById('btnRecargar').addEventListener('click', () => cargarHoja());
+
+// ---------- Recarga automática ----------
+// Trae los cambios hechos en el Sheet o por otras personas sin presionar "Recargar".
+// Solo con la página a la vista y nunca mientras se edita o agrega un centro.
+const RECARGA_AUTOMATICA_MS = 2 * 60 * 1000;
+
+function estaEditando() {
+  return estado.modoPanel === 'editar' || estado.modoPanel === 'nuevo';
+}
+
+function recargarSiCorresponde() {
+  if (document.hidden || !estado.datos || estaEditando()) return;
+  if (Date.now() - (estado.ultimaCarga || 0) < RECARGA_AUTOMATICA_MS) return;
+  if (document.getElementById('vistaApp').style.display !== 'flex') return;  // pantalla de ingreso
+  cargarHoja({ silencioso: true });
+}
+
+function mostrarHoraActualizacion() {
+  const hora = new Date(estado.ultimaCarga).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  document.getElementById('actualizado').textContent = '· Actualizado ' + hora;
+}
+
+setInterval(recargarSiCorresponde, 30 * 1000);
+document.addEventListener('visibilitychange', recargarSiCorresponde);
 
 // ---------- Columnas visibles ----------
 
@@ -1782,6 +1811,8 @@ function dibujarMapa() {
   }
 
   const numero = v => parseFloat(String(v ?? '').trim().replace(',', '.'));
+  // Si había una ventanita abierta, se vuelve a abrir después de redibujar (por ejemplo tras la recarga automática)
+  const filaAbiertaEnMapa = centrosMapa.find(c => c.marcador?.isPopupOpen())?.fila.fila;
   let sinCoordenadas = 0;
   centrosMapa = estado.datos.filas.map(f => {
     const lat = numero(f.celdas[colLat]), lon = numero(f.celdas[colLon]);
@@ -1796,6 +1827,7 @@ function dibujarMapa() {
     }).bindPopup(() => popupCentro(c)).bindTooltip(escaparHtml(c.nombre), { direction: 'top', offset: [0, -6] })
       .addTo(capaCentros);
   });
+  if (filaAbiertaEnMapa) centrosMapa.find(c => c.fila.fila === filaAbiertaEnMapa)?.marcador.openPopup();
 
   dibujarListaBarrios();
 
@@ -1892,7 +1924,7 @@ function exportarCsvMapa() {
 
 document.getElementById('btnMapa').addEventListener('click', abrirMapa);
 document.getElementById('buscarMapa').addEventListener('input', dibujarListaBarrios);
-document.getElementById('btnRecargarMapa').addEventListener('click', cargarHoja);
+document.getElementById('btnRecargarMapa').addEventListener('click', () => cargarHoja());
 document.getElementById('btnExportarMapa').addEventListener('click', exportarCsvMapa);
 window.addEventListener('resize', () => { if (mapa) mapa.invalidateSize(); });
 
