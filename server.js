@@ -301,4 +301,56 @@ app.post('/api/hojas/:hoja/desactivar', requiereSesion, async (req, res) => {
   }
 });
 
+// ---------- Solicitudes (tickets de la planilla Mantenciones) ----------
+// El Apps Script escribe lo mismo que los botones de la pestaña "ingreso" y avisa a n8n.
+
+const texto = (v, max = 2000) => typeof v === 'string' && v.trim().length <= max ? v.trim() : null;
+const listaTextos = v => Array.isArray(v) && v.length && v.length <= 20 && v.every(x => texto(x, 200)) ? v.map(x => x.trim()) : null;
+
+app.get('/api/solicitudes', requiereSesion, async (req, res) => {
+  try {
+    const datos = await llamarScript({ accion: 'solicitudesLeer' });
+    res.status(datos.ok ? 200 : 502).json(datos);
+  } catch (err) {
+    console.error('Error al leer solicitudes', err.message);
+    res.status(502).json({ ok: false, error: 'No se pudieron leer las solicitudes. Intenta de nuevo.' });
+  }
+});
+
+// Cada acción valida sus datos y arma lo que se manda al Apps Script
+const ACCIONES_SOLICITUD = {
+  aceptar: b => texto(b.tecnico, 100) && { accion: 'solicitudesAceptar', tecnico: b.tecnico.trim() },
+  cerrar: b => texto(b.tecnico, 100) && listaTextos(b.tipos) && texto(b.observaciones ?? '') !== null &&
+    { accion: 'solicitudesCerrar', tecnico: b.tecnico.trim(), tipos: listaTextos(b.tipos), observaciones: (b.observaciones || '').trim() },
+  gestion: b => texto(b.tecnico, 100) && ['centro', 'terreno'].includes(b.gestion) && texto(b.observaciones ?? '') !== null &&
+    { accion: 'solicitudesGestion', tecnico: b.tecnico.trim(), gestion: b.gestion, observaciones: (b.observaciones || '').trim() }
+};
+
+app.post('/api/solicitudes/:accion', requiereSesion, async (req, res) => {
+  const b = req.body || {};
+  let cuerpo;
+  if (req.params.accion === 'nuevo') {
+    cuerpo = texto(b.centro, 200) && texto(b.tecnico, 100) && listaTextos(b.problemas) && texto(b.observaciones ?? '') !== null &&
+      { accion: 'solicitudesNuevo', centro: b.centro.trim(), tecnico: b.tecnico.trim(), problemas: listaTextos(b.problemas), observaciones: (b.observaciones || '').trim() };
+  } else {
+    const armar = ACCIONES_SOLICITUD[req.params.accion];
+    if (!armar) return res.status(404).json({ ok: false, error: 'Acción no válida' });
+    // El ticket se identifica por su fila y su ID (se comprueba que coincidan antes de escribir)
+    if (!Number.isInteger(b.fila) || !/^\d+$/.test(String(b.id || ''))) {
+      return res.status(400).json({ ok: false, error: 'Datos inválidos' });
+    }
+    cuerpo = armar(b);
+    if (cuerpo) Object.assign(cuerpo, { fila: b.fila, id: String(b.id) });
+  }
+  if (!cuerpo) return res.status(400).json({ ok: false, error: 'Faltan datos' });
+
+  try {
+    const resultado = await llamarScript({ ...cuerpo, usuario: req.usuario });
+    res.status(resultado.ok ? 200 : 409).json(resultado);
+  } catch (err) {
+    console.error('Error en solicitud', req.params.accion, err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo guardar. Intenta de nuevo.' });
+  }
+});
+
 app.listen(PORT, () => console.log('Mantenciones escuchando en puerto ' + PORT));

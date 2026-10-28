@@ -576,6 +576,97 @@
   .popupCentro .dato span:first-child { color: var(--suave); min-width: 92px; }
   .popupCentro .botonPrimario { width: 100%; margin-top: 8px; }
 
+  /* ---------- Solicitudes (tickets) ---------- */
+  .insignia {
+    margin-left: auto;
+    min-width: 22px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--error);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .insignia[hidden] { display: none; }
+  .vistaSolicitudes { min-height: 0; }
+  .solicitudesBarra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 20px 10px; }
+  .solicitudesBarra .chips { flex: 1; }
+  .tablero {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(230px, 1fr));
+    gap: 12px;
+    margin: 0 20px 20px;
+    overflow-x: auto;
+  }
+  .columnaTickets { display: flex; flex-direction: column; min-height: 0; background: #eceff3; border-radius: 12px; }
+  .columnaTickets h3 {
+    display: flex;
+    justify-content: space-between;
+    margin: 0;
+    padding: 12px 14px 8px;
+    font-size: 13px;
+    color: var(--azul);
+  }
+  .columnaTickets h3 span { color: var(--suave); font-weight: 400; }
+  .listaTickets { flex: 1; overflow-y: auto; padding: 0 10px 10px; display: grid; align-content: start; gap: 8px; }
+  .listaTickets .vacio { color: var(--suave); font-size: 13px; padding: 6px 4px; }
+  .ticket {
+    background: white;
+    border-radius: 10px;
+    border-left: 5px solid #9ca3af;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .ticket.normal { border-left-color: #4f79b5; }
+  .ticket.atencion { border-left-color: #d4a017; }
+  .ticket.urgente { border-left-color: var(--error); }
+  .ticket.gestion { border-left-color: #8c7ab0; }
+  .ticket.finalizado { border-left-color: #2e8b57; }
+  .ticket .cabeceraTicket { display: flex; justify-content: space-between; gap: 8px; }
+  .ticket strong { color: var(--azul); font-size: 14px; }
+  .ticket .numero { color: var(--suave); font-size: 12px; }
+  .ticket .problema { margin: 3px 0; }
+  .ticket .meta { color: var(--suave); font-size: 12px; }
+  .ticket .nota { margin-top: 6px; padding: 6px 8px; background: #f5f7fa; border-radius: 6px; color: var(--texto); font-size: 12px; }
+  .ticket .etiqueta { display: inline-block; margin-top: 6px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .ticket.urgente .etiqueta { background: #fdecea; color: #a12a1a; }
+  .ticket.atencion .etiqueta { background: #fbf3dc; color: #7a5a00; }
+  .ticket .acciones { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .ticket .acciones button { padding: 5px 10px; font-size: 12px; }
+
+  .dialogoTicket {
+    width: min(460px, calc(100vw - 24px));
+    max-height: calc(100vh - 40px);
+    border: none;
+    border-radius: 14px;
+    padding: 0;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  }
+  .dialogoTicket::backdrop { background: rgba(0, 0, 0, 0.4); }
+  .dialogoTicket form { display: grid; gap: 12px; padding: 18px 20px 20px; }
+  .dialogoTicket .cabeceraDialogo { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+  .dialogoTicket h2 { margin: 0; font-size: 17px; color: var(--azul); }
+  .dialogoTicket .sub { color: var(--suave); font-size: 13px; margin-top: 2px; }
+  .dialogoTicket .cerrarDialogo { background: none; border: none; font-size: 24px; line-height: 1; color: var(--suave); cursor: pointer; }
+  .dialogoTicket label { display: grid; gap: 5px; font-size: 13px; color: var(--suave); }
+  .dialogoTicket select, .dialogoTicket input, .dialogoTicket textarea {
+    padding: 8px 10px;
+    border: 1px solid #d6dbe3;
+    border-radius: 8px;
+    font: inherit;
+    color: var(--texto);
+    background: white;
+  }
+  .dialogoTicket textarea { min-height: 70px; resize: vertical; }
+  .dialogoTicket .opciones { max-height: 170px; overflow-y: auto; padding: 2px; }
+  .dialogoTicket .aviso { padding: 8px 10px; border-radius: 8px; background: var(--azul-claro); color: var(--azul); font-size: 13px; }
+  .dialogoTicket .error { color: var(--error); font-size: 13px; }
+  .dialogoTicket .error:empty { display: none; }
+  .dialogoTicket .botones { display: flex; justify-content: flex-end; gap: 8px; }
+
   /* ---------- Línea de tiempo ---------- */
   /* Colores validados para daltonismo; "vigente" además lleva etiqueta y Pendiente borde punteado */
   .vistaTiempo { --t-vigente: #2e8b57; --t-desactivado: #4f79b5; --t-pendiente: #b8860b; }
@@ -737,6 +828,11 @@
     /* En celular: mapa arriba y lista abajo */
     .vistaMapa { flex-direction: column-reverse; margin: 0 8px 12px; }
     .tiempoBarra, .tiempoContenedor { margin-left: 8px; margin-right: 8px; }
+    .solicitudesBarra, .tablero { margin-left: 8px; margin-right: 8px; }
+    .tablero { grid-template-columns: repeat(4, 82vw); }
+    .solicitudesBarra { justify-content: flex-end; }
+    .solicitudesBarra .chips { flex-basis: 100%; order: 2; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+    .solicitudesBarra .chips button { flex-shrink: 0; }
     .filaTiempo { grid-template-columns: 130px 1fr; }
     .mapaLista { width: auto; height: 45%; border-right: none; border-top: 1px solid var(--borde); }
     .panel { width: 100vw; }
@@ -779,6 +875,14 @@
       </div>
     </div>
     <div class="menuNavegacion">
+      <div class="tituloMenu" id="tituloOperacion">Operación</div>
+      <nav class="pestanas" aria-labelledby="tituloOperacion">
+        <button type="button" id="btnSolicitudes" aria-selected="false">
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4z"/><path d="M14 5v14" stroke-dasharray="2 2"/></svg>
+          <span>Solicitudes</span>
+          <span class="insignia" id="insigniaSolicitudes" title="Tickets por aceptar" hidden></span>
+        </button>
+      </nav>
       <div class="tituloMenu" id="tituloMenu">Planillas</div>
       <nav class="pestanas" id="pestanas" role="tablist" aria-labelledby="tituloMenu"></nav>
       <div class="tituloMenu" id="tituloMapas">Vistas</div>
@@ -873,6 +977,18 @@
     <div class="mapa" id="mapa"></div>
   </div>
 
+  <!-- Solicitudes: tickets de la pestaña "solicitudes" de la planilla Mantenciones -->
+  <div class="vista vistaSolicitudes" id="vistaSolicitudes" hidden>
+    <div class="solicitudesBarra">
+      <div class="chips" id="filtroTecnico" role="group" aria-label="Filtrar por técnico"></div>
+      <button class="botonIcono" id="btnRecargarSolicitudes" type="button" title="Recargar" aria-label="Recargar solicitudes">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
+      </button>
+      <button class="botonPrimario" id="btnNuevoTicket" type="button">+ Nuevo ticket</button>
+    </div>
+    <div class="tablero" id="tablero"></div>
+  </div>
+
   <!-- Línea de tiempo: todos los centros con sus periodos (SAMS + Historial) -->
   <div class="vista vistaTiempo" id="vistaTiempo" hidden>
     <div class="tiempoBarra">
@@ -902,6 +1018,8 @@
   <div class="panelCuerpo" id="panelCuerpo"></div>
   <div class="panelPie" id="panelPie"></div>
 </aside>
+
+<dialog class="dialogoTicket" id="dialogoTicket" aria-labelledby="dialogoTitulo"></dialog>
 
 <div id="aviso" role="status"></div>
 <div class="tooltipTiempo" id="tooltipTiempo" hidden></div>
@@ -1068,6 +1186,7 @@ async function iniciar() {
   dibujarPestanas();
   await cambiarHoja(estado.hojaActual || r.hojas[0].id);
   precargarHojas();
+  cargarSolicitudes({ silencioso: true });  // para la cantidad por aceptar en el menú
 }
 
 // Lee en segundo plano las otras planillas: así cambiar entre ellas es inmediato
@@ -1159,6 +1278,8 @@ function mostrarVista(vista) {
   document.getElementById('vistaTabla').hidden = vista !== 'tabla';
   document.getElementById('vistaMapa').hidden = vista !== 'mapa';
   document.getElementById('vistaTiempo').hidden = vista !== 'tiempo';
+  document.getElementById('vistaSolicitudes').hidden = vista !== 'solicitudes';
+  document.getElementById('btnSolicitudes').setAttribute('aria-selected', vista === 'solicitudes' ? 'true' : 'false');
   document.getElementById('accionesHoja').hidden = vista !== 'tabla';
   document.getElementById('btnTiempo').setAttribute('aria-selected', vista === 'tiempo' ? 'true' : 'false');
   document.querySelectorAll('#pestanas button').forEach(b => {
@@ -1222,6 +1343,8 @@ function mostrarHoraActualizacion() {
 }
 
 setInterval(recargarSiCorresponde, 30 * 1000);
+setInterval(recargarSolicitudesSiCorresponde, 30 * 1000);
+document.addEventListener('visibilitychange', recargarSolicitudesSiCorresponde);
 document.addEventListener('visibilitychange', recargarSiCorresponde);
 
 // ---------- Columnas visibles ----------
@@ -2479,6 +2602,366 @@ function exportarCsvMapa() {
   URL.revokeObjectURL(a.href);
 }
 
+// ---------- Solicitudes (tickets) ----------
+// Tickets de la pestaña "solicitudes" de la planilla Mantenciones. Los botones hacen lo mismo
+// que los de la pestaña "ingreso": Aceptar, Cerrar, Gestión centro / terreno y Nuevo ticket.
+
+const TICKETS = {
+  minutosAtencion: 30,     // por aceptar: amarillo desde aquí
+  minutosUrgente: 120,     // por aceptar: rojo desde aquí
+  diasGestionLarga: 3      // en gestión: se marca desde aquí
+};
+const CLAVE_TECNICO = 'mantenciones.solicitudes.tecnico';      // filtro del tablero
+const CLAVE_MI_TECNICO = 'mantenciones.solicitudes.miTecnico'; // último técnico elegido en un formulario
+let solicitudes = null, solicitudesEn = 0, cargandoSolicitudes = false;
+let filtroTecnicoActual = '';
+try { filtroTecnicoActual = localStorage.getItem(CLAVE_TECNICO) || ''; } catch {}
+
+async function abrirSolicitudes() {
+  abrirMenu(false);
+  if (!cerrarPanel()) return;
+  mostrarVista('solicitudes');
+  document.getElementById('tituloHoja').textContent = 'Solicitudes';
+  if (solicitudes) dibujarSolicitudes();
+  else document.getElementById('conteo').textContent = 'Cargando…';
+  await cargarSolicitudes({ silencioso: !!solicitudes });
+}
+
+async function cargarSolicitudes(opciones) {
+  if (cargandoSolicitudes) return;
+  cargandoSolicitudes = true;
+  const boton = document.getElementById('btnRecargarSolicitudes');
+  boton.classList.add('cargando');
+  const r = await api('/api/solicitudes');
+  boton.classList.remove('cargando');
+  cargandoSolicitudes = false;
+  if (!r.ok) {
+    if (!opciones?.silencioso && estado.vista === 'solicitudes') {
+      document.getElementById('tablero').innerHTML = '';
+      document.getElementById('conteo').textContent = r.error || 'No se pudieron leer las solicitudes.';
+    }
+    return;
+  }
+  solicitudes = r;
+  solicitudesEn = Date.now();
+  r.tickets.forEach(t => { t.columna = columnaTicket(t); });
+  const porAceptar = r.tickets.filter(t => t.columna === 'aceptar').length;
+  const insignia = document.getElementById('insigniaSolicitudes');
+  insignia.textContent = porAceptar;
+  insignia.hidden = !porAceptar;
+  if (estado.vista === 'solicitudes') dibujarSolicitudes();
+}
+
+function recargarSolicitudesSiCorresponde() {
+  if (document.hidden || document.getElementById('dialogoTicket').open) return;
+  if (document.getElementById('vistaApp').style.display !== 'flex') return;
+  // A la vista se actualiza cada minuto; si no, cada 2 minutos solo para la cantidad del menú
+  const espera = estado.vista === 'solicitudes' ? 60 * 1000 : RECARGA_AUTOMATICA_MS;
+  if (Date.now() - solicitudesEn >= espera) cargarSolicitudes({ silencioso: true });
+}
+
+// "05-08-2026 - 06:34" o "2026-10-02 - 18:02" (la planilla usa los dos formatos)
+function fechaTicket(texto) {
+  const m = String(texto || '').match(/(\d{1,4})-(\d{1,2})-(\d{1,4})\s*-\s*(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const [a, mes, c, h, min] = m.slice(1).map(Number);
+  const [anio, dia] = m[1].length === 4 ? [a, c] : [c, a];
+  return new Date(anio, mes - 1, dia, h, min);
+}
+
+function columnaTicket(t) {
+  const e = normalizar(t.estado);
+  if (e.startsWith('finaliz')) return 'finalizado';
+  if (e.startsWith('gestion')) return 'gestion';
+  return t.aceptacion ? 'curso' : 'aceptar';
+}
+
+function haceCuanto(fecha) {
+  if (!fecha) return '';
+  const min = Math.max(0, Math.round((Date.now() - fecha) / 60000));
+  if (min < 60) return 'hace ' + min + ' min';
+  const h = Math.floor(min / 60);
+  if (h < 24) return 'hace ' + h + ' h' + (min % 60 ? ' ' + (min % 60) + ' min' : '');
+  const d = Math.floor(h / 24);
+  return 'hace ' + d + (d === 1 ? ' día' : ' días');
+}
+
+const horaDe = f => f ? f.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '';
+const mismoDia = (a, b) => a && a.toDateString() === b.toDateString();
+
+// Fecha en que pasó a gestión: "Centro // 2026-10-22 - 09:09" o "Terreno // …"
+function inicioGestion(t) {
+  const fechas = [t.gestionCentro, t.gestionTerreno].map(fechaTicket).filter(Boolean);
+  return fechas.length ? new Date(Math.max(...fechas)) : fechaTicket(t.fechaTecnico);
+}
+
+function dibujarSolicitudes() {
+  if (!solicitudes) return;
+  const hoy = new Date();
+  const tickets = solicitudes.tickets;
+  const columnas = {
+    aceptar: tickets.filter(t => t.columna === 'aceptar'),
+    curso: tickets.filter(t => t.columna === 'curso'),
+    gestion: tickets.filter(t => t.columna === 'gestion'),
+    finalizado: tickets.filter(t => t.columna === 'finalizado' && mismoDia(fechaTicket(t.fechaTecnico), hoy))
+  };
+
+  // Filtro por técnico: no aplica a "Por aceptar", que todavía no tienen técnico
+  const tecnicos = [...new Set(['curso', 'gestion', 'finalizado'].flatMap(c => columnas[c].map(t => t.tecnico)).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  if (filtroTecnicoActual && !tecnicos.includes(filtroTecnicoActual)) filtroTecnicoActual = '';
+  const caja = document.getElementById('filtroTecnico');
+  caja.innerHTML = '';
+  ['', ...tecnicos].forEach(nombre => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = nombre || 'Todos los técnicos';
+    b.setAttribute('aria-pressed', nombre === filtroTecnicoActual ? 'true' : 'false');
+    b.addEventListener('click', () => {
+      filtroTecnicoActual = nombre;
+      try { localStorage.setItem(CLAVE_TECNICO, nombre); } catch {}
+      dibujarSolicitudes();
+    });
+    caja.appendChild(b);
+  });
+  if (filtroTecnicoActual) ['curso', 'gestion', 'finalizado'].forEach(c => {
+    columnas[c] = columnas[c].filter(t => t.tecnico === filtroTecnicoActual);
+  });
+
+  const porFecha = (campo, desc) => (a, b) => ((fechaTicket(a[campo]) || 0) - (fechaTicket(b[campo]) || 0)) * (desc ? -1 : 1);
+  columnas.aceptar.sort(porFecha('fecha'));
+  columnas.curso.sort(porFecha('aceptacion'));
+  columnas.gestion.sort((a, b) => (inicioGestion(a) || 0) - (inicioGestion(b) || 0));
+  columnas.finalizado.sort(porFecha('fechaTecnico', true));
+
+  const abiertos = tickets.filter(t => t.columna !== 'finalizado').length;
+  document.getElementById('conteo').textContent = abiertos + (abiertos === 1 ? ' abierto' : ' abiertos') +
+    ' · ' + columnas.aceptar.length + ' por aceptar';
+  document.getElementById('actualizado').textContent = '· Actualizado ' + horaDe(new Date(solicitudesEn));
+
+  const titulos = { aceptar: 'Por aceptar', curso: 'En curso', gestion: 'En gestión', finalizado: 'Finalizadas hoy' };
+  const vacios = { aceptar: 'No hay tickets esperando.', curso: 'Nadie está atendiendo un ticket.', gestion: 'No hay tickets en gestión.', finalizado: 'Todavía no se cierra ninguno hoy.' };
+  const tablero = document.getElementById('tablero');
+  const scroll = [...tablero.querySelectorAll('.listaTickets')].map(l => l.scrollTop);
+  tablero.innerHTML = '';
+  Object.keys(titulos).forEach((c, i) => {
+    const col = document.createElement('section');
+    col.className = 'columnaTickets';
+    col.innerHTML = '<h3></h3><div class="listaTickets"></div>';
+    col.querySelector('h3').innerHTML = escaparHtml(titulos[c]) + '<span>' + columnas[c].length + '</span>';
+    const lista = col.querySelector('.listaTickets');
+    if (!columnas[c].length) lista.innerHTML = '<div class="vacio">' + vacios[c] + '</div>';
+    columnas[c].forEach(t => lista.appendChild(tarjetaTicket(t)));
+    tablero.appendChild(col);
+    lista.scrollTop = scroll[i] || 0;
+  });
+}
+
+function tarjetaTicket(t) {
+  const div = document.createElement('article');
+  const quien = t.nombre && normalizar(t.telefono) !== 'interno' ? t.nombre : (t.nombre ? t.nombre + ' (interno)' : '');
+  let clase = 'normal', meta = '', etiqueta = '', botones = [];
+
+  if (t.columna === 'aceptar') {
+    const recibido = fechaTicket(t.fecha);
+    const min = recibido ? (Date.now() - recibido) / 60000 : 0;
+    clase = min >= TICKETS.minutosUrgente ? 'urgente' : min >= TICKETS.minutosAtencion ? 'atencion' : 'normal';
+    if (clase !== 'normal') etiqueta = 'esperando';
+    meta = quien + ' · ' + haceCuanto(recibido);
+    botones = [['Aceptar', 'aceptar', true]];
+  } else if (t.columna === 'curso') {
+    const desde = fechaTicket(t.aceptacion);
+    meta = (t.tecnico || 'Sin técnico') + ' · desde ' + horaDe(desde) + ' (' + haceCuanto(desde) + ')';
+    botones = [['Cerrar', 'cerrar', true], ['Centro', 'gestionCentro'], ['Terreno', 'gestionTerreno']];
+  } else if (t.columna === 'gestion') {
+    const desde = inicioGestion(t);
+    const dias = desde ? (Date.now() - desde) / 86400000 : 0;
+    clase = dias >= TICKETS.diasGestionLarga ? 'urgente' : 'gestion';
+    if (clase === 'urgente') etiqueta = 'lleva mucho';
+    meta = (normalizar(t.estado).includes('terreno') ? 'Terreno' : 'Centro') + ' · ' + (t.tecnico || '') + ' · ' + haceCuanto(desde);
+    botones = [['Cerrar', 'cerrar', true]];
+  } else {
+    clase = 'finalizado';
+    meta = (t.tecnico || '') + ' · ' + horaDe(fechaTicket(t.fechaTecnico)) + (t.tipo ? ' · ' + t.tipo : '');
+  }
+  div.className = 'ticket ' + clase;
+  div.innerHTML = '<div class="cabeceraTicket"><strong></strong><span class="numero"></span></div>' +
+    '<div class="problema"></div><div class="meta"></div>';
+  div.querySelector('strong').textContent = t.centro || 'Sin centro';
+  div.querySelector('.numero').textContent = '#' + t.id;
+  div.querySelector('.problema').textContent = t.problema;
+  div.querySelector('.meta').textContent = meta;
+  if (t.observaciones && t.columna !== 'aceptar') {
+    const nota = document.createElement('div');
+    nota.className = 'nota';
+    nota.textContent = t.observaciones;
+    div.appendChild(nota);
+  }
+  if (etiqueta) {
+    const e = document.createElement('span');
+    e.className = 'etiqueta';
+    e.textContent = etiqueta;
+    div.appendChild(e);
+  }
+  if (botones.length) {
+    const acciones = document.createElement('div');
+    acciones.className = 'acciones';
+    botones.forEach(([texto, modo, principal]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = principal ? 'botonPrimario' : 'botonSecundario';
+      b.textContent = texto;
+      b.title = { gestionCentro: 'Pasar a gestión con el centro', gestionTerreno: 'Pasar a gestión en terreno' }[modo] || '';
+      b.addEventListener('click', () => abrirDialogoTicket(modo, t));
+      acciones.appendChild(b);
+    });
+    div.appendChild(acciones);
+  }
+  return div;
+}
+
+// Formulario de cada acción. modo: aceptar | cerrar | gestionCentro | gestionTerreno | nuevo
+function abrirDialogoTicket(modo, t) {
+  if (!solicitudes) return;
+  const dialogo = document.getElementById('dialogoTicket');
+  const titulos = {
+    aceptar: 'Aceptar ticket', cerrar: 'Cerrar ticket', gestionCentro: 'Pasar a gestión con el centro',
+    gestionTerreno: 'Pasar a gestión en terreno', nuevo: 'Nuevo ticket'
+  };
+  dialogo.innerHTML = '<form method="dialog" novalidate>' +
+    '<div class="cabeceraDialogo"><div><h2 id="dialogoTitulo"></h2><div class="sub"></div></div>' +
+    '<button type="button" class="cerrarDialogo" aria-label="Cerrar">&times;</button></div>' +
+    '<div class="campos"></div><div class="error" role="alert"></div>' +
+    '<div class="botones"><button type="button" class="botonSecundario cancelar">Cancelar</button>' +
+    '<button type="submit" class="botonPrimario confirmar"></button></div></form>';
+  const form = dialogo.querySelector('form');
+  const campos = form.querySelector('.campos');
+  campos.style.display = 'grid';
+  campos.style.gap = '12px';
+  dialogo.querySelector('h2').textContent = titulos[modo] + (t ? ' #' + t.id + ' · ' + t.centro : '');
+  dialogo.querySelector('.sub').textContent = t ? [t.problema, t.nombre, t.aceptacion ? 'aceptado ' + horaDe(fechaTicket(t.aceptacion)) : ''].filter(Boolean).join(' · ') : 'Para un problema que encontró un técnico';
+  form.querySelector('.confirmar').textContent = { aceptar: 'Aceptar', cerrar: 'Cerrar ticket', nuevo: 'Crear ticket' }[modo] || 'Pasar a gestión';
+
+  let miTecnico = '';
+  try { miTecnico = localStorage.getItem(CLAVE_MI_TECNICO) || ''; } catch {}
+  const tecnico = campoSelect('Técnico', solicitudes.tecnicos, (t && t.tecnico) || miTecnico);
+  campos.appendChild(tecnico.label);
+
+  let centro, opciones, observaciones;
+  if (modo === 'nuevo') {
+    centro = campoSelect('Centro', solicitudes.centros.slice().sort((a, b) => a.localeCompare(b, 'es', { numeric: true })), '');
+    campos.insertBefore(centro.label, tecnico.label);
+  }
+  if (modo === 'cerrar' || modo === 'nuevo') {
+    opciones = campoOpciones(modo === 'cerrar' ? 'Tipo de servicio (puedes marcar varios)' : 'Tipo de problema (puedes marcar varios)', solicitudes.tipos);
+    campos.appendChild(opciones.label);
+  }
+  if (modo !== 'aceptar') {
+    const l = document.createElement('label');
+    l.innerHTML = '<span>Observaciones</span><textarea></textarea>';
+    observaciones = l.querySelector('textarea');
+    campos.appendChild(l);
+  }
+  // Qué pasa al confirmar, para que nadie mande un mensaje sin darse cuenta
+  const aviso = document.createElement('div');
+  aviso.className = 'aviso';
+  aviso.textContent = {
+    aceptar: 'Se guarda la hora de inicio de la mantención.',
+    cerrar: normalizar(t?.telefono) === 'interno' ? 'El ticket queda Finalizado.' : 'El ticket queda Finalizado y se le avisa por WhatsApp a ' + (t?.nombre || 'quien lo pidió') + '.',
+    gestionCentro: 'El ticket pasa a Gestión centro y se avisa a Notion.',
+    gestionTerreno: 'El ticket pasa a Gestión terreno y se avisa a Notion.',
+    nuevo: 'El ticket queda aceptado por el técnico elegido.'
+  }[modo];
+  campos.appendChild(aviso);
+  if (modo === 'cerrar' && opciones) {
+    // Elegir una gestión como tipo de servicio hace lo mismo que en la planilla: no finaliza
+    opciones.alCambiar = elegidas => {
+      const g = elegidas.length === 1 && normalizar(elegidas[0]).startsWith('gestion') ? elegidas[0] : '';
+      aviso.textContent = g ? 'Con "' + g + '" el ticket no se finaliza: pasa a gestión y se avisa a Notion.'
+        : (normalizar(t?.telefono) === 'interno' ? 'El ticket queda Finalizado.' : 'El ticket queda Finalizado y se le avisa por WhatsApp a ' + (t?.nombre || 'quien lo pidió') + '.');
+    };
+  }
+
+  const error = form.querySelector('.error');
+  const cerrar = () => dialogo.close();
+  dialogo.querySelector('.cerrarDialogo').addEventListener('click', cerrar);
+  form.querySelector('.cancelar').addEventListener('click', cerrar);
+  form.addEventListener('input', () => { error.textContent = ''; });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const elegidas = opciones ? opciones.elegidas() : [];
+    if (centro && !centro.select.value) { error.textContent = 'Elige el centro.'; return; }
+    if (!tecnico.select.value) { error.textContent = 'Elige el técnico.'; return; }
+    if (opciones && !elegidas.length) { error.textContent = 'Marca al menos un tipo.'; return; }
+
+    const datos = { tecnico: tecnico.select.value, observaciones: observaciones ? observaciones.value.trim() : '' };
+    let ruta;
+    if (modo === 'nuevo') { ruta = 'nuevo'; Object.assign(datos, { centro: centro.select.value, problemas: elegidas }); }
+    else {
+      Object.assign(datos, { fila: t.fila, id: t.id });
+      if (modo === 'aceptar') ruta = 'aceptar';
+      else if (modo === 'cerrar') { ruta = 'cerrar'; datos.tipos = elegidas; }
+      else { ruta = 'gestion'; datos.gestion = modo === 'gestionCentro' ? 'centro' : 'terreno'; }
+    }
+    const boton = form.querySelector('.confirmar');
+    const textoBoton = boton.textContent;
+    boton.disabled = true;
+    boton.textContent = 'Guardando…';
+    const r = await api('/api/solicitudes/' + ruta, { method: 'POST', body: JSON.stringify(datos) });
+    boton.disabled = false;
+    boton.textContent = textoBoton;
+    if (!r.ok) {
+      error.textContent = r.error || 'No se pudo guardar.';
+      if (r.conflicto) cargarSolicitudes({ silencioso: true });
+      return;
+    }
+    try { localStorage.setItem(CLAVE_MI_TECNICO, datos.tecnico); } catch {}
+    dialogo.close();
+    const listo = { aceptar: 'Ticket aceptado', nuevo: 'Ticket #' + r.id + ' creado' }[modo] || ('Ticket ' + (r.estado === 'Finalizado' ? 'finalizado' : 'en ' + (r.estado || 'gestión').toLowerCase()));
+    avisar(r.aviso ? listo + '. ' + r.aviso : listo, !!r.aviso);
+    cargarSolicitudes({ silencioso: true });
+  });
+  dialogo.showModal();
+  (centro || tecnico).select.focus();
+}
+
+function campoSelect(titulo, valores, elegido) {
+  const label = document.createElement('label');
+  label.innerHTML = '<span></span><select></select>';
+  label.firstChild.textContent = titulo;
+  const select = label.querySelector('select');
+  select.add(new Option('Elegir…', ''));
+  valores.forEach(v => select.add(new Option(v, v)));
+  if (valores.includes(elegido)) select.value = elegido;
+  return { label, select };
+}
+
+// Lista de opciones marcables como botones; devuelve las elegidas en el orden de la lista
+function campoOpciones(titulo, valores) {
+  const label = document.createElement('div');
+  label.style.display = 'grid';
+  label.style.gap = '5px';
+  label.innerHTML = '<span style="font-size:13px;color:var(--suave)"></span><div class="chips opciones" role="group"></div>';
+  label.firstChild.textContent = titulo;
+  const caja = label.querySelector('.opciones');
+  caja.setAttribute('aria-label', titulo);
+  const campo = { label, alCambiar: null };
+  campo.elegidas = () => [...caja.querySelectorAll('button[aria-pressed="true"]')].map(b => b.textContent);
+  valores.forEach(v => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = v;
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => {
+      b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+      label.closest('form')?.querySelector('.error')?.replaceChildren();
+      campo.alCambiar?.(campo.elegidas());
+    });
+    caja.appendChild(b);
+  });
+  return campo;
+}
+
 // ---------- Línea de tiempo ----------
 // Todos los centros, juntando SAMS (vigentes) e Historial (terminados). Se filtran por activados,
 // desactivados o con más de un periodo.
@@ -2742,6 +3225,9 @@ function abrirPeriodoDesdeTiempo(p) {
 }
 
 document.getElementById('btnTiempo').addEventListener('click', abrirLineaTiempo);
+document.getElementById('btnSolicitudes').addEventListener('click', abrirSolicitudes);
+document.getElementById('btnRecargarSolicitudes').addEventListener('click', () => cargarSolicitudes());
+document.getElementById('btnNuevoTicket').addEventListener('click', () => abrirDialogoTicket('nuevo'));
 document.getElementById('buscarTiempo').addEventListener('input', dibujarLineaTiempo);
 
 document.getElementById('btnMapa').addEventListener('click', abrirMapa);

@@ -39,6 +39,15 @@ function doPost(e) {
       return responder({ ok: false, error: 'No autorizado' });
     }
 
+    // Tickets de la planilla Mantenciones (pestaña solicitudes)
+    switch (body.accion) {
+      case 'solicitudesLeer':    return responder(solicitudesLeer());
+      case 'solicitudesAceptar': return responder(solicitudesAceptar(body));
+      case 'solicitudesCerrar':  return responder(solicitudesCerrar(body));
+      case 'solicitudesGestion': return responder(solicitudesGestion(body));
+      case 'solicitudesNuevo':   return responder(solicitudesNuevo(body));
+    }
+
     const config = HOJAS[body.hoja];
     if (!config) return responder({ ok: false, error: 'Hoja no permitida' });
 
@@ -327,6 +336,198 @@ function codigoUnico(sheet, config, encabezados, centro, inicio) {
   let codigo = base, n = 2;
   while (existentes.includes(normalizar(codigo))) codigo = base + '-' + n++;
   return codigo;
+}
+
+// ---------- Solicitudes (tickets de mantención) ----------
+// Hacen exactamente lo mismo que los botones de la pestaña "ingreso" de la planilla Mantenciones:
+// mismas columnas, mismos formatos de fecha y mismos avisos a n8n. Así el bot, las fórmulas
+// de "datos" y los botones de la planilla siguen funcionando igual.
+
+const SOLICITUDES = {
+  archivoId: '1QCxGh77VEYD0nYUFlvH6qnJIw5PmqohScf1H5tqF1wU',
+  pestana: 'solicitudes',
+  listas: 'datos',  // E: técnicos, I: tipos de problema/servicio, J: centros
+  webhookMensaje: 'https://n8n-n8n.ax8fpu.easypanel.host/webhook/mandar_mensaje',
+  webhookNotion: 'https://n8n-n8n.ax8fpu.easypanel.host/webhook/notion'
+};
+// Columnas de la pestaña solicitudes (1 = A)
+const COL = { id: 1, fecha: 2, nombre: 3, telefono: 4, centro: 5, problema: 6, estado: 7, tecnico: 8,
+  tipo: 9, observaciones: 10, fechaTecnico: 11, aceptacion: 12, gestionCentro: 13, gestionTerreno: 14 };
+
+function solicitudesLeer() {
+  const ss = SpreadsheetApp.openById(SOLICITUDES.archivoId);
+  const sheet = ss.getSheetByName(SOLICITUDES.pestana);
+  const valores = sheet.getDataRange().getDisplayValues();
+  const tickets = [];
+  for (let r = 1; r < valores.length; r++) {
+    const f = valores[r];
+    if (!/^\d+$/.test(String(f[0]).trim())) continue;  // la fila 2 es un aviso, no un ticket
+    tickets.push({
+      fila: r + 1, id: f[0].trim(), fecha: f[1].trim(), nombre: f[2], telefono: f[3], centro: f[4], problema: f[5],
+      estado: f[6], tecnico: f[7], tipo: f[8], observaciones: f[9], fechaTecnico: f[10].trim(),
+      aceptacion: f[11].trim(), gestionCentro: f[12] || '', gestionTerreno: f[13] || ''
+    });
+  }
+  const datos = ss.getSheetByName(SOLICITUDES.listas).getDataRange().getDisplayValues();
+  const columna = i => [...new Set(datos.map(f => String(f[i] || '').trim()).filter(Boolean))];
+  return {
+    ok: true,
+    tickets: tickets,
+    tecnicos: columna(4),
+    tipos: columna(8),
+    centros: columna(9),
+    zona: ss.getSpreadsheetTimeZone()
+  };
+}
+
+// Aceptar = "abrir ticket": guarda el técnico (H) y la hora de inicio (L)
+function solicitudesAceptar(body) {
+  if (!body.tecnico) return { ok: false, error: 'Falta el técnico' };
+  return conTicket(body, (ss, sheet, fila) => {
+    if (sheet.getRange(fila, COL.aceptacion).getDisplayValue().trim()) {
+      return { ok: false, conflicto: true, error: 'Ese ticket ya fue aceptado. Recarga la página.' };
+    }
+    sheet.getRange(fila, COL.tecnico).setValue(body.tecnico);
+    sheet.getRange(fila, COL.aceptacion).setValue(ahora(ss, 'dd-MM-yyyy - HH:mm'));
+    SpreadsheetApp.flush();
+    registrar([new Date(), body.usuario || '', 'Solicitudes', fila, body.id, '(ticket aceptado)', '', body.tecnico]);
+    return { ok: true };
+  });
+}
+
+// Cerrar ticket (registrarSolicitud): Finalizado y mensaje a la bióloga.
+// Si el tipo de servicio es una gestión, pasa a Gestión centro / terreno como en la planilla.
+function solicitudesCerrar(body) {
+  const tipo = unirOpciones(body.tipos);
+  if (!body.tecnico || !tipo) return { ok: false, error: 'Completa el técnico y el tipo de servicio' };
+  return conTicket(body, (ss, sheet, fila) => {
+    if (!sheet.getRange(fila, COL.aceptacion).getDisplayValue().trim()) {
+      return { ok: false, error: 'Primero hay que aceptar el ticket (no tiene fecha de aceptación).' };
+    }
+    const fechaHora = ahora(ss, 'yyyy-MM-dd - HH:mm');
+    let estado = 'Finalizado', webhook = SOLICITUDES.webhookMensaje;
+    if (tipo.toLowerCase() === 'gestión ayuda centro') {
+      estado = 'Gestión centro'; webhook = SOLICITUDES.webhookNotion;
+      sheet.getRange(fila, COL.gestionCentro).setValue('Centro // ' + fechaHora);
+    } else if (tipo.toLowerCase() === 'gestión ingreso terreno') {
+      estado = 'Gestión terreno'; webhook = SOLICITUDES.webhookNotion;
+      sheet.getRange(fila, COL.gestionTerreno).setValue('Terreno // ' + fechaHora);
+    }
+    return guardarCierre(ss, sheet, fila, body, estado, tipo, fechaHora, webhook);
+  });
+}
+
+// Botones "Gestión ayuda centro" / "Gestión ingreso terreno" (registrarSolicitudTipo)
+function solicitudesGestion(body) {
+  if (!body.tecnico) return { ok: false, error: 'Falta el técnico' };
+  if (body.gestion !== 'centro' && body.gestion !== 'terreno') return { ok: false, error: 'Gestión no válida' };
+  return conTicket(body, (ss, sheet, fila) => {
+    const fechaHora = ahora(ss, 'yyyy-MM-dd - HH:mm');
+    let estado, tipo;
+    if (body.gestion === 'centro') {
+      estado = 'Gestión centro'; tipo = 'Gestión ayuda centro';
+      sheet.getRange(fila, COL.gestionCentro).setValue('Centro // ' + fechaHora);
+    } else {
+      estado = 'Gestión terreno'; tipo = 'Gestión ingreso terreno';
+      sheet.getRange(fila, COL.gestionTerreno).setValue('Terreno // ' + fechaHora);
+    }
+    return guardarCierre(ss, sheet, fila, body, estado, tipo, fechaHora, SOLICITUDES.webhookNotion);
+  });
+}
+
+// Ticket ingresado por un técnico (crearSolicitudTecnico): queda aceptado por él mismo
+function solicitudesNuevo(body) {
+  const centro = String(body.centro || '').trim();
+  const tecnico = String(body.tecnico || '').trim();
+  const problema = unirOpciones(body.problemas);
+  if (!centro || !tecnico || !problema) return { ok: false, error: 'Completa centro, técnico y tipo de problema' };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ss = SpreadsheetApp.openById(SOLICITUDES.archivoId);
+    const sheet = ss.getSheetByName(SOLICITUDES.pestana);
+    const ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues()
+      .map(f => Number(f[0])).filter(n => !isNaN(n) && n > 0);
+    const nuevoId = Math.max(0, ...ids) + 1;
+    const fecha = ahora(ss, 'dd-MM-yyyy - HH:mm');
+    sheet.appendRow([nuevoId, fecha, tecnico, 'Interno', centro, problema, 'Falla', tecnico, '',
+      comoTexto(body.observaciones), '', fecha, '', '']);
+    SpreadsheetApp.flush();
+    registrar([new Date(), body.usuario || '', 'Solicitudes', sheet.getLastRow(), nuevoId, '(ticket nuevo)', centro, problema]);
+    return { ok: true, id: nuevoId };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Escribe G a K, avisa a n8n y deja registro. Común a cerrar y gestión.
+function guardarCierre(ss, sheet, fila, body, estado, tipo, fechaHora, webhook) {
+  const observaciones = comoTexto(body.observaciones);
+  sheet.getRange(fila, COL.estado, 1, 5).setValues([[estado, body.tecnico, tipo, observaciones, fechaHora]]);
+  SpreadsheetApp.flush();
+  registrar([new Date(), body.usuario || '', 'Solicitudes', fila, body.id, '(ticket → ' + estado + ')', tipo, observaciones]);
+
+  const f = sheet.getRange(fila, 1, 1, COL.problema).getDisplayValues()[0];
+  // El "id" que manda la planilla es el texto de la lista: "189 / Ensenada / 28-10 / Bomba sin cebar"
+  const payload = {
+    id: [f[0], f[COL.centro - 1], String(f[COL.fecha - 1]).slice(0, 5), f[COL.problema - 1]].join(' / '),
+    telefono: f[COL.telefono - 1], centro: f[COL.centro - 1], problema: f[COL.problema - 1],
+    tecnico: body.tecnico, tipoServicio: tipo, observaciones: observaciones, fechaHora: fechaHora, estado: estado
+  };
+  let aviso = '';
+  if (PropertiesService.getScriptProperties().getProperty('WEBHOOKS') === 'no') {
+    aviso = 'Avisos a n8n apagados (propiedad WEBHOOKS = no).';
+  } else {
+    try {
+      enviarConReintento(webhook, {
+        method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true
+      });
+    } catch (err) {
+      aviso = 'Se guardó, pero no se pudo avisar a n8n: ' + err.message;
+    }
+  }
+  return { ok: true, estado: estado, aviso: aviso };
+}
+
+// Ubica el ticket por fila y confirma que ahí sigue el mismo ID antes de escribir
+function conTicket(body, accion) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ss = SpreadsheetApp.openById(SOLICITUDES.archivoId);
+    const sheet = ss.getSheetByName(SOLICITUDES.pestana);
+    const fila = Number(body.fila);
+    if (!Number.isInteger(fila) || fila < 2 || fila > sheet.getLastRow()) return { ok: false, error: 'Fila no válida' };
+    if (sheet.getRange(fila, COL.id).getDisplayValue().trim() !== String(body.id)) {
+      return { ok: false, conflicto: true, error: 'El ticket cambió de lugar en la planilla. Recarga la página.' };
+    }
+    return accion(ss, sheet, fila);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Varias opciones en una celda de lista múltiple: "A, B"; las que llevan coma van entre comillas
+function unirOpciones(lista) {
+  if (!Array.isArray(lista)) lista = [lista];
+  return lista.map(v => String(v || '').trim()).filter(Boolean)
+    .map(v => v.includes(',') && !/^".*"$/.test(v) ? '"' + v + '"' : v).join(', ');
+}
+
+function ahora(ss, formato) {
+  return Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), formato);
+}
+
+function enviarConReintento(url, opciones) {
+  for (let intento = 1; intento <= 3; intento++) {
+    try {
+      const code = UrlFetchApp.fetch(url, opciones).getResponseCode();
+      if (code >= 200 && code < 300) return;
+    } catch (err) {}
+    if (intento < 3) Utilities.sleep(1500 * intento);
+  }
+  throw new Error('n8n no respondió después de 3 intentos');
 }
 
 // ---------- Ayudantes ----------
