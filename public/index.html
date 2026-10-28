@@ -250,6 +250,11 @@
   thead th:first-child { background: var(--azul-claro); z-index: 3; }
   tbody tr { cursor: pointer; }
   tbody tr:hover td { background: #fafcff; }
+  /* Fila completa según Estado: Activado en verde, Pendiente en amarillo */
+  tbody tr.fila-activado td { background: var(--ok-fondo); }
+  tbody tr.fila-activado:hover td { background: #d3ebdb; }
+  tbody tr.fila-pendiente td { background: var(--aviso-fondo); }
+  tbody tr.fila-pendiente:hover td { background: #fbedb8; }
   tbody tr.seleccionada td { background: var(--azul-claro); }
   /* Días restantes: rojo hasta 15, amarillo de 16 a 30 */
   tbody tr td.dias-rojo { background: var(--error-fondo); color: var(--error); font-weight: 600; }
@@ -408,6 +413,16 @@
     font-weight: 600;
   }
   .botonPrimario:hover { background: #0f3a64; }
+  .botonPeligro {
+    background: white;
+    color: var(--error);
+    border: 1px solid var(--error);
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .botonPeligro:hover { background: var(--error-fondo); }
   button:disabled { opacity: 0.6; cursor: wait; }
 
   .mensajeCentro { padding: 40px 20px; text-align: center; color: var(--suave); }
@@ -513,7 +528,7 @@
     <div class="marca">
       <h1><img class="logo" src="logo-retina.jpg" alt="" />Retina</h1>
       <div class="nombre" id="nombreUsuario"></div>
-      <div class="rol">Mantenciones</div>
+      <div class="rol" id="rolUsuario">Mantenciones</div>
     </div>
     <div class="tituloMenu" id="tituloMenu">Planillas</div>
     <nav class="pestanas" id="pestanas" role="tablist" aria-labelledby="tituloMenu"></nav>
@@ -576,6 +591,7 @@
 <script>
 const estado = {
   usuario: null,
+  admin: false,         // solo los administradores ven "Eliminar"
   hojas: [],
   hojaActual: null,
   datos: null,          // respuesta del servidor: columnas, filas, columnaClave
@@ -670,6 +686,7 @@ function mostrarApp() {
   document.getElementById('vistaApp').style.display = 'flex';
   document.getElementById('encabezadoLogin').hidden = true;
   document.getElementById('nombreUsuario').textContent = estado.usuario;
+  document.getElementById('rolUsuario').textContent = estado.admin ? 'Administrador' : 'Mantenciones';
 }
 
 // ---------- Menú lateral en celular ----------
@@ -713,6 +730,7 @@ async function iniciar() {
   const r = await api('/api/yo');
   if (!r.ok) { mostrarLogin(); return; }
   estado.usuario = r.usuario;
+  estado.admin = !!r.admin;
   estado.hojas = r.hojas;
   mostrarApp();
   dibujarPestanas();
@@ -955,6 +973,9 @@ function dibujarTabla() {
     tr.tabIndex = 0;
     tr.dataset.fila = f.fila;
     if (f.fila === estado.filaAbierta) tr.classList.add('seleccionada');
+    const estadoFila = normalizar(f.celdas['Estado'] || '');
+    if (estadoFila.startsWith('activad')) tr.classList.add('fila-activado');
+    else if (estadoFila.startsWith('pendient')) tr.classList.add('fila-pendiente');
     tr.addEventListener('click', () => abrirPanel(f.fila));
     tr.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); abrirPanel(f.fila); }
@@ -1112,6 +1133,7 @@ function dibujarPanel(fila) {
   };
   if (modo === 'ver') {
     boton('Editar', 'botonPrimario', () => { estado.modoPanel = 'editar'; dibujarPanel(fila); });
+    if (estado.admin) boton('Eliminar', 'botonPeligro', () => eliminarCentro(fila));
   } else if (modo === 'editar') {
     boton('Guardar cambios', 'botonPrimario', guardarCambios);
     boton('Cancelar', 'botonSecundario', () => {
@@ -1310,6 +1332,34 @@ async function guardarCambios() {
     botonesPie(true);
     document.getElementById('panelTitulo').textContent = fila.celdas[clave] || 'Fila ' + fila.fila;
   }
+}
+
+// Solo administradores (el servidor también lo verifica)
+async function eliminarCentro(fila) {
+  const clave = estado.datos.columnaClave;
+  const nombre = fila.celdas[clave] || '';
+  const seguro = confirm(
+    '¿Eliminar el centro "' + nombre + '"?\n\n' +
+    'Se borrará la fila completa del Sheet. Queda una copia de sus datos en el log de ediciones.'
+  );
+  if (!seguro) return;
+
+  botonesPie(false);
+  const r = await api('/api/hojas/' + estado.hojaActual + '/eliminar', {
+    method: 'POST',
+    body: JSON.stringify({ fila: fila.fila, clave: fila.celdas[clave] || '' })
+  });
+  if (!r.ok) {
+    botonesPie(true);
+    avisar(r.error || 'No se pudo eliminar el centro', true);
+    return;
+  }
+
+  document.getElementById('panel').hidden = true;
+  estado.filaAbierta = null;
+  estado.modoPanel = null;
+  await cargarHoja();
+  avisar('Centro "' + nombre + '" eliminado');
 }
 
 async function agregarCentro() {

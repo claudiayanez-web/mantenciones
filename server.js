@@ -12,6 +12,7 @@ const {
   MANTENCIONES_SCRIPT_URL,
   MANTENCIONES_SECRETO,
   USUARIOS = '',
+  ADMINS = '',
   SESION_SECRETO
 } = process.env;
 
@@ -40,6 +41,12 @@ const usuarios = Object.fromEntries(
       return [par.slice(0, i).trim().toLowerCase(), par.slice(i + 1).trim()];
     })
 );
+
+// Administradores: pueden eliminar centros. ADMINS=claudia (separados por coma)
+const admins = ADMINS.split(',').map(u => u.trim().toLowerCase()).filter(Boolean);
+function esAdmin(usuario) {
+  return admins.includes(usuario);
+}
 
 const DURACION_SESION_MS = 12 * 60 * 60 * 1000; // 12 horas
 
@@ -153,6 +160,7 @@ app.get('/api/yo', requiereSesion, (req, res) => {
   res.json({
     ok: true,
     usuario: req.usuario,
+    admin: esAdmin(req.usuario),
     hojas: Object.entries(HOJAS).map(([id, h]) => ({ id, titulo: h.titulo }))
   });
 });
@@ -232,4 +240,31 @@ app.post('/api/hojas/:hoja/agregar', requiereSesion, async (req, res) => {
   }
 });
 
-app.listen(PORT,() => console.log('Mantenciones escuchando en puerto ' + PORT));
+// Elimina la fila de un centro. Solo administradores.
+app.post('/api/hojas/:hoja/eliminar', requiereSesion, async (req, res) => {
+  const config = HOJAS[req.params.hoja];
+  if (!config) return res.status(404).json({ ok: false, error: 'Planilla no encontrada' });
+  if (!esAdmin(req.usuario)) {
+    return res.status(403).json({ ok: false, error: 'Solo un administrador puede eliminar centros' });
+  }
+
+  const { fila, clave } = req.body;
+  if (!Number.isInteger(fila) || typeof clave !== 'string' || !clave.trim()) {
+    return res.status(400).json({ ok: false, error: 'Datos inválidos' });
+  }
+
+  try {
+    const resultado = await llamarScript({
+      accion: 'eliminar',
+      hoja: req.params.hoja,
+      usuario: req.usuario,
+      fila, clave
+    });
+    res.status(resultado.ok ? 200 : 409).json(resultado);
+  } catch (err) {
+    console.error('Error al eliminar', req.params.hoja, err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo eliminar. Intenta de nuevo.' });
+  }
+});
+
+app.listen(PORT, () => console.log('Mantenciones escuchando en puerto ' + PORT));

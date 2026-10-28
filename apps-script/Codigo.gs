@@ -36,8 +36,9 @@ function doPost(e) {
     switch (body.accion) {
       case 'leer':    return responder(leer(config));
       case 'editar':  return responder(editar(config, body));
-      case 'agregar': return responder(agregar(config, body));
-      default:        return responder({ ok: false, error: 'Acción no válida' });
+      case 'agregar':  return responder(agregar(config, body));
+      case 'eliminar': return responder(eliminar(config, body));
+      default:         return responder({ ok: false, error: 'Acción no válida' });
     }
   } catch (err) {
     return responder({ ok: false, error: err.message });
@@ -172,6 +173,46 @@ function agregar(config, body) {
     registrar([new Date(), body.usuario || '', config.nombre, nuevaFila, nombre, '(centro nuevo)', '', usadas.join(', ')]);
 
     return { ok: true, fila: nuevaFila };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Borra la fila completa de un centro. El servidor ya verificó que el usuario es administrador.
+// Antes de borrar se confirma que en esa fila sigue el mismo centro, y se guarda una copia
+// de todos sus datos en el log para poder recuperarlos.
+function eliminar(config, body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = abrirPestana(config);
+    const fila = Number(body.fila);
+    const ultimaFila = sheet.getLastRow();
+    const ultimaColumna = sheet.getLastColumn();
+
+    if (!Number.isInteger(fila) || fila <= config.filaEncabezado || fila > ultimaFila) {
+      return { ok: false, error: 'Fila no válida' };
+    }
+
+    const encabezados = sheet.getRange(config.filaEncabezado, 1, 1, ultimaColumna)
+      .getDisplayValues()[0].map(h => String(h).trim());
+    const colClave = encabezados.indexOf(config.columnaClave);
+    if (colClave === -1) return { ok: false, error: 'No se encontró la columna ' + config.columnaClave };
+
+    const valores = sheet.getRange(fila, 1, 1, ultimaColumna).getDisplayValues()[0];
+    if (valores[colClave] !== String(body.clave)) {
+      return { ok: false, conflicto: true, error: 'La fila cambió de lugar en la planilla. Recarga la página.' };
+    }
+
+    const copia = {};
+    encabezados.forEach((h, i) => { if (h) copia[h] = valores[i]; });
+
+    sheet.deleteRow(fila);
+    SpreadsheetApp.flush();
+
+    registrar([new Date(), body.usuario || '', config.nombre, fila, body.clave, '(centro eliminado)', JSON.stringify(copia), '']);
+
+    return { ok: true };
   } finally {
     lock.releaseLock();
   }
