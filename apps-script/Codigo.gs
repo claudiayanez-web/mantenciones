@@ -12,6 +12,14 @@ const HOJAS = {
     pestana: 'SAMS',
     filaEncabezado: 1,
     columnaClave: 'Centro'   // se usa para confirmar que la fila no cambió de lugar
+  },
+  // Periodos terminados: un mismo centro puede aparecer varias veces, por eso la clave es el Código
+  historial: {
+    nombre: 'Historial',
+    archivoId: '1s25_K3_onbvd27gRGesywnS5V7Ty72nI4Kgqw9MxnKI',
+    pestana: 'HISTORIAL',
+    filaEncabezado: 1,
+    columnaClave: 'Código'
   }
 };
 

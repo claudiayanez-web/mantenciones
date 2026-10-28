@@ -396,6 +396,32 @@
     word-break: break-word;
   }
   .campo .vacio { color: #aaa; }
+  .campo input[readonly] { background: #f5f5f5; color: var(--suave); }
+
+  /* Periodos del mismo centro (SAMS + Historial) */
+  .periodos {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid #d5e1ee;
+    border-radius: 10px;
+    background: #f7fafd;
+  }
+  .periodos h3 { margin: 0 0 6px; font-size: 13px; color: var(--azul); }
+  .periodos .periodo {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 6px 8px;
+    margin-top: 2px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--texto);
+    font-size: 13px;
+  }
+  .periodos button.periodo { cursor: pointer; color: var(--azul); }
+  .periodos button.periodo:hover { background: var(--azul-claro); }
+  .periodos .periodo.esEste { font-weight: 600; }
   .campo.cambiado input, .campo.cambiado select { border-color: var(--azul); background: #f4f8fc; }
   .campo.guardando input, .campo.guardando select { background: var(--aviso-fondo); }
   .campo.guardado input { background: var(--ok-fondo); transition: background 1.2s; }
@@ -712,14 +738,25 @@ const estado = {
   orden: { columna: null, asc: true },
   visibles: new Set(),  // nombres de columnas que se muestran en la tabla
   filaAbierta: null,    // número de fila que muestra el panel lateral
-  modoPanel: null       // 'ver', 'editar' o 'nuevo'
+  modoPanel: null,      // 'ver', 'editar' o 'nuevo'
+  cache: {}             // datos ya leídos de cada planilla, para cambiar entre ellas sin esperar
 };
 
-// Columnas que se muestran si el usuario no ha elegido otras
-const COLUMNAS_POR_DEFECTO = [
-  'Centro', 'Estado', 'INICIO', 'FIN', 'Empresa', 'Barrio', 'Bam - Starlink - Internet',
-  'Version', 'Fecha mantención', 'Días restantes'
-];
+// Columnas que se muestran si el usuario no ha elegido otras, por planilla
+const COLUMNAS_POR_DEFECTO = {
+  sams: ['Centro', 'Estado', 'INICIO', 'FIN', 'Empresa', 'Barrio', 'Bam - Starlink - Internet',
+    'Version', 'Fecha mantención', 'Días restantes'],
+  historial: ['Código', 'Centro', 'Estado', 'INICIO', 'FIN', 'Empresa', 'Barrio', 'REGION', 'SIEP', 'Version']
+};
+
+// El mapa de barrios muestra los centros vigentes de esta planilla
+const HOJA_MAPA = 'sams';
+
+// Ícono de cada planilla en el menú (por defecto, una tabla)
+const ICONOS_HOJA = {
+  historial: '<rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/>'
+};
+const ICONO_TABLA = '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>';
 
 // Columnas que se editan con lista desplegable (nombres normalizados).
 // fijas: opciones que siempre aparecen; además se suman los valores que ya hay en la planilla.
@@ -849,7 +886,22 @@ async function iniciar() {
   estado.hojas = r.hojas;
   mostrarApp();
   dibujarPestanas();
-  cambiarHoja(estado.hojaActual || r.hojas[0].id);
+  await cambiarHoja(estado.hojaActual || r.hojas[0].id);
+  precargarHojas();
+}
+
+// Lee en segundo plano las otras planillas: así cambiar entre ellas es inmediato
+// y la ficha de un centro puede mostrar todos sus periodos (SAMS + Historial)
+async function precargarHojas() {
+  for (const h of estado.hojas) {
+    if (estado.cache[h.id]) continue;
+    const r = await api('/api/hojas/' + h.id);
+    if (r.ok) estado.cache[h.id] = prepararDatos(r);
+  }
+  if (estado.modoPanel === 'ver' && estado.filaAbierta !== null) {
+    const fila = buscarFila(estado.filaAbierta);
+    if (fila) dibujarPanel(fila);
+  }
 }
 
 function dibujarPestanas() {
@@ -859,7 +911,8 @@ function dibujarPestanas() {
     const b = document.createElement('button');
     b.type = 'button';
     b.role = 'tab';
-    b.innerHTML = '<svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>';
+    b.innerHTML = '<svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      (ICONOS_HOJA[h.id] || ICONO_TABLA) + '</svg>';
     const texto = document.createElement('span');
     texto.textContent = h.titulo;
     b.appendChild(texto);
@@ -880,13 +933,45 @@ async function cambiarHoja(id) {
     dibujarTabla();
     return;
   }
+  if (id !== estado.hojaActual) estado.orden = { columna: null, asc: true };
   estado.hojaActual = id;
-  estado.orden = { columna: null, asc: true };
   mostrarVista('tabla');
   const hoja = estado.hojas.find(h => h.id === id);
   document.getElementById('tituloHoja').textContent = hoja ? hoja.titulo : '';
   document.getElementById('conteo').textContent = '';
+  // Si ya se había leído, se muestra al instante y se actualiza en segundo plano
+  if (estado.cache[id]) {
+    mostrarHoja(estado.cache[id]);
+    cargarHoja({ silencioso: true });
+    return;
+  }
   await cargarHoja();
+}
+
+// La columna clave va primero, el resto en el orden del Sheet
+function prepararDatos(r) {
+  const clave = r.columnaClave;
+  r.columnas.sort((a, b) => (b.nombre === clave) - (a.nombre === clave));
+  r.cargadoEn = Date.now();
+  return r;
+}
+
+function mostrarHoja(datos) {
+  estado.datos = datos;
+  estado.ultimaCarga = datos.cargadoEn;
+  mostrarHoraActualizacion();
+  document.getElementById('btnAgregar').textContent = '+ ' + textoAgregar();
+  cargarVisibles();
+  llenarFiltros();
+  dibujarTabla();
+}
+
+// En Historial cada fila es un periodo, identificado por su Código
+function hojaConCodigo() {
+  return normalizar(estado.datos?.columnaClave || '') === 'codigo';
+}
+function textoAgregar() {
+  return hojaConCodigo() ? 'Agregar periodo' : 'Agregar centro';
 }
 
 function mostrarVista(vista) {
@@ -906,8 +991,11 @@ async function cargarHoja(opciones) {
   if (!silencioso) contenedor.innerHTML = '<div class="mensajeCentro">Cargando...</div>';
   const botones = document.querySelectorAll('#btnRecargar, #btnRecargarMapa');
   botones.forEach(b => b.classList.add('cargando'));
-  const r = await api('/api/hojas/' + estado.hojaActual);
+  const hoja = estado.hojaActual;
+  const r = await api('/api/hojas/' + hoja);
   botones.forEach(b => b.classList.remove('cargando'));
+  if (r.ok) estado.cache[hoja] = prepararDatos(r);
+  if (estado.hojaActual !== hoja) return;               // se cambió de planilla mientras cargaba
   if (silencioso && (!r.ok || estaEditando())) return;  // se intenta de nuevo en la próxima vuelta
   if (!r.ok) {
     contenedor.innerHTML = '';
@@ -917,15 +1005,7 @@ async function cargarHoja(opciones) {
     contenedor.appendChild(div);
     return;
   }
-  // La columna clave (Centro) va primero, el resto en el orden del Sheet
-  const clave = r.columnaClave;
-  r.columnas.sort((a, b) => (b.nombre === clave) - (a.nombre === clave));
-  estado.datos = r;
-  estado.ultimaCarga = Date.now();
-  mostrarHoraActualizacion();
-  cargarVisibles();
-  llenarFiltros();
-  dibujarTabla();
+  mostrarHoja(r);
   // Si el panel estaba abierto en modo lectura, se vuelve a dibujar con los datos recién leídos.
   // Si se está editando o agregando, no se toca para no perder lo escrito.
   if (estado.filaAbierta !== null && estado.modoPanel === 'ver') {
@@ -978,7 +1058,7 @@ function cargarVisibles() {
     elegidas = nombres.filter(n => guardadas.includes(n));
   }
   if (!elegidas || !elegidas.length) {
-    const porDefecto = COLUMNAS_POR_DEFECTO.map(normalizar);
+    const porDefecto = (COLUMNAS_POR_DEFECTO[estado.hojaActual] || COLUMNAS_POR_DEFECTO.sams).map(normalizar);
     elegidas = nombres.filter(n => porDefecto.includes(normalizar(n)));
   }
   estado.visibles = new Set(elegidas);
@@ -1107,7 +1187,7 @@ function dibujarTabla() {
   const filas = filasVisibles();
   // El mapa usa los mismos datos: si está a la vista, se actualiza con cada cambio
   if (estado.vista === 'mapa') dibujarMapa();
-  else document.getElementById('conteo').textContent = 'Mostrando ' + filas.length + ' de ' + estado.datos.filas.length + ' centros';
+  else document.getElementById('conteo').textContent = 'Mostrando ' + filas.length + ' de ' + estado.datos.filas.length + (hojaConCodigo() ? ' periodos' : ' centros');
 
   const tabla = document.createElement('table');
   const thead = tabla.createTHead();
@@ -1226,11 +1306,13 @@ function dibujarPanel(fila) {
 
   document.getElementById('panelSub').textContent = modo === 'nuevo' ? 'Nuevo registro' : clave;
   document.getElementById('panelTitulo').textContent =
-    modo === 'nuevo' ? 'Agregar centro' : (fila.celdas[clave] || 'Fila ' + fila.fila);
+    modo === 'nuevo' ? textoAgregar() : (fila.celdas[clave] || 'Fila ' + fila.fila);
   document.getElementById('panelAyuda').textContent = {
     ver: 'Para cambiar algún dato presiona "Editar".',
     editar: 'Cambia los campos que necesites y presiona "Guardar cambios". Los campos grises no se editan desde aquí.',
-    nuevo: 'Completa los datos y presiona "Agregar centro". ' + clave + ' es obligatorio. Los campos grises se completan en el Sheet.'
+    nuevo: hojaConCodigo()
+      ? 'Completa los datos y presiona "' + textoAgregar() + '". Centro es obligatorio; el Código se arma solo con Centro e INICIO.'
+      : 'Completa los datos y presiona "' + textoAgregar() + '". ' + clave + ' es obligatorio. Los campos grises se completan en el Sheet.'
   }[modo];
 
   const cuerpo = document.getElementById('panelCuerpo');
@@ -1245,7 +1327,8 @@ function dibujarPanel(fila) {
       const id = 'campo-' + i;
       const label = document.createElement('label');
       label.htmlFor = id;
-      label.textContent = c.nombre + (modo === 'nuevo' && c.nombre === clave ? ' *' : '');
+      const obligatorio = hojaConCodigo() ? normalizar(c.nombre) === 'centro' : c.nombre === clave;
+      label.textContent = c.nombre + (modo === 'nuevo' && obligatorio ? ' *' : '');
       const input = document.createElement('input');
       input.id = id;
       input.value = valor;  // valor completo, también en REGION
@@ -1286,6 +1369,9 @@ function dibujarPanel(fila) {
   if (modo !== 'ver') {
     completarFinAlDesactivar();
     completarBarrioPorUbicacion();
+    if (hojaConCodigo()) codigoAutomatico(modo);
+  } else {
+    agregarPeriodos(fila, cuerpo);
   }
 
   // Botones al pie según el modo
@@ -1311,7 +1397,7 @@ function dibujarPanel(fila) {
       dibujarPanel(fila);
     });
   } else {
-    boton('Agregar centro', 'botonPrimario', agregarCentro);
+    boton(textoAgregar(), 'botonPrimario', agregarCentro);
     boton('Cancelar', 'botonSecundario', cerrarPanel);
   }
 
@@ -1323,6 +1409,96 @@ function dibujarPanel(fila) {
   const primerCampo = cuerpo.querySelector('input:not([hidden]), select');
   if (modo !== 'ver' && primerCampo) primerCampo.focus();
   else document.getElementById('btnCerrarPanel').focus();
+}
+
+// ---------- Historial: código y periodos ----------
+
+// Código de un periodo: Centro-AAAA-MM según INICIO (Yelcho-2024-01). Si ya existe, se agrega -2, -3…
+function generarCodigo(centro, inicio) {
+  const clave = estado.datos.columnaClave;
+  const iso = fechaAIso(inicio);
+  const base = centro.trim() + '-' + (iso ? iso.slice(0, 7) : 'sin-fecha');
+  let codigo = base, n = 2;
+  while (estado.datos.filas.some(f => normalizar(f.celdas[clave] || '') === normalizar(codigo))) codigo = base + '-' + n++;
+  return codigo;
+}
+
+// El Código no se escribe a mano: al agregar se arma solo y al editar queda fijo
+function codigoAutomatico(modo) {
+  const campos = camposDelPanel();
+  const codigo = campos.find(i => i.dataset.columna === estado.datos.columnaClave);
+  if (!codigo) return;
+  codigo.readOnly = true;
+  codigo.title = 'Se arma solo con Centro e INICIO';
+  if (modo !== 'nuevo') return;
+  const centro = campos.find(i => normalizar(i.dataset.columna) === 'centro');
+  const inicio = campos.find(i => normalizar(i.dataset.columna) === 'inicio');
+  const actualizar = () => {
+    codigo.value = centro?.value.trim() ? generarCodigo(centro.value, inicio?.value || '') : '';
+    codigo.dispatchEvent(new Event('input'));
+  };
+  [centro, inicio].forEach(i => i && i.addEventListener('input', actualizar));
+}
+
+// Todos los periodos del mismo centro en las planillas ya leídas (SAMS + Historial).
+// Se reconocen por SIEP, que se mantiene entre periodos; si no hay SIEP, por el nombre.
+function periodosDelCentro(fila) {
+  const columna = (datos, nombre) => datos.columnas.find(c => normalizar(c.nombre) === nombre)?.nombre;
+  const siepDe = (datos, f) => String(f.celdas[columna(datos, 'siep')] || '').trim().replace(/^0+/, '');
+  const centroDe = (datos, f) => normalizar(f.celdas[columna(datos, 'centro')] || '');
+  const siep = siepDe(estado.datos, fila);
+  const centro = centroDe(estado.datos, fila);
+  if (!siep && !centro) return [];
+
+  const lista = [];
+  estado.hojas.forEach(h => {
+    const datos = h.id === estado.hojaActual ? estado.datos : estado.cache[h.id];
+    if (!datos) return;
+    datos.filas.forEach(f => {
+      const mismo = siep ? siepDe(datos, f) === siep : centroDe(datos, f) === centro;
+      if (!mismo) return;
+      lista.push({
+        hoja: h, fila: f,
+        inicio: f.celdas[columna(datos, 'inicio')] || '',
+        fin: f.celdas[columna(datos, 'fin')] || '',
+        estado: f.celdas[columna(datos, 'estado')] || '',
+        esEste: h.id === estado.hojaActual && f.fila === fila.fila
+      });
+    });
+  });
+  return lista.sort((a, b) => (fechaAIso(a.inicio) || '9999').localeCompare(fechaAIso(b.inicio) || '9999'));
+}
+
+function agregarPeriodos(fila, cuerpo) {
+  const periodos = periodosDelCentro(fila);
+  if (periodos.length < 2) return;
+  const seccion = document.createElement('div');
+  seccion.className = 'periodos';
+  const titulo = document.createElement('h3');
+  titulo.textContent = 'Este centro tuvo ' + periodos.length + ' periodos';
+  seccion.appendChild(titulo);
+  periodos.forEach(p => {
+    const vigente = !p.fin && normalizar(p.estado).startsWith('activad');
+    const texto = (p.inicio || 'sin fecha') + ' → ' + (p.fin || (vigente ? 'vigente' : '…')) +
+      ' · ' + (p.estado || 'sin estado') + ' · ' + p.hoja.titulo;
+    const item = document.createElement(p.esEste ? 'div' : 'button');
+    item.className = 'periodo' + (p.esEste ? ' esEste' : '');
+    item.textContent = texto + (p.esEste ? ' (este)' : '');
+    if (!p.esEste) {
+      item.type = 'button';
+      item.addEventListener('click', () => verPeriodo(p.hoja.id, p.fila.fila));
+    }
+    seccion.appendChild(item);
+  });
+  cuerpo.prepend(seccion);
+}
+
+async function verPeriodo(hojaId, numero) {
+  if (hojaId !== estado.hojaActual || estado.vista !== 'tabla') {
+    if (!cerrarPanel()) return;
+    await cambiarHoja(hojaId);
+  }
+  abrirPanel(numero);
 }
 
 // Fecha de hoy como se escribe en el Sheet: 15/10/2026
@@ -1576,18 +1752,22 @@ async function agregarCentro() {
     if (v) celdas[i.dataset.columna] = v;
   });
 
+  // En Historial lo obligatorio es Centro (el Código sale de ahí); en SAMS, la columna clave
+  const obligatorio = hojaConCodigo()
+    ? camposDelPanel().find(i => normalizar(i.dataset.columna) === 'centro')
+    : camposDelPanel().find(i => i.dataset.columna === clave);
   const campoClave = camposDelPanel().find(i => i.dataset.columna === clave);
   const nombre = celdas[clave] || '';
-  if (!nombre) {
-    campoClave.closest('.campo').classList.add('conError');
-    campoClave.focus();
-    avisar('Escribe el nombre en ' + clave, true);
+  if (!obligatorio.value.trim() || !nombre) {
+    obligatorio.closest('.campo').classList.add('conError');
+    obligatorio.focus();
+    avisar('Escribe el nombre del centro', true);
     return;
   }
   if (estado.datos.filas.some(f => normalizar(f.celdas[clave] || '') === normalizar(nombre))) {
     campoClave.closest('.campo').classList.add('conError');
     campoClave.focus();
-    avisar('Ya existe un centro llamado "' + nombre + '"', true);
+    avisar(hojaConCodigo() ? 'Ya existe un periodo con el código "' + nombre + '"' : 'Ya existe un centro llamado "' + nombre + '"', true);
     return;
   }
 
@@ -1608,7 +1788,7 @@ async function agregarCentro() {
   const nueva = estado.datos.filas.find(f => normalizar(f.celdas[clave] || '') === normalizar(nombre));
   if (nueva) abrirPanel(nueva.fila);
   else { document.getElementById('panel').hidden = true; estado.modoPanel = null; }
-  avisar('Centro "' + nombre + '" agregado');
+  avisar((hojaConCodigo() ? 'Periodo "' : 'Centro "') + nombre + '" agregado');
 }
 
 document.addEventListener('keydown', (e) => {
@@ -1794,6 +1974,13 @@ async function iniciarMapa() {
 async function abrirMapa() {
   abrirMenu(false);
   if (!cerrarPanel()) return;
+  // El mapa muestra los centros vigentes: si se venía de otra planilla, se pasa a SAMS
+  if (estado.hojaActual !== HOJA_MAPA) {
+    estado.hojaActual = HOJA_MAPA;
+    estado.orden = { columna: null, asc: true };
+    estado.datos = null;
+    if (estado.cache[HOJA_MAPA]) mostrarHoja(estado.cache[HOJA_MAPA]);
+  }
   mostrarVista('mapa');
   document.getElementById('tituloHoja').textContent = 'Mapa de barrios';
   document.getElementById('conteo').textContent = 'Cargando mapa...';

@@ -27,6 +27,11 @@ const HOJAS = {
   sams: {
     titulo: 'SAMS',
     bloqueadas: ['Días restantes', 'Fecha mantención']
+  },
+  // Periodos terminados. Cada fila tiene un Código único (Centro-AAAA-MM) que genera la página
+  historial: {
+    titulo: 'Historial',
+    bloqueadas: []
   }
 };
 
