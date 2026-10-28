@@ -422,6 +422,21 @@
   .periodos button.periodo { cursor: pointer; color: var(--azul); }
   .periodos button.periodo:hover { background: var(--azul-claro); }
   .periodos .periodo.esEste { font-weight: 600; }
+
+  /* Confirmación para pasar un centro al Historial */
+  .cajaDesactivar {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid #e8cf7a;
+    border-radius: 10px;
+    background: var(--aviso-fondo);
+  }
+  .cajaDesactivar h3 { margin: 0 0 4px; font-size: 14px; color: #7a5300; }
+  .cajaDesactivar p { margin: 0 0 10px; font-size: 13px; }
+  .cajaDesactivar label { display: block; font-size: 12px; font-weight: 600; color: var(--azul); margin-bottom: 4px; }
+  .cajaDesactivar input { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 8px; background: white; }
+  .cajaDesactivar .botonesCaja { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .cajaDesactivar .botonesCaja button { flex: 1; padding: 9px 10px; }
   .campo.cambiado input, .campo.cambiado select { border-color: var(--azul); background: #f4f8fc; }
   .campo.guardando input, .campo.guardando select { background: var(--aviso-fondo); }
   .campo.guardado input { background: var(--ok-fondo); transition: background 1.2s; }
@@ -1388,6 +1403,8 @@ function dibujarPanel(fila) {
   };
   if (modo === 'ver') {
     boton('Editar', 'botonPrimario', () => { estado.modoPanel = 'editar'; dibujarPanel(fila); });
+    const hoja = estado.hojas.find(h => h.id === estado.hojaActual);
+    if (estado.admin && hoja?.desactivable) boton('Desactivar', 'botonSecundario', () => mostrarDesactivar(fila));
     if (estado.admin) boton('Eliminar', 'botonPeligro', () => eliminarCentro(fila));
   } else if (modo === 'editar') {
     boton('Guardar cambios', 'botonPrimario', guardarCambios);
@@ -1491,6 +1508,71 @@ function agregarPeriodos(fila, cuerpo) {
     seccion.appendChild(item);
   });
   cuerpo.prepend(seccion);
+}
+
+// ---------- Desactivar: pasar un centro de SAMS al Historial (solo administradores) ----------
+
+function mostrarDesactivar(fila) {
+  const cuerpo = document.getElementById('panelCuerpo');
+  const existente = cuerpo.querySelector('.cajaDesactivar');
+  if (existente) { existente.querySelector('input').focus(); return; }
+
+  const nombre = fila.celdas[estado.datos.columnaClave] || '';
+  const colFin = estado.datos.columnas.find(c => normalizar(c.nombre) === 'fin')?.nombre;
+  const caja = document.createElement('div');
+  caja.className = 'cajaDesactivar';
+  caja.innerHTML =
+    '<h3>Desactivar centro</h3>' +
+    '<p></p>' +
+    '<label for="finDesactivar">Fecha de FIN</label>' +
+    '<input type="date" id="finDesactivar" />' +
+    '<div class="botonesCaja">' +
+    '  <button type="button" class="botonPrimario">Desactivar y pasar al Historial</button>' +
+    '  <button type="button" class="botonSecundario">Cancelar</button>' +
+    '</div>';
+  caja.querySelector('p').textContent = '"' + nombre + '" pasará al Historial con todos sus datos y saldrá de SAMS.';
+  const fecha = caja.querySelector('input');
+  fecha.value = fechaAIso(colFin ? fila.celdas[colFin] : '') || fechaAIso(fechaHoy());
+  const [confirmar, cancelar] = caja.querySelectorAll('button');
+  confirmar.addEventListener('click', () => {
+    if (!fecha.value) { avisar('Elige la fecha de FIN', true); fecha.focus(); return; }
+    desactivarCentro(fila, isoAFecha(fecha.value), caja);
+  });
+  cancelar.addEventListener('click', () => caja.remove());
+
+  cuerpo.prepend(caja);
+  fecha.focus({ preventScroll: true });
+  cuerpo.scrollTop = 0;
+}
+
+async function desactivarCentro(fila, fin, caja) {
+  const clave = estado.datos.columnaClave;
+  const nombre = fila.celdas[clave] || '';
+  const botones = [...caja.querySelectorAll('button')];
+  botones.forEach(b => { b.disabled = true; });
+  botonesPie(false);
+
+  const r = await api('/api/hojas/' + estado.hojaActual + '/desactivar', {
+    method: 'POST',
+    body: JSON.stringify({ fila: fila.fila, clave: nombre, fin })
+  });
+  if (!r.ok) {
+    botones.forEach(b => { b.disabled = false; });
+    botonesPie(true);
+    avisar(r.error || 'No se pudo desactivar el centro', true);
+    return;
+  }
+
+  document.getElementById('panel').hidden = true;
+  estado.filaAbierta = null;
+  estado.modoPanel = null;
+  await cargarHoja();
+  avisar('"' + nombre + '" pasó al Historial como ' + r.codigo);
+  // El Historial cambió: se vuelve a leer en segundo plano
+  estado.hojas.filter(h => h.id !== estado.hojaActual).forEach(async h => {
+    const otra = await api('/api/hojas/' + h.id);
+    if (otra.ok) estado.cache[h.id] = prepararDatos(otra);
+  });
 }
 
 async function verPeriodo(hojaId, numero) {

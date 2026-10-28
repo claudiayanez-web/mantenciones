@@ -26,7 +26,8 @@ if (!MANTENCIONES_SCRIPT_URL || !MANTENCIONES_SECRETO || !SESION_SECRETO || !USU
 const HOJAS = {
   sams: {
     titulo: 'SAMS',
-    bloqueadas: ['Días restantes', 'Fecha mantención']
+    bloqueadas: ['Días restantes', 'Fecha mantención'],
+    desactivable: true   // un administrador puede pasar un centro al Historial
   },
   // Periodos terminados. Cada fila tiene un Código único (Centro-AAAA-MM) que genera la página
   historial: {
@@ -166,7 +167,7 @@ app.get('/api/yo', requiereSesion, (req, res) => {
     ok: true,
     usuario: req.usuario,
     admin: esAdmin(req.usuario),
-    hojas: Object.entries(HOJAS).map(([id, h]) => ({ id, titulo: h.titulo }))
+    hojas: Object.entries(HOJAS).map(([id, h]) => ({ id, titulo: h.titulo, desactivable: !!h.desactivable }))
   });
 });
 
@@ -269,6 +270,34 @@ app.post('/api/hojas/:hoja/eliminar', requiereSesion, async (req, res) => {
   } catch (err) {
     console.error('Error al eliminar', req.params.hoja, err.message);
     res.status(502).json({ ok: false, error: 'No se pudo eliminar. Intenta de nuevo.' });
+  }
+});
+
+// Pasa un centro vigente al Historial (lo copia allá y lo saca de la hoja). Solo administradores.
+app.post('/api/hojas/:hoja/desactivar', requiereSesion, async (req, res) => {
+  const config = HOJAS[req.params.hoja];
+  if (!config || !config.desactivable) return res.status(404).json({ ok: false, error: 'Esta planilla no se puede desactivar' });
+  if (!esAdmin(req.usuario)) {
+    return res.status(403).json({ ok: false, error: 'Solo un administrador puede desactivar centros' });
+  }
+
+  const { fila, clave, fin } = req.body;
+  if (!Number.isInteger(fila) || typeof clave !== 'string' || !clave.trim()
+    || typeof fin !== 'string' || !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(fin)) {
+    return res.status(400).json({ ok: false, error: 'Datos inválidos' });
+  }
+
+  try {
+    const resultado = await llamarScript({
+      accion: 'desactivar',
+      hoja: req.params.hoja,
+      usuario: req.usuario,
+      fila, clave, fin
+    });
+    res.status(resultado.ok ? 200 : 409).json(resultado);
+  } catch (err) {
+    console.error('Error al desactivar', req.params.hoja, err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo desactivar. Intenta de nuevo.' });
   }
 });
 

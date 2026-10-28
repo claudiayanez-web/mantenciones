@@ -11,7 +11,8 @@ const HOJAS = {
     archivoId: '1s25_K3_onbvd27gRGesywnS5V7Ty72nI4Kgqw9MxnKI',
     pestana: 'SAMS',
     filaEncabezado: 1,
-    columnaClave: 'Centro'   // se usa para confirmar que la fila no cambió de lugar
+    columnaClave: 'Centro',  // se usa para confirmar que la fila no cambió de lugar
+    historial: 'historial'   // al desactivar un centro, su periodo pasa a esta hoja
   },
   // Periodos terminados: un mismo centro puede aparecer varias veces, por eso la clave es el Código
   historial: {
@@ -46,6 +47,7 @@ function doPost(e) {
       case 'editar':  return responder(editar(config, body));
       case 'agregar':  return responder(agregar(config, body));
       case 'eliminar': return responder(eliminar(config, body));
+      case 'desactivar': return responder(desactivar(config, body));
       default:         return responder({ ok: false, error: 'Acción no válida' });
     }
   } catch (err) {
@@ -224,6 +226,107 @@ function eliminar(config, body) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// Desactiva un centro: copia su fila al Historial (Estado Desactivado, FIN y un Código nuevo)
+// y la saca de la hoja de vigentes. Todo en un solo paso: si no se puede sacar de la hoja
+// de vigentes, se borra la copia del Historial para que nunca quede en las dos.
+// El servidor ya verificó que el usuario es administrador.
+function desactivar(config, body) {
+  const destinoConfig = HOJAS[config.historial];
+  if (!destinoConfig) return { ok: false, error: 'Esta planilla no tiene historial' };
+  const fin = String(body.fin || '').trim();
+  if (!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(fin)) return { ok: false, error: 'Fecha de FIN no válida' };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    // --- Origen: la fila del centro vigente ---
+    const origen = abrirPestana(config);
+    const fila = Number(body.fila);
+    const ultimaFilaOrigen = origen.getLastRow();
+    const columnasOrigen = origen.getLastColumn();
+    if (!Number.isInteger(fila) || fila <= config.filaEncabezado || fila > ultimaFilaOrigen) {
+      return { ok: false, error: 'Fila no válida' };
+    }
+    const encOrigen = origen.getRange(config.filaEncabezado, 1, 1, columnasOrigen)
+      .getDisplayValues()[0].map(h => String(h).trim());
+    const rangoOrigen = origen.getRange(fila, 1, 1, columnasOrigen);
+    const mostrados = rangoOrigen.getDisplayValues()[0];
+    const valores = rangoOrigen.getValues()[0];      // fechas como fecha, números como número
+    const colClave = encOrigen.indexOf(config.columnaClave);
+    if (colClave === -1 || mostrados[colClave] !== String(body.clave)) {
+      return { ok: false, conflicto: true, error: 'La fila cambió de lugar en la planilla. Recarga la página.' };
+    }
+    const deOrigen = {};
+    encOrigen.forEach((h, i) => { if (h) deOrigen[normalizar(h)] = { valor: valores[i], texto: mostrados[i] }; });
+
+    // --- Destino: una fila nueva al final del Historial ---
+    const destino = abrirPestana(destinoConfig);
+    const ultimaFilaDestino = destino.getLastRow();
+    const columnasDestino = destino.getLastColumn();
+    const encDestino = destino.getRange(destinoConfig.filaEncabezado, 1, 1, columnasDestino)
+      .getDisplayValues()[0].map(h => String(h).trim());
+
+    const centro = String(body.clave).trim();
+    const inicio = deOrigen['inicio'] ? deOrigen['inicio'].texto : '';
+    const codigo = codigoUnico(destino, destinoConfig, encDestino, centro, inicio);
+
+    const nuevaFila = encDestino.map(h => {
+      const n = normalizar(h);
+      if (!h) return '';
+      if (h === destinoConfig.columnaClave) return codigo;
+      if (n === 'estado') return 'Desactivado';
+      if (n === 'fin') return fin;
+      const dato = deOrigen[n];
+      if (!dato) return '';
+      const v = dato.valor;
+      if (typeof v === 'string') {
+        if (/^0\d+$/.test(v)) return "'" + v;           // conserva ceros adelante (SIEP 011854)
+        return comoTexto(v);
+      }
+      return v;
+    });
+
+    const filaDestino = ultimaFilaDestino + 1;
+    if (destino.getMaxRows() < filaDestino) destino.insertRowAfter(ultimaFilaDestino);
+    const rangoDestino = destino.getRange(filaDestino, 1, 1, columnasDestino);
+    if (ultimaFilaDestino > destinoConfig.filaEncabezado) {
+      destino.getRange(ultimaFilaDestino, 1, 1, columnasDestino)
+        .copyTo(rangoDestino, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    }
+    rangoDestino.setValues([nuevaFila]);
+    SpreadsheetApp.flush();
+
+    // --- Sacar de vigentes; si falla, se deshace la copia ---
+    try {
+      origen.deleteRow(fila);
+      SpreadsheetApp.flush();
+    } catch (err) {
+      destino.deleteRow(filaDestino);
+      SpreadsheetApp.flush();
+      return { ok: false, error: 'No se pudo sacar el centro de ' + config.nombre + '. No se movió nada.' };
+    }
+
+    registrar([new Date(), body.usuario || '', config.nombre, fila, centro, '(desactivado → ' + destinoConfig.nombre + ')', codigo, fin]);
+    return { ok: true, codigo: codigo };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Código de periodo: Centro-AAAA-MM según INICIO (d/m/aaaa). Si ya existe se agrega -2, -3…
+function codigoUnico(sheet, config, encabezados, centro, inicio) {
+  const m = String(inicio).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const base = centro + '-' + (m ? m[3] + '-' + ('0' + m[2]).slice(-2) : 'sin-fecha');
+  const col = encabezados.indexOf(config.columnaClave);
+  const ultima = sheet.getLastRow();
+  const existentes = ultima > config.filaEncabezado
+    ? sheet.getRange(config.filaEncabezado + 1, col + 1, ultima - config.filaEncabezado, 1).getDisplayValues().map(f => normalizar(f[0]))
+    : [];
+  let codigo = base, n = 2;
+  while (existentes.includes(normalizar(codigo))) codigo = base + '-' + n++;
+  return codigo;
 }
 
 // ---------- Ayudantes ----------
