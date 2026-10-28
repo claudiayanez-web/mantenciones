@@ -2435,7 +2435,8 @@ function gruposConVariosPeriodos() {
     const [cCentro, cSiep, cInicio, cFin, cEstado, cEmpresa] = ['centro', 'siep', 'inicio', 'fin', 'estado', 'empresa'].map(col);
     datos.filas.forEach(f => {
       const centro = String(f.celdas[cCentro] || '').trim();
-      if (!centro) return;
+      // Una fila sin INICIO ni FIN no es un periodo (por ejemplo, una fila que quedó vacía en SAMS)
+      if (!centro || (!fechaAIso(f.celdas[cInicio] || '') && !fechaAIso(f.celdas[cFin] || ''))) return;
       const siep = String(f.celdas[cSiep] || '').trim().replace(/^0+/, '');
       const clave = siep ? 's:' + siep : 'n:' + normalizar(centro);
       if (!grupos.has(clave)) grupos.set(clave, []);
