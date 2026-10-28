@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Guía de Solicitudes · Retina Mantenciones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+  /* Layout: una columna de lectura (~68ch) con pasos numerados del ciclo de un ticket; capturas a ancho completo de la columna */
+  :root {
+    --fondo: #f3f5f8;
+    --papel: #ffffff;
+    --tinta: #172233;
+    --suave: #5b6778;
+    --linea: #dbe1ea;
+    --azul: #14467c;
+    --azul-claro: #e4ecf6;
+    --rojo: #b3261e;
+    --amarillo: #b07800;
+    --verde: #2e7d4f;
+    --morado: #7b68a6;
+    --display: "Archivo", "Segoe UI", system-ui, sans-serif;
+    --cuerpo: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fondo: #10161f; --papel: #18212d; --tinta: #e6ebf2; --suave: #9aa6b6; --linea: #2b3644;
+      --azul: #8bb8ea; --azul-claro: #1e2c3d; --rojo: #f08a80; --amarillo: #e6b74f; --verde: #74c69a; --morado: #b3a4d6;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --fondo: #10161f; --papel: #18212d; --tinta: #e6ebf2; --suave: #9aa6b6; --linea: #2b3644;
+    --azul: #8bb8ea; --azul-claro: #1e2c3d; --rojo: #f08a80; --amarillo: #e6b74f; --verde: #74c69a; --morado: #b3a4d6;
+    color-scheme: dark;
+  }
+  body {
+    background: var(--fondo); color: var(--tinta);
+    font: 17px/1.6 var(--cuerpo);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 32px 64px;
+  }
+  main { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 44px; }
+  main > *, section > *, .contenido > *, .dos > * { min-width: 0; }
+  img { max-width: 100%; }
+  h1, h2, h3 { font-family: var(--display); color: var(--azul); text-wrap: balance; margin: 0; line-height: 1.2; }
+  h1 { font-size: clamp(30px, 6vw, 42px); font-weight: 800; }
+  h2 { font-size: 24px; font-weight: 700; }
+  h3 { font-size: 18px; font-weight: 700; }
+  p { margin: 0; max-width: 68ch; }
+  .eyebrow { font: 700 13px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--suave); }
+  header { display: grid; gap: 12px; }
+  header p { color: var(--suave); font-size: 18px; }
+  section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  figure { margin: 0; display: grid; gap: 8px; }
+  figure img {
+    display: block; width: 100%; height: auto; border-radius: 12px;
+    border: 1px solid var(--linea); background: #fff;
+  }
+  figure.angosta img { max-width: 420px; }
+  figure.media img { max-width: 520px; }
+  figcaption { font-size: 14px; color: var(--suave); }
+
+  /* Las cuatro columnas del tablero */
+  .columnas { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .columna { background: var(--papel); border: 1px solid var(--linea); border-radius: 12px; padding: 14px; display: grid; gap: 4px; align-content: start; }
+  .columna strong { font-family: var(--display); color: var(--azul); }
+  .columna span { font-size: 15px; color: var(--suave); }
+  .flecha { font-family: var(--display); color: var(--suave); font-size: 15px; }
+
+  /* Pasos */
+  .paso { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 16px; }
+  .num {
+    width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--azul); color: var(--papel); font: 800 18px var(--display);
+  }
+  .contenido { display: grid; gap: 14px; min-width: 0; }
+  ol.instr { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+  .dato {
+    background: var(--azul-claro); border-radius: 10px; padding: 12px 14px; font-size: 16px;
+  }
+  .dato b { color: var(--azul); }
+  .alerta { border-left: 4px solid var(--rojo); background: var(--papel); border-radius: 0 10px 10px 0; padding: 12px 14px; font-size: 16px; }
+
+  /* Colores */
+  .colores { display: grid; gap: 10px; }
+  .color { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 12px; background: var(--papel); border: 1px solid var(--linea); border-radius: 10px; padding: 12px 14px 12px 0; overflow: hidden; }
+  .color i { display: block; border-radius: 0 4px 4px 0; }
+  .color p { font-size: 16px; }
+  .dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; align-items: start; }
+
+  dl { margin: 0; display: grid; gap: 14px; }
+  dt { font-weight: 700; }
+  dd { margin: 2px 0 0; color: var(--suave); }
+  .volver { color: var(--azul); font-weight: 700; text-decoration: none; justify-self: start; }
+  .volver:hover { text-decoration: underline; }
+  hr { border: 0; border-top: 1px solid var(--linea); margin: 0; }
+
+  @media (max-width: 480px) {
+    body { font-size: 16px; }
+    .paso { grid-template-columns: 1fr; gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <a class="volver" href="/">← Volver a Retina Mantenciones</a>
+    <span class="eyebrow">Para técnicos</span>
+    <h1>Cómo usar la pestaña Solicitudes</h1>
+    <p>Aquí llegan los tickets que mandan las biólogas por el bot. Desde esta pestaña los aceptas, los cierras o los pasas a gestión, sin abrir la planilla. Todo lo que hagas queda guardado en la planilla Mantenciones a tu nombre.</p>
+  </header>
+
+  <section>
+    <h2>Dónde está</h2>
+    <p>Entra a la página con tu usuario y toca <b>Solicitudes</b> en el menú, arriba de todo. El número rojo indica cuántos tickets esperan que alguien los acepte.</p>
+    <figure class="angosta">
+      <img src="img/02-menu.png" alt="Botón Solicitudes en el menú con un globo rojo que dice 2" width="482" height="128">
+    </figure>
+    <p>En el celular el menú se abre con el botón <b>☰</b> de arriba a la izquierda.</p>
+  </section>
+
+  <section>
+    <h2>El tablero</h2>
+    <p>Cada ticket es una tarjeta. La tarjeta avanza de izquierda a derecha según lo que vas haciendo con ella.</p>
+    <div class="columnas" role="list">
+      <div class="columna" role="listitem"><strong>Por aceptar</strong><span>Llegó y nadie lo ha tomado.</span></div>
+      <div class="columna" role="listitem"><strong>En curso</strong><span>Un técnico lo aceptó y lo está atendiendo.</span></div>
+      <div class="columna" role="listitem"><strong>En gestión</strong><span>Espera ayuda del centro o una visita a terreno.</span></div>
+      <div class="columna" role="listitem"><strong>Finalizadas hoy</strong><span>Lo que se cerró durante el día.</span></div>
+    </div>
+    <figure>
+      <img src="img/01-tablero.png" alt="Vista Solicitudes con las cuatro columnas de tickets" width="2720" height="1640">
+      <figcaption>Así se ve en el computador. Cada tarjeta muestra el centro, el número de ticket, el problema y quién lo pidió.</figcaption>
+    </figure>
+    <p>La página se actualiza sola cada minuto. Si quieres ver los cambios al tiro, toca el botón de recargar (la flecha en círculo).</p>
+  </section>
+
+  <hr>
+
+  <section>
+    <span class="eyebrow">El ciclo de un ticket</span>
+
+    <div class="paso">
+      <div class="num" aria-hidden="true">1</div>
+      <div class="contenido">
+        <h2>Aceptar el ticket</h2>
+        <p>Cuando empiezas a atender un ticket de <b>Por aceptar</b>, tócale <b>Aceptar</b>.</p>
+        <div class="dos">
+          <figure>
+            <img src="img/04-por-aceptar.png" alt="Tarjeta del centro Velero con la etiqueta esperando y el botón Aceptar" width="508" height="286">
+          </figure>
+          <figure>
+            <img src="img/05-dialogo-aceptar.png" alt="Ventana Aceptar ticket con el técnico Wilmer Ruiz" width="920" height="462">
+          </figure>
+        </div>
+        <p>Se abre una ventana con <b>tu nombre ya puesto</b>. Revisa que sea el ticket correcto y toca <b>Aceptar</b>. Se guarda la hora en que empezaste, y la tarjeta pasa a <b>En curso</b>.</p>
+        <div class="dato">Si dos técnicos tocan Aceptar al mismo tiempo, solo el primero queda. Al segundo le sale un aviso y la página se recarga.</div>
+      </div>
+    </div>
+
+    <div class="paso">
+      <div class="num" aria-hidden="true">2</div>
+      <div class="contenido">
+        <h2>Terminar: Cerrar, Centro o Terreno</h2>
+        <p>Un ticket <b>En curso</b> tiene tres botones. Usa el que corresponda según cómo terminó:</p>
+        <figure class="angosta">
+          <img src="img/06-en-curso.png" alt="Tarjeta en curso con los botones Cerrar, Centro y Terreno" width="508" height="270">
+        </figure>
+        <dl>
+          <div><dt>Cerrar</dt><dd>Lo resolviste. El ticket queda Finalizado.</dd></div>
+          <div><dt>Centro</dt><dd>Necesitas que el centro haga algo (revisar un cable, reiniciar algo). Pasa a Gestión centro.</dd></div>
+          <div><dt>Terreno</dt><dd>Hay que ir al centro. Pasa a Gestión terreno.</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="paso">
+      <div class="num" aria-hidden="true">3</div>
+      <div class="contenido">
+        <h2>Cerrar el ticket</h2>
+        <ol class="instr">
+          <li>Marca uno o más <b>tipos de servicio</b> (lo que hiciste). Puedes marcar varios.</li>
+          <li>Escribe en <b>Observaciones</b> qué pasó y qué hiciste.</li>
+          <li>Lee el recuadro azul: dice qué va a pasar al confirmar.</li>
+          <li>Toca <b>Cerrar ticket</b>.</li>
+        </ol>
+        <figure class="media">
+          <img src="img/07-dialogo-cerrar.png" alt="Ventana Cerrar ticket con Enfoque marcado y una observación escrita" width="920" height="1066">
+          <figcaption>El recuadro azul avisa que se le mandará un WhatsApp a la bióloga que pidió el ticket.</figcaption>
+        </figure>
+        <div class="alerta"><b>Ojo:</b> al cerrar, la bióloga recibe un WhatsApp automático avisándole que la mantención fue realizada. Cierra el ticket solo cuando de verdad esté resuelto.</div>
+        <div class="dato">Si marcas solo <b>Gestión ayuda centro</b> o <b>Gestión ingreso terreno</b>, el ticket no se finaliza: pasa a gestión, igual que en la planilla.</div>
+      </div>
+    </div>
+
+    <div class="paso">
+      <div class="num" aria-hidden="true">4</div>
+      <div class="contenido">
+        <h2>Pasar a gestión</h2>
+        <p>Con <b>Centro</b> o <b>Terreno</b> se abre esta ventana. Escribe en Observaciones qué falta o qué le pediste al centro, y toca <b>Pasar a gestión</b>. Se avisa a Notion automáticamente.</p>
+        <figure class="media">
+          <img src="img/08-dialogo-gestion.png" alt="Ventana Pasar a gestión con el centro, con una observación escrita" width="920" height="702">
+        </figure>
+        <p>La tarjeta queda en <b>En gestión</b>. Desde ahí puedes cerrarla cuando se resuelva, o tocar <b>Pasar a terreno</b> si con ayuda del centro no se pudo y hay que ir.</p>
+        <figure class="angosta">
+          <img src="img/09-en-gestion.png" alt="Tarjeta en gestión con la etiqueta lleva mucho y los botones Cerrar y Pasar a terreno" width="508" height="310">
+        </figure>
+      </div>
+    </div>
+
+    <div class="paso">
+      <div class="num" aria-hidden="true">5</div>
+      <div class="contenido">
+        <h2>Finalizadas hoy</h2>
+        <p>Lo que se cerró hoy aparece en la última columna, con el técnico, la hora y el tipo de servicio. Al día siguiente estas tarjetas ya no se muestran, pero siguen en la planilla.</p>
+        <figure class="angosta">
+          <img src="img/10-finalizada.png" alt="Tarjeta finalizada de Puluqui con Wilmer Ruiz, 18:16, Enfoque" width="508" height="174">
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>Crear un ticket tú mismo</h2>
+    <p>Si encuentras un problema que nadie reportó, toca <b>+ Nuevo ticket</b> arriba a la derecha. Elige el centro, marca el tipo de problema y escribe lo que viste. El ticket queda <b>aceptado a tu nombre</b> y aparece en <b>En curso</b>. Después lo cierras como cualquier otro.</p>
+    <figure class="media">
+      <img src="img/11-dialogo-nuevo.png" alt="Ventana Nuevo ticket con los campos Centro, Técnico, Tipo de problema y Observaciones" width="920" height="1200">
+      <figcaption>Los tickets que creas tú no le mandan WhatsApp a nadie al cerrarlos.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Qué significan los colores</h2>
+    <div class="colores">
+      <div class="color"><i style="background: var(--azul)"></i><p><b>Borde azul:</b> recién llegado o en curso, todo normal.</p></div>
+      <div class="color"><i style="background: var(--amarillo)"></i><p><b>Borde amarillo con “esperando”:</b> lleva más de 30 minutos sin que nadie lo acepte.</p></div>
+      <div class="color"><i style="background: var(--rojo)"></i><p><b>Borde rojo con “esperando”:</b> lleva más de 2 horas sin aceptar. Hay que tomarlo ya.</p></div>
+      <div class="color"><i style="background: var(--morado)"></i><p><b>Borde morado:</b> en gestión, dentro de plazo.</p></div>
+      <div class="color"><i style="background: var(--rojo)"></i><p><b>Borde rojo con “lleva mucho”:</b> el ticket lleva más de 3 días en gestión. Hay que hacerle seguimiento.</p></div>
+      <div class="color"><i style="background: var(--verde)"></i><p><b>Borde verde:</b> finalizado.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ver solo tus tickets</h2>
+    <p>Arriba del tablero hay un botón por cada técnico. Toca tu nombre para ver solo lo tuyo en En curso, En gestión y Finalizadas. <b>Por aceptar</b> siempre muestra todo, porque esos tickets todavía no son de nadie.</p>
+    <figure>
+      <img src="img/03-filtro.png" alt="Botones Todos los técnicos, Angelo Guzmán, Claudia Yáñez, Sebastián Arzola y Wilmer Ruiz" width="1828" height="86">
+    </figure>
+  </section>
+
+  <section>
+    <h2>En el celular</h2>
+    <p>Funciona igual. Las columnas se ven una al lado de la otra: desliza el dedo hacia la izquierda para pasar de Por aceptar a En curso, En gestión y Finalizadas.</p>
+    <div class="dos">
+      <figure class="angosta">
+        <img src="img/20-celular.png" alt="Vista Solicitudes en un celular, mostrando la columna Por aceptar" width="780" height="1688">
+      </figure>
+      <figure class="angosta">
+        <img src="img/21-celular-dialogo.png" alt="Ventana Cerrar ticket en un celular" width="780" height="1688">
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Preguntas frecuentes</h2>
+    <dl>
+      <div><dt>¿Puedo aceptar o cerrar a nombre de otro técnico?</dt><dd>No. El campo Técnico siempre muestra tu nombre y no se puede cambiar. Solo los administradores pueden elegir otro técnico.</dd></div>
+      <div><dt>Me sale “Tu usuario no tiene un técnico asignado”.</dt><dd>Avísale a Claudia para que asocie tu usuario a tu nombre.</dd></div>
+      <div><dt>Me sale “El ticket cambió de lugar” o “ya fue aceptado”.</dt><dd>Otra persona lo movió mientras lo tenías abierto. La página se recarga sola; revisa en qué columna quedó.</dd></div>
+      <div><dt>Me sale un aviso de que no se pudo mandar el WhatsApp o avisar a Notion.</dt><dd>El ticket sí quedó guardado en la planilla; lo que falló fue el aviso. Avísale a Claudia.</dd></div>
+      <div><dt>¿Sigo usando los botones de la planilla?</dt><dd>Puedes, siguen funcionando. La página y la planilla escriben en el mismo lugar.</dd></div>
+    </dl>
+  </section>
+</main>
+</body>
+</html>

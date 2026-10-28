@@ -592,6 +592,25 @@
   .vistaSolicitudes { min-height: 0; }
   .solicitudesBarra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 20px 10px; }
   .solicitudesBarra .chips { flex: 1; }
+  /* Guía de uso, en la esquina inferior derecha */
+  .botonAyuda {
+    position: fixed; z-index: 5;
+    right: calc(20px + env(safe-area-inset-right, 0px)); bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px 8px 8px; border-radius: 999px;
+    background: var(--azul); color: white; text-decoration: none; font-weight: 600; font-size: 14px;
+    box-shadow: 0 4px 14px rgba(19, 70, 120, 0.3);
+  }
+  .botonAyuda > span[aria-hidden] {
+    width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+    background: white; color: var(--azul); font-weight: 800;
+  }
+  .botonAyuda:hover { filter: brightness(1.12); }
+  .botonAyuda:focus-visible { outline: 3px solid var(--azul-claro); outline-offset: 2px; }
+  @media (max-width: 700px) {
+    .botonAyuda { padding: 8px; }
+    .botonAyuda .textoAyuda { display: none; }
+  }
   .tablero {
     flex: 1;
     min-height: 0;
@@ -987,6 +1006,9 @@
       <button class="botonPrimario" id="btnNuevoTicket" type="button">+ Nuevo ticket</button>
     </div>
     <div class="tablero" id="tablero"></div>
+    <a class="botonAyuda" href="/ayuda/solicitudes.html" target="_blank" rel="noopener" title="Cómo funciona Solicitudes">
+      <span aria-hidden="true">?</span><span class="textoAyuda">¿Cómo funciona?</span>
+    </a>
   </div>
 
   <!-- Línea de tiempo: todos los centros con sus periodos (SAMS + Historial) -->

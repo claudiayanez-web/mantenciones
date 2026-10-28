@@ -117,6 +117,11 @@ function requiereSesion(req, res, next) {
   next();
 }
 
+// Guías de uso: las capturas muestran centros y nombres, así que solo con sesión.
+// Sin sesión se vuelve a la página principal, que muestra el login.
+app.use('/ayuda', (req, res, next) => leerSesion(req) ? next() : res.redirect('/'),
+  express.static(path.join(__dirname, 'ayuda')));
+
 // Límite de intentos de login por IP: 5 cada 15 minutos
 const intentos = new Map();
 function puedeIntentar(ip) {
