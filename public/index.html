@@ -592,6 +592,30 @@
   .vistaSolicitudes { min-height: 0; }
   .solicitudesBarra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 20px 10px; }
   .solicitudesBarra .chips { flex: 1; }
+  /* Tablero o tabla */
+  .selectorModo { display: inline-flex; border: 1px solid var(--borde); border-radius: 8px; overflow: hidden; background: white; }
+  .selectorModo button { border: none; background: none; padding: 6px 12px; font: inherit; font-size: 13px; color: var(--suave); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .selectorModo button + button { border-left: 1px solid var(--borde); }
+  .selectorModo button[aria-pressed="true"] { background: var(--azul); color: white; }
+  .selectorModo .icono { width: 15px; height: 15px; }
+  .filtrosTablaSol { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 20px 10px; }
+  .filtrosTablaSol[hidden] { display: none; }
+  .filtrosTablaSol .buscador { flex: 0 1 280px; }
+  #tablaSolicitudes[hidden], #tablero[hidden] { display: none; }
+  #tablaSolicitudes tbody tr { cursor: default; }
+  #tablaSolicitudes td.acciones { overflow: visible; }
+  #tablaSolicitudes td.acciones button { padding: 3px 8px; font-size: 12px; margin-right: 4px; }
+  #tablaSolicitudes td.acciones .botonMas { background: none; border: none; color: var(--suave); cursor: pointer; font-size: 16px; padding: 0 4px; border-radius: 6px; }
+  #tablaSolicitudes td.acciones .botonMas:hover { background: var(--azul-claro); color: var(--azul); }
+  #tablaSolicitudes .vacioTabla { padding: 24px; color: var(--suave); text-align: center; }
+  .pillEstado { display: inline-flex; align-items: center; gap: 6px; padding: 1px 9px 1px 7px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pillEstado::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--punto); }
+  .pillEstado.aceptar { background: #eef3fa; color: #2f5a94; --punto: #4f79b5; }
+  .pillEstado.atencion { background: #fbf3dc; color: #7a5a00; --punto: #d4a017; }
+  .pillEstado.urgente { background: #fdecea; color: #a12a1a; --punto: var(--error); }
+  .pillEstado.curso { background: #eef3fa; color: #2f5a94; --punto: #4f79b5; }
+  .pillEstado.gestion { background: #f1edf8; color: #5d4a85; --punto: #8c7ab0; }
+  .pillEstado.finalizado { background: #e8f4ec; color: #22693f; --punto: #2e8b57; }
   /* Guía de uso, en la esquina inferior derecha */
   .botonAyuda {
     position: fixed; z-index: 5;
@@ -863,7 +887,7 @@
     /* En celular: mapa arriba y lista abajo */
     .vistaMapa { flex-direction: column-reverse; margin: 0 8px 12px; }
     .tiempoBarra, .tiempoContenedor { margin-left: 8px; margin-right: 8px; }
-    .solicitudesBarra, .tablero { margin-left: 8px; margin-right: 8px; }
+    .solicitudesBarra, .tablero, .filtrosTablaSol { margin-left: 8px; margin-right: 8px; }
     .tablero { grid-template-columns: repeat(4, 82vw); }
     .solicitudesBarra { justify-content: flex-end; }
     .solicitudesBarra .chips { flex-basis: 100%; order: 2; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
@@ -1015,13 +1039,25 @@
   <!-- Solicitudes: tickets de la pestaña "solicitudes" de la planilla Mantenciones -->
   <div class="vista vistaSolicitudes" id="vistaSolicitudes" hidden>
     <div class="solicitudesBarra">
+      <div class="selectorModo" id="selectorModo" role="group" aria-label="Ver solicitudes como">
+        <button type="button" data-modo="tablero"><svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/></svg>Tablero</button>
+        <button type="button" data-modo="tabla"><svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg>Tabla</button>
+      </div>
       <div class="chips" id="filtroTecnico" role="group" aria-label="Filtrar por técnico"></div>
       <button class="botonIcono" id="btnRecargarSolicitudes" type="button" title="Recargar" aria-label="Recargar solicitudes">
         <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
       </button>
       <button class="botonPrimario" id="btnNuevoTicket" type="button">+ Nuevo ticket</button>
     </div>
+    <div class="filtrosTablaSol" id="filtrosTablaSol" hidden>
+      <label class="buscador">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="buscarSolicitud" placeholder="Buscar centro, problema, bióloga, n°…" aria-label="Buscar solicitudes">
+      </label>
+      <div class="chips" id="estadoSolicitud" role="group" aria-label="Filtrar por estado"></div>
+    </div>
     <div class="tablero" id="tablero"></div>
+    <div class="contenedorTabla" id="tablaSolicitudes" hidden></div>
     <a class="botonAyuda" href="/ayuda/solicitudes.html" target="_blank" rel="noopener" title="Cómo funciona Solicitudes">
       <span aria-hidden="true">?</span><span class="textoAyuda">¿Cómo funciona?</span>
     </a>
@@ -2656,6 +2692,12 @@ const CLAVE_MI_TECNICO = 'mantenciones.solicitudes.miTecnico'; // último técni
 let solicitudes = null, solicitudesEn = 0, cargandoSolicitudes = false;
 let filtroTecnicoActual = '';
 try { filtroTecnicoActual = localStorage.getItem(CLAVE_TECNICO) || ''; } catch {}
+// Vista de tabla: todos los tickets (también los finalizados de otros días), con búsqueda y orden
+const CLAVE_MODO_SOLICITUDES = 'mantenciones.solicitudes.modo';
+let modoSolicitudes = 'tablero';
+try { if (localStorage.getItem(CLAVE_MODO_SOLICITUDES) === 'tabla') modoSolicitudes = 'tabla'; } catch {}
+let estadoTablaSol = 'abiertos', busquedaSol = '', ordenSol = { campo: 'id', asc: false };
+const ESTADOS_TABLA_SOL = [['abiertos', 'Abiertos'], ['finalizados', 'Finalizados'], ['todos', 'Todos']];
 
 async function abrirSolicitudes() {
   abrirMenu(false);
@@ -2746,8 +2788,15 @@ function dibujarSolicitudes() {
     finalizado: tickets.filter(t => t.columna === 'finalizado' && mismoDia(fechaTicket(t.fechaTecnico), hoy))
   };
 
-  // Filtro por técnico: no aplica a "Por aceptar", que todavía no tienen técnico
-  const tecnicos = [...new Set(['curso', 'gestion', 'finalizado'].flatMap(c => columnas[c].map(t => t.tecnico)).filter(Boolean))]
+  const enTabla = modoSolicitudes === 'tabla';
+  document.querySelectorAll('#selectorModo button').forEach(b => b.setAttribute('aria-pressed', b.dataset.modo === modoSolicitudes ? 'true' : 'false'));
+  document.getElementById('tablero').hidden = enTabla;
+  document.getElementById('tablaSolicitudes').hidden = !enTabla;
+  document.getElementById('filtrosTablaSol').hidden = !enTabla;
+  const enEstado = tickets.filter(t => estadoTablaSol === 'todos' || (estadoTablaSol === 'finalizados') === (t.columna === 'finalizado'));
+
+  // Filtro por técnico: en el tablero no aplica a "Por aceptar", que todavía no tienen técnico
+  const tecnicos = [...new Set((enTabla ? enEstado : ['curso', 'gestion', 'finalizado'].flatMap(c => columnas[c])).map(t => t.tecnico).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, 'es'));
   if (filtroTecnicoActual && !tecnicos.includes(filtroTecnicoActual)) filtroTecnicoActual = '';
   const caja = document.getElementById('filtroTecnico');
@@ -2764,6 +2813,7 @@ function dibujarSolicitudes() {
     });
     caja.appendChild(b);
   });
+  if (enTabla) { dibujarTablaSolicitudes(enEstado); return; }
   if (filtroTecnicoActual) ['curso', 'gestion', 'finalizado'].forEach(c => {
     columnas[c] = columnas[c].filter(t => t.tecnico === filtroTecnicoActual);
   });
@@ -2800,7 +2850,8 @@ function dibujarSolicitudes() {
 function tarjetaTicket(t) {
   const div = document.createElement('article');
   const quien = t.nombre && normalizar(t.telefono) !== 'interno' ? t.nombre : (t.nombre ? t.nombre + ' (interno)' : '');
-  let clase = 'normal', meta = '', etiqueta = '', botones = [];
+  let clase = 'normal', meta = '', etiqueta = '';
+  const botones = botonesTicket(t);
 
   if (t.columna === 'aceptar') {
     const recibido = fechaTicket(t.fecha);
@@ -2808,11 +2859,9 @@ function tarjetaTicket(t) {
     clase = min >= TICKETS.minutosUrgente ? 'urgente' : min >= TICKETS.minutosAtencion ? 'atencion' : 'normal';
     if (clase !== 'normal') etiqueta = 'esperando';
     meta = quien + ' · ' + haceCuanto(recibido);
-    botones = [['Aceptar', 'aceptar', true]];
   } else if (t.columna === 'curso') {
     const desde = fechaTicket(t.aceptacion);
     meta = (t.tecnico || 'Sin técnico') + ' · desde ' + horaDe(desde) + ' (' + haceCuanto(desde) + ')';
-    botones = [['Cerrar', 'cerrar', true], ['Centro', 'gestionCentro'], ['Terreno', 'gestionTerreno']];
   } else if (t.columna === 'gestion') {
     const desde = inicioGestion(t);
     const dias = desde ? (Date.now() - desde) / 86400000 : 0;
@@ -2820,8 +2869,6 @@ function tarjetaTicket(t) {
     if (clase === 'urgente') etiqueta = 'lleva mucho';
     const enTerreno = normalizar(t.estado).includes('terreno');
     meta = (enTerreno ? 'Terreno' : 'Centro') + ' · ' + (t.tecnico || '') + ' · ' + haceCuanto(desde);
-    // Lo que no se resolvió con ayuda del centro puede pasar a terreno
-    botones = enTerreno ? [['Cerrar', 'cerrar', true]] : [['Cerrar', 'cerrar', true], ['Pasar a terreno', 'gestionTerreno']];
   } else {
     clase = 'finalizado';
     meta = (t.tecnico || '') + ' · ' + horaDe(fechaTicket(t.fechaTecnico)) + (t.tipo ? ' · ' + t.tipo : '');
@@ -2833,17 +2880,7 @@ function tarjetaTicket(t) {
   div.querySelector('.numero').textContent = '#' + t.id;
   div.querySelector('.problema').textContent = t.problema;
   div.querySelector('.meta').textContent = meta;
-  // Corregir el centro o eliminar: solo tickets que no están finalizados
-  if (t.columna !== 'finalizado') {
-    const mas = document.createElement('button');
-    mas.type = 'button';
-    mas.className = 'botonMas';
-    mas.textContent = '⋯';
-    mas.title = 'Más opciones del ticket';
-    mas.setAttribute('aria-label', 'Más opciones del ticket #' + t.id);
-    mas.addEventListener('click', () => abrirOpcionesTicket(t));
-    div.querySelector('.ladoTicket').appendChild(mas);
-  }
+  if (t.columna !== 'finalizado') div.querySelector('.ladoTicket').appendChild(botonMasTicket(t));
   if (t.observaciones && t.columna !== 'aceptar') {
     const nota = document.createElement('div');
     nota.className = 'nota';
@@ -2859,18 +2896,144 @@ function tarjetaTicket(t) {
   if (botones.length) {
     const acciones = document.createElement('div');
     acciones.className = 'acciones';
-    botones.forEach(([texto, modo, principal]) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = principal ? 'botonPrimario' : 'botonSecundario';
-      b.textContent = texto;
-      b.title = { gestionCentro: 'Pasar a gestión con el centro', gestionTerreno: 'Pasar a gestión en terreno' }[modo] || '';
-      b.addEventListener('click', () => abrirDialogoTicket(modo, t));
-      acciones.appendChild(b);
-    });
+    botones.forEach(b => acciones.appendChild(b));
     div.appendChild(acciones);
   }
   return div;
+}
+
+// Botones de acción según en qué columna está el ticket (los mismos en tarjeta y tabla)
+function botonesTicket(t) {
+  let lista = [];
+  if (t.columna === 'aceptar') lista = [['Aceptar', 'aceptar', true]];
+  else if (t.columna === 'curso') lista = [['Cerrar', 'cerrar', true], ['Centro', 'gestionCentro'], ['Terreno', 'gestionTerreno']];
+  else if (t.columna === 'gestion') {
+    // Lo que no se resolvió con ayuda del centro puede pasar a terreno
+    lista = normalizar(t.estado).includes('terreno') ? [['Cerrar', 'cerrar', true]] : [['Cerrar', 'cerrar', true], ['Pasar a terreno', 'gestionTerreno']];
+  }
+  return lista.map(([texto, modo, principal]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = principal ? 'botonPrimario' : 'botonSecundario';
+    b.textContent = texto;
+    b.title = { gestionCentro: 'Pasar a gestión con el centro', gestionTerreno: 'Pasar a gestión en terreno' }[modo] || '';
+    b.addEventListener('click', () => abrirDialogoTicket(modo, t));
+    return b;
+  });
+}
+
+// Corregir el centro o eliminar: solo tickets que no están finalizados
+function botonMasTicket(t) {
+  const mas = document.createElement('button');
+  mas.type = 'button';
+  mas.className = 'botonMas';
+  mas.textContent = '⋯';
+  mas.title = 'Más opciones del ticket';
+  mas.setAttribute('aria-label', 'Más opciones del ticket #' + t.id);
+  mas.addEventListener('click', () => abrirOpcionesTicket(t));
+  return mas;
+}
+
+// Estado como se ve en el tablero, con el mismo color de borde
+function estadoVisible(t) {
+  if (t.columna === 'aceptar') {
+    const min = (Date.now() - (fechaTicket(t.fecha) || Date.now())) / 60000;
+    return ['Por aceptar', min >= TICKETS.minutosUrgente ? 'urgente' : min >= TICKETS.minutosAtencion ? 'atencion' : 'aceptar'];
+  }
+  if (t.columna === 'curso') return ['En curso', 'curso'];
+  if (t.columna === 'gestion') {
+    const dias = (Date.now() - (inicioGestion(t) || Date.now())) / 86400000;
+    return [normalizar(t.estado).includes('terreno') ? 'Gestión terreno' : 'Gestión centro', dias >= TICKETS.diasGestionLarga ? 'urgente' : 'gestion'];
+  }
+  return ['Finalizado', 'finalizado'];
+}
+
+const fechaCortaTicket = d => d ? d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + horaDe(d) : '';
+
+const COLUMNAS_TABLA_SOL = [
+  { campo: 'id', titulo: 'N°' },
+  { campo: 'centro', titulo: 'Centro' },
+  { campo: 'estado', titulo: 'Estado' },
+  { campo: null, titulo: 'Acciones' },
+  { campo: 'problema', titulo: 'Problema' },
+  { campo: 'nombre', titulo: 'Pidió' },
+  { campo: 'fecha', titulo: 'Recibido', fecha: true },
+  { campo: 'tecnico', titulo: 'Técnico' },
+  { campo: 'aceptacion', titulo: 'Aceptado', fecha: true },
+  { campo: 'fechaTecnico', titulo: 'Cerrado / gestión', fecha: true },
+  { campo: 'tipo', titulo: 'Tipo de servicio' },
+  { campo: 'observaciones', titulo: 'Observaciones' }
+];
+
+function dibujarTablaSolicitudes(enEstado) {
+  const caja = document.getElementById('estadoSolicitud');
+  caja.innerHTML = '';
+  ESTADOS_TABLA_SOL.forEach(([valor, texto]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = texto;
+    b.setAttribute('aria-pressed', valor === estadoTablaSol ? 'true' : 'false');
+    b.addEventListener('click', () => { estadoTablaSol = valor; dibujarSolicitudes(); });
+    caja.appendChild(b);
+  });
+
+  const q = normalizar(busquedaSol.trim());
+  let filas = enEstado.filter(t => (!filtroTecnicoActual || t.tecnico === filtroTecnicoActual) &&
+    (!q || normalizar([t.id, t.centro, t.problema, t.nombre, t.tecnico, t.tipo, t.observaciones, t.estado].join(' ')).includes(q)));
+  const col = COLUMNAS_TABLA_SOL.find(c => c.campo === ordenSol.campo) || COLUMNAS_TABLA_SOL[0];
+  const valor = t => col.campo === 'id' ? Number(t.id)
+    : col.campo === 'estado' ? ['aceptar', 'curso', 'gestion', 'finalizado'].indexOf(t.columna)
+    : col.fecha ? (fechaTicket(t[col.campo]) || 0) : normalizar(t[col.campo] || '');
+  filas.sort((a, b) => {
+    const va = valor(a), vb = valor(b);
+    const r = typeof va === 'string' ? va.localeCompare(vb, 'es', { numeric: true }) : va - vb;
+    return ordenSol.asc ? r : -r;
+  });
+
+  document.getElementById('conteo').textContent = 'Mostrando ' + filas.length + ' de ' + solicitudes.tickets.length + ' tickets';
+  document.getElementById('actualizado').textContent = '· Actualizado ' + horaDe(new Date(solicitudesEn));
+
+  const contenedor = document.getElementById('tablaSolicitudes');
+  const scroll = [contenedor.scrollTop, contenedor.scrollLeft];
+  const tabla = document.createElement('table');
+  const encabezado = tabla.createTHead().insertRow();
+  COLUMNAS_TABLA_SOL.forEach(c => {
+    const th = document.createElement('th');
+    th.textContent = c.titulo;
+    if (c.campo) {
+      if (c.campo === ordenSol.campo) th.insertAdjacentHTML('beforeend', '<span class="flecha">' + (ordenSol.asc ? '▲' : '▼') + '</span>');
+      th.addEventListener('click', () => {
+        ordenSol = c.campo === ordenSol.campo ? { campo: c.campo, asc: !ordenSol.asc } : { campo: c.campo, asc: !(c.fecha || c.campo === 'id') };
+        dibujarSolicitudes();
+      });
+    } else th.style.cursor = 'default';
+    encabezado.appendChild(th);
+  });
+  const cuerpo = tabla.createTBody();
+  filas.forEach(t => {
+    const tr = cuerpo.insertRow();
+    COLUMNAS_TABLA_SOL.forEach(c => {
+      const td = tr.insertCell();
+      if (c.campo === 'id') td.textContent = '#' + t.id;
+      else if (c.campo === 'estado') {
+        const [texto, clase] = estadoVisible(t);
+        td.innerHTML = '<span class="pillEstado ' + clase + '"></span>';
+        td.firstChild.textContent = texto;
+      } else if (c.campo === 'nombre') {
+        td.textContent = (t.nombre || '') + (normalizar(t.telefono) === 'interno' ? ' (interno)' : '');
+      } else if (c.fecha) td.textContent = fechaCortaTicket(fechaTicket(t[c.campo]));
+      else if (c.campo) { td.textContent = t[c.campo] || ''; if ((t[c.campo] || '').length > 30) td.title = t[c.campo]; }
+      else {
+        td.className = 'acciones';
+        botonesTicket(t).forEach(b => td.appendChild(b));
+        if (t.columna !== 'finalizado') td.appendChild(botonMasTicket(t));
+      }
+    });
+  });
+  contenedor.innerHTML = '';
+  if (filas.length) contenedor.appendChild(tabla);
+  else contenedor.innerHTML = '<div class="vacioTabla">No hay tickets con estos filtros.</div>';
+  [contenedor.scrollTop, contenedor.scrollLeft] = scroll;
 }
 
 // Formulario de cada acción. modo: aceptar | cerrar | gestionCentro | gestionTerreno | nuevo
@@ -3393,6 +3556,12 @@ function abrirPeriodoDesdeTiempo(p) {
 
 document.getElementById('btnTiempo').addEventListener('click', abrirLineaTiempo);
 document.getElementById('btnSolicitudes').addEventListener('click', abrirSolicitudes);
+document.querySelectorAll('#selectorModo button').forEach(b => b.addEventListener('click', () => {
+  modoSolicitudes = b.dataset.modo;
+  try { localStorage.setItem(CLAVE_MODO_SOLICITUDES, modoSolicitudes); } catch {}
+  dibujarSolicitudes();
+}));
+document.getElementById('buscarSolicitud').addEventListener('input', e => { busquedaSol = e.target.value; dibujarSolicitudes(); });
 document.getElementById('btnRecargarSolicitudes').addEventListener('click', () => cargarSolicitudes());
 document.getElementById('btnNuevoTicket').addEventListener('click', () => abrirDialogoTicket('nuevo'));
 document.getElementById('buscarTiempo').addEventListener('input', dibujarLineaTiempo);
