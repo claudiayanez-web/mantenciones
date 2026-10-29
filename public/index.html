@@ -758,6 +758,8 @@
   .compTabla td.acciones { overflow: visible; }
   .compTabla td.acciones button { padding: 3px 8px; font-size: 12px; }
   .compTabla .vacioTabla { color: var(--suave); font-size: 13px; padding: 8px 0; }
+  .compPestanas { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .compPestanas .selectorModo .cuenta { font-size: 12px; opacity: 0.8; }
   .compResumen { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--suave); }
   .compResumen b { color: var(--texto); font-variant-numeric: tabular-nums; }
   .dialogoTicket .dosColumnas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -3390,6 +3392,9 @@ async function abrirLineaTiempo() {
 // Los certificados de servicio de terreno en zonas que compensan sirven para no olvidar ninguna salida.
 
 let comp = null, compTecnico = '', compEn = 0;
+const CLAVE_PESTANA_COMP = 'mantenciones.compensaciones.pestana';
+let compPestana = 'libres';
+try { if (localStorage.getItem(CLAVE_PESTANA_COMP) === 'salidas') compPestana = 'salidas'; } catch {}
 const MARGEN_DIAS_CERTIFICADO = 2;  // el certificado puede quedar con 1 o 2 días de diferencia
 const numeroComp = n => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-CL', { maximumFractionDigits: 2 });
 const nombreClave = t => normalizar(String(t || '')).replace(/^centro\s+/, '');
@@ -3516,8 +3521,32 @@ function dibujarCompensaciones() {
   caja.appendChild(tarjetas);
 
   if (estado.admin) caja.appendChild(seccionPorRevisar());
-  if (compTecnico) caja.appendChild(seccionSalidas(compTecnico));
-  if (compTecnico) caja.appendChild(seccionLibres(compTecnico));
+  if (compTecnico) {
+    // Días libres primero; las salidas a terreno en la otra pestaña
+    const { ganado, dado, saldo } = saldoDe(compTecnico);
+    const n = campo => comp[campo].filter(x => x['Técnico'] === compTecnico).length;
+    const barra = document.createElement('div');
+    barra.className = 'compPestanas';
+    barra.innerHTML = '<div class="selectorModo" role="group" aria-label="Ver"></div><div class="compResumen"></div>';
+    [['libres', 'Días libres dados', n('libres')], ['salidas', 'Salidas a terreno', n('salidas')]].forEach(([id, texto, cuenta]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', id === compPestana ? 'true' : 'false');
+      b.innerHTML = '<span></span> <span class="cuenta"></span>';
+      b.firstChild.textContent = texto;
+      b.lastChild.textContent = '(' + cuenta + ')';
+      b.addEventListener('click', () => {
+        compPestana = id;
+        try { localStorage.setItem(CLAVE_PESTANA_COMP, id); } catch {}
+        dibujarCompensaciones();
+      });
+      barra.firstChild.appendChild(b);
+    });
+    barra.lastChild.innerHTML = '<span>Ganó <b>' + numeroComp(ganado) + '</b></span><span>Se le dio <b>' + numeroComp(dado) +
+      '</b></span><span>Por dar <b>' + numeroComp(saldo) + '</b> días</span>';
+    caja.appendChild(barra);
+    caja.appendChild(compPestana === 'salidas' ? seccionSalidas(compTecnico) : seccionLibres(compTecnico));
+  }
 
   const centros = new Set([...(comp.certificados || []).map(c => c.centro.trim()), ...comp.salidas.map(x => String(x['Centro']).trim())]);
   document.getElementById('listaCentrosComp').innerHTML = [...centros].filter(Boolean).sort((a, b) => a.localeCompare(b, 'es'))
@@ -3592,13 +3621,10 @@ function tablaComp(columnas, filas, celda) {
 
 function seccionSalidas(tecnico) {
   const filas = comp.salidas.filter(x => x['Técnico'] === tecnico).sort((a, b) => String(b['Desde']).localeCompare(String(a['Desde'])));
-  const { ganado, dado, saldo } = saldoDe(tecnico);
   const sec = document.createElement('section');
   sec.className = 'compSeccion';
-  sec.innerHTML = '<div class="cabecera"><h3></h3></div><div class="compResumen"></div>';
+  sec.innerHTML = '<div class="cabecera"><h3></h3></div>';
   sec.querySelector('h3').textContent = 'Salidas a terreno · ' + tecnico;
-  sec.querySelector('.compResumen').innerHTML = '<span>Ganó <b>' + numeroComp(ganado) + '</b></span><span>Se le dio <b>' + numeroComp(dado) +
-    '</b></span><span>Por dar <b>' + numeroComp(saldo) + '</b> días</span>';
   if (estado.admin) {
     const b = document.createElement('button');
     b.type = 'button';
