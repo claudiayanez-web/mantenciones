@@ -780,9 +780,29 @@
   .progAviso .faltantes { display: flex; flex-wrap: wrap; gap: 6px; }
   .progAviso .faltantes button { padding: 3px 10px; font-size: 12px; }
   .progContenido { flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px 24px; display: grid; gap: 14px; align-content: start; }
-  .progEquipos { display: grid; gap: 8px; }
-  .progEquipo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-  .progEquipo > .titulo { font-size: 12px; color: var(--suave); width: 100px; }
+  .avatarBio { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--color); color: white; font-size: 11px; font-weight: 700; flex: none; }
+  .bioNombre { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 13px; color: var(--texto); background: none; border: 1px solid transparent;
+    border-radius: 999px; padding: 2px 10px 2px 2px; }
+  button.bioNombre { cursor: pointer; }
+  button.bioNombre:hover { border-color: var(--borde); background: #f6f8fb; }
+  .progVistas { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .progAviso.plegado { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; }
+  .progAviso .verMas { background: none; border: none; color: #7a5a00; text-decoration: underline; cursor: pointer; font: inherit; font-size: 13px; padding: 0; }
+  .progTabla tr.franja td { background: #f3f5f8; color: var(--suave); font-size: 12px; font-weight: 600; padding: 5px 12px; letter-spacing: 0.02em; }
+  .progTabla td.nombreCentro { font-weight: 500; }
+  .progTablero { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: start; }
+  .colBio { background: #eef1f5; border-radius: 12px; padding: 10px; display: grid; gap: 6px; }
+  .colBio .cabeza { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; padding: 2px 2px 4px; }
+  .colBio .cabeza .cuenta { margin-left: auto; font-weight: 400; color: var(--suave); }
+  .colBio .cabeza .cuenta.cero { color: var(--error); font-weight: 600; }
+  .tarjetaCentro { background: white; border: 1px solid var(--borde); border-left: 4px solid var(--color); border-radius: 0 8px 8px 0; padding: 7px 10px;
+    font: inherit; font-size: 13px; text-align: left; color: var(--texto); display: grid; gap: 2px; width: 100%; }
+  button.tarjetaCentro { cursor: pointer; }
+  button.tarjetaCentro:hover { background: #f6f8fb; }
+  .tarjetaCentro .sub { font-size: 11px; color: var(--suave); }
+  .tarjetaCentro .etiqueta { justify-self: start; margin: 2px 0 0 !important; }
+  .colBio .vacia { font-size: 12px; color: var(--suave); padding: 4px 2px; }
   .chipBio { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 999px; font: inherit; font-size: 12px; font-weight: 600;
     border: 1px solid transparent; background: color-mix(in srgb, var(--color) 14%, white); color: var(--texto); cursor: pointer; }
   .chipBio::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--color); }
@@ -797,12 +817,9 @@
   .progTabla table { min-width: 100%; }
   .progTabla tbody tr { cursor: default; }
   .progTabla td { vertical-align: middle; }
-  .progTabla tr.atenuada td { opacity: 0.35; }
-  .progTabla td.empresa { color: var(--suave); font-size: 12px; font-weight: 400; }
-  .progTabla tr.grupo td { border-top: 1px solid var(--borde); }
-  .progTabla .etiqueta { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; vertical-align: 1px; }
-  .progTabla .etiqueta.nuevo { background: #e3f3e8; color: #22693f; }
-  .progTabla .etiqueta.cambio { background: #fbf3dc; color: #7a5a00; font-weight: 600; }
+  .progTabla .etiqueta, .tarjetaCentro .etiqueta { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+  .progTabla .etiqueta.nuevo, .tarjetaCentro .etiqueta.nuevo { background: #e3f3e8; color: #22693f; }
+  .progTabla .etiqueta.cambio, .tarjetaCentro .etiqueta.cambio { background: #fbf3dc; color: #7a5a00; font-weight: 600; }
   .progTabla td.acciones { overflow: visible; text-align: right; }
   .progTabla td.acciones .botonMas { background: none; border: none; color: var(--suave); cursor: pointer; font-size: 16px; padding: 0 6px; border-radius: 6px; }
   .progTabla td.acciones .botonMas:hover { background: var(--azul-claro); color: var(--azul); }
@@ -817,7 +834,6 @@
   @media (max-width: 700px) {
     .progBarra { margin: 0 8px 10px; }
     .progContenido { padding: 0 8px 80px; }
-    .progEquipo > .titulo { width: 100%; }
   }
   .vistaTiempo { --t-vigente: #2e8b57; --t-desactivado: #4f79b5; --t-pendiente: #b8860b; }
   .tiempoBarra {
@@ -3466,7 +3482,10 @@ async function abrirLineaTiempo() {
 // Aquí se ve y se asigna rápido; solo los administradores editan.
 // Cada centro tiene un biólogo de lunes a viernes y otro de sábado y domingo.
 
-let programa = null, programaEn = 0, bioResaltado = '', busquedaProg = '';
+let programa = null, programaEn = 0, busquedaProg = '', avisoSamsAbierto = false;
+const CLAVE_VISTA_PROG = 'mantenciones.programa.vista', CLAVE_TRAMO_PROG = 'mantenciones.programa.tramo';
+let vistaProg = 'centros', tramoProg = 'semana';
+try { if (localStorage.getItem(CLAVE_VISTA_PROG) === 'biologos') vistaProg = 'biologos'; if (localStorage.getItem(CLAVE_TRAMO_PROG) === 'finde') tramoProg = 'finde'; } catch {}
 const DIAS_CENTRO_NUEVO = 30;   // un centro es "nuevo" si su INICIO en SAMS es de los últimos 30 días
 const COLORES_BIO = ['#4f79b5', '#2e8b57', '#c0603a', '#7b68a6', '#c2477a', '#3e8e9a', '#b07800', '#5e7d2e', '#8a5a44', '#1f3f73', '#e0559b', '#6a7f8c'];
 const PLANCTON = { PA: 'Plancton Andino · Noruega', PAC: 'Plancton Andino · Chile' };
@@ -3490,6 +3509,41 @@ function chipBio(sigla, opciones = {}) {
     b.appendChild(c);
   }
   return b;
+}
+
+function nombreBio(sigla, boton) {
+  if (PLANCTON[sigla]) { const p = document.createElement('span'); p.className = 'chipPlancton'; p.textContent = PLANCTON[sigla]; return p; }
+  const el = document.createElement(boton ? 'button' : 'span');
+  if (boton) { el.type = 'button'; el.title = 'Cambiar biólogo'; }
+  el.className = 'bioNombre';
+  el.style.setProperty('--color', colorBio(sigla));
+  const bio = bioDe(sigla);
+  el.innerHTML = '<span class="avatarBio"></span><span></span>';
+  el.firstChild.textContent = sigla || '?';
+  if (!sigla) el.firstChild.style.background = '#c4c9d1';
+  el.lastChild.textContent = bio ? bio.nombre : (sigla ? sigla : 'Sin asignar');
+  return el;
+}
+
+function etiquetasCentro(c, sams) {
+  const lista = [];
+  const info = sams && (sams.get(nombreClave(c.centro)) || sams.get(nombreClave(c.nuevo)));
+  const hoy = new Date();
+  if (info?.inicio && info.inicio <= hoy && (hoy - info.inicio) / 86400000 <= DIAS_CENTRO_NUEVO) {
+    const e = document.createElement('span');
+    e.className = 'etiqueta nuevo';
+    e.textContent = 'Nuevo';
+    e.title = 'Inicio en SAMS: ' + info.inicio.toLocaleDateString('es-CL');
+    lista.push(e);
+  }
+  if (c.nuevo) {
+    const e = document.createElement('span');
+    e.className = 'etiqueta cambio';
+    e.textContent = '→ ' + c.nuevo + (c.fecha ? ' (' + c.fecha + ')' : '');
+    e.title = 'Cambio de centro pendiente';
+    lista.push(e);
+  }
+  return lista;
 }
 
 // Datos de SAMS por nombre de centro: para saber cuáles son nuevos y cuáles faltan en el programa
@@ -3548,54 +3602,76 @@ function dibujarPrograma() {
   document.getElementById('actualizado').textContent = '· Actualizado ' + horaDe(new Date(programaEn));
   const sams = centrosSams();
 
-  // Equipos con la carga de cada biólogo; al tocar uno se resaltan sus centros
-  const equipos = document.createElement('div');
-  equipos.className = 'progEquipos';
-  [['semana', 'Lunes a viernes'], ['finde', 'Sábado y domingo']].forEach(([equipo, titulo]) => {
-    const fila = document.createElement('div');
-    fila.className = 'progEquipo';
-    fila.innerHTML = '<span class="titulo"></span>';
-    fila.firstChild.textContent = titulo;
-    programa.biologos.filter(b => b.equipo === equipo).forEach(b => {
-      const chip = chipBio(b.sigla, { boton: true, carga: true });
-      chip.setAttribute('aria-pressed', bioResaltado === b.sigla ? 'true' : 'false');
-      chip.title = 'Resaltar los centros de ' + b.nombre;
-      chip.addEventListener('click', () => { bioResaltado = bioResaltado === b.sigla ? '' : b.sigla; dibujarPrograma(); });
-      fila.appendChild(chip);
-    });
-    equipos.appendChild(fila);
+  // Por centro (tabla por empresa) o por biólogo (tablero para repartir)
+  const vistas = document.createElement('div');
+  vistas.className = 'progVistas';
+  vistas.innerHTML = '<div class="selectorModo" role="group" aria-label="Ver programa"></div>';
+  [['centros', 'Por centro'], ['biologos', 'Por biólogo']].forEach(([id, texto]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = texto;
+    b.setAttribute('aria-pressed', id === vistaProg ? 'true' : 'false');
+    b.addEventListener('click', () => { vistaProg = id; try { localStorage.setItem(CLAVE_VISTA_PROG, id); } catch {} dibujarPrograma(); });
+    vistas.firstChild.appendChild(b);
   });
-  caja.appendChild(equipos);
+  if (vistaProg === 'biologos') {
+    const tramos = document.createElement('div');
+    tramos.className = 'chips';
+    [['semana', 'Lunes a viernes'], ['finde', 'Sábado y domingo']].forEach(([id, texto]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = texto;
+      b.setAttribute('aria-pressed', id === tramoProg ? 'true' : 'false');
+      b.addEventListener('click', () => { tramoProg = id; try { localStorage.setItem(CLAVE_TRAMO_PROG, id); } catch {} dibujarPrograma(); });
+      tramos.appendChild(b);
+    });
+    vistas.appendChild(tramos);
+  }
+  caja.appendChild(vistas);
 
-  // Centros de SAMS que no aparecen en el programa (los nombres se comparan sin tildes ni mayúsculas)
+  // Centros de SAMS que no aparecen en el programa: una línea que se despliega
   if (estado.admin && sams) {
     const enPrograma = new Set(programa.centros.flatMap(c => [nombreClave(c.centro), nombreClave(c.nuevo)]).filter(Boolean));
-    const faltan = [...sams.values()].filter(x => !enPrograma.has(nombreClave(x.nombre)));
+    const faltan = [...sams.values()].filter(x => !enPrograma.has(nombreClave(x.nombre))).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
     if (faltan.length) {
       const aviso = document.createElement('div');
-      aviso.className = 'progAviso';
-      aviso.innerHTML = '<div><b></b></div><div class="nota">Toca uno para agregarlo al programa (o revisa si el nombre está escrito distinto).</div><div class="faltantes"></div>';
-      aviso.querySelector('b').textContent = faltan.length + (faltan.length === 1 ? ' centro de SAMS no está en el programa' : ' centros de SAMS no están en el programa');
-      faltan.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).forEach(x => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'botonSecundario';
-        b.textContent = '+ ' + x.nombre;
-        b.addEventListener('click', () => abrirAgregarCentro({ centro: x.nombre, empresa: x.empresa, barrio: x.barrio }));
-        aviso.querySelector('.faltantes').appendChild(b);
-      });
+      aviso.className = 'progAviso' + (avisoSamsAbierto ? '' : ' plegado');
+      aviso.innerHTML = '<div><b></b> <button type="button" class="verMas"></button></div>';
+      aviso.querySelector('b').textContent = faltan.length + (faltan.length === 1 ? ' centro de SAMS falta en el programa' : ' centros de SAMS faltan en el programa');
+      const ver = aviso.querySelector('.verMas');
+      ver.textContent = avisoSamsAbierto ? 'Ocultar' : 'Ver y agregar';
+      ver.addEventListener('click', () => { avisoSamsAbierto = !avisoSamsAbierto; dibujarPrograma(); });
+      if (avisoSamsAbierto) {
+        aviso.insertAdjacentHTML('beforeend', '<div class="nota">Toca uno para agregarlo (o revisa si el nombre está escrito distinto).</div><div class="faltantes"></div>');
+        faltan.forEach(x => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'botonSecundario';
+          b.textContent = '+ ' + x.nombre;
+          b.addEventListener('click', () => abrirAgregarCentro({ centro: x.nombre, empresa: x.empresa, barrio: x.barrio }));
+          aviso.querySelector('.faltantes').appendChild(b);
+        });
+      }
       caja.appendChild(aviso);
     }
   }
 
-  // Tabla del programa, agrupada por empresa como en la planilla
   const q = normalizar(busquedaProg.trim());
   const filas = programa.centros.filter(c => !q || normalizar([c.empresa, c.centro, c.nuevo, c.ubicacion, c.barrio].join(' ')).includes(q));
-  const contTabla = document.createElement('div');
-  contTabla.className = 'progTabla';
+  caja.appendChild(vistaProg === 'biologos' ? tableroBiologos(filas, sams) : tablaCentros(filas, sams));
+  caja.appendChild(seccionSegundas());
+  document.getElementById('listaCentrosProg').innerHTML = programa.centros.map(c => c.centro).filter((v, i, a) => a.indexOf(v) === i)
+    .sort((a, b) => a.localeCompare(b, 'es')).map(c => '<option value="' + escaparHtml(c) + '">').join('');
+  caja.scrollTop = scroll;
+}
+
+// A · Una línea por centro, con la empresa como franja
+function tablaCentros(filas, sams) {
+  const cont = document.createElement('div');
+  cont.className = 'progTabla';
   const tabla = document.createElement('table');
   const enc = tabla.createTHead().insertRow();
-  ['Empresa', 'Centro', 'Zona', 'Lunes a viernes', 'Sábado y domingo', ''].forEach(t => {
+  ['Centro', 'Lunes a viernes', 'Sábado y domingo', ''].forEach(t => {
     const th = document.createElement('th');
     th.textContent = t;
     th.style.cursor = 'default';
@@ -3603,44 +3679,26 @@ function dibujarPrograma() {
   });
   const cuerpo = tabla.createTBody();
   let empresaAnterior = null;
-  const hoy = new Date();
   filas.forEach(c => {
+    if (c.empresa !== empresaAnterior) {
+      const franja = cuerpo.insertRow();
+      franja.className = 'franja';
+      const td = franja.insertCell();
+      td.colSpan = 4;
+      td.textContent = c.empresa || 'Sin empresa';
+      empresaAnterior = c.empresa;
+    }
     const tr = cuerpo.insertRow();
-    if (c.empresa !== empresaAnterior) tr.className = 'grupo';
-    if (bioResaltado && c.semana !== bioResaltado && c.finde !== bioResaltado) tr.classList.add('atenuada');
-    const tdEmpresa = tr.insertCell();
-    tdEmpresa.className = 'empresa';
-    tdEmpresa.textContent = c.empresa !== empresaAnterior ? c.empresa : '';
-    empresaAnterior = c.empresa;
-
     const tdCentro = tr.insertCell();
+    tdCentro.className = 'nombreCentro';
     tdCentro.textContent = c.centro;
-    const info = sams && (sams.get(nombreClave(c.centro)) || sams.get(nombreClave(c.nuevo)));
-    if (info?.inicio && (hoy - info.inicio) / 86400000 <= DIAS_CENTRO_NUEVO && info.inicio <= hoy) {
-      const e = document.createElement('span');
-      e.className = 'etiqueta nuevo';
-      e.textContent = 'Nuevo';
-      e.title = 'Inicio en SAMS: ' + info.inicio.toLocaleDateString('es-CL');
-      tdCentro.appendChild(e);
-    }
-    if (c.nuevo) {
-      const e = document.createElement('span');
-      e.className = 'etiqueta cambio';
-      e.textContent = '→ ' + c.nuevo + (c.fecha ? ' (' + c.fecha + ')' : '');
-      e.title = 'Cambio de centro pendiente';
-      tdCentro.appendChild(e);
-    }
-    tr.insertCell().textContent = [c.ubicacion, c.barrio && 'Barrio ' + c.barrio].filter(Boolean).join(' · ');
-
+    tdCentro.title = [c.ubicacion, c.barrio && 'Barrio ' + c.barrio].filter(Boolean).join(' · ');
+    etiquetasCentro(c, sams).forEach(e => tdCentro.appendChild(e));
     [['semana', c.semana], ['finde', c.finde]].forEach(([tramo, sigla]) => {
-      const td = tr.insertCell();
       const editable = estado.admin && !PLANCTON[sigla];
-      const chip = chipBio(sigla, { boton: editable });
-      if (editable) {
-        chip.title = 'Cambiar biólogo';
-        chip.addEventListener('click', () => abrirAsignarBio(c, tramo));
-      }
-      td.appendChild(chip);
+      const el = nombreBio(sigla, editable);
+      if (editable) el.addEventListener('click', () => abrirAsignarBio(c, tramo));
+      tr.insertCell().appendChild(el);
     });
     const tdAcc = tr.insertCell();
     tdAcc.className = 'acciones';
@@ -3656,13 +3714,47 @@ function dibujarPrograma() {
     }
   });
   if (!filas.length) cuerpo.insertRow().insertCell().textContent = 'No hay centros con esa búsqueda.';
-  contTabla.appendChild(tabla);
-  caja.appendChild(contTabla);
+  cont.appendChild(tabla);
+  return cont;
+}
 
-  caja.appendChild(seccionSegundas());
-  document.getElementById('listaCentrosProg').innerHTML = programa.centros.map(c => c.centro).filter((v, i, a) => a.indexOf(v) === i)
-    .sort((a, b) => a.localeCompare(b, 'es')).map(c => '<option value="' + escaparHtml(c) + '">').join('');
-  caja.scrollTop = scroll;
+// B · Una columna por biólogo del equipo elegido con sus centros; al tocar un centro se reasigna
+function tableroBiologos(filas, sams) {
+  const tablero = document.createElement('div');
+  tablero.className = 'progTablero';
+  const tramo = tramoProg;
+  const conBio = filas.filter(c => !PLANCTON[c.semana]);
+  const columnas = programa.biologos.filter(b => b.equipo === tramo).map(b => ({ sigla: b.sigla, nombre: b.nombre }));
+  // Biólogos del otro equipo que igual tienen centros en este tramo, y centros sin asignar
+  const otros = [...new Set(conBio.map(c => c[tramo]))].filter(sg => sg && !columnas.some(x => x.sigla === sg));
+  otros.forEach(sg => columnas.push({ sigla: sg, nombre: bioDe(sg)?.nombre || sg }));
+  if (conBio.some(c => !c[tramo])) columnas.push({ sigla: '', nombre: 'Sin asignar' });
+  columnas.forEach(col => {
+    const centros = conBio.filter(c => (c[tramo] || '') === col.sigla);
+    const div = document.createElement('section');
+    div.className = 'colBio';
+    div.style.setProperty('--color', col.sigla ? colorBio(col.sigla) : '#c4c9d1');
+    div.innerHTML = '<div class="cabeza"><span class="avatarBio"></span><span class="nombre"></span><span class="cuenta"></span></div>';
+    div.querySelector('.avatarBio').textContent = col.sigla || '?';
+    div.querySelector('.nombre').textContent = col.nombre;
+    const cuenta = div.querySelector('.cuenta');
+    cuenta.textContent = centros.length;
+    if (!centros.length) cuenta.classList.add('cero');
+    if (!centros.length) div.insertAdjacentHTML('beforeend', '<div class="vacia">Sin centros</div>');
+    centros.forEach(c => {
+      const t = document.createElement(estado.admin ? 'button' : 'div');
+      if (estado.admin) { t.type = 'button'; t.title = 'Cambiar biólogo de ' + c.centro; t.addEventListener('click', () => abrirAsignarBio(c, tramo)); }
+      t.className = 'tarjetaCentro';
+      t.innerHTML = '<span></span><span class="sub"></span>';
+      t.firstChild.textContent = c.centro;
+      t.querySelector('.sub').textContent = c.empresa;
+      etiquetasCentro(c, sams).forEach(e => t.appendChild(e));
+      div.appendChild(t);
+    });
+    tablero.appendChild(div);
+  });
+  if (!columnas.length) tablero.innerHTML = '<div class="vacia">No hay biólogos en este equipo.</div>';
+  return tablero;
 }
 
 function estadoSegunda(sg) {
