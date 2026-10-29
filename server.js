@@ -440,6 +440,18 @@ app.post('/api/compensaciones/:accion', requiereSesion, async (req, res) => {
   }
 });
 
+// ---------- Wellboats ----------
+// Posición de los buques (pestaña wellboat de SAMS). Todos la ven; nadie la edita desde aquí.
+app.get('/api/wellboats', requiereSesion, async (req, res) => {
+  try {
+    const r = await llamarScript({ accion: 'wellboatLeer' });
+    res.status(r.ok ? 200 : 502).json(r);
+  } catch (err) {
+    console.error('Error al leer wellboats', err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo leer la posición de los wellboats.' });
+  }
+});
+
 // ---------- Programa de biólogos ----------
 // Todos lo ven; solo un administrador asigna, cambia centros y registra segundas muestras.
 app.get('/api/programa', requiereSesion, async (req, res) => {

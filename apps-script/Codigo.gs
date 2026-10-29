@@ -55,6 +55,8 @@ function doPost(e) {
       case 'compEliminar':       return responder(compEliminar(body));
       case 'compZona':           return responder(compZona(body));
       case 'compDescartar':      return responder(compDescartar(body));
+      // Posición de los wellboats (pestaña wellboat de la planilla SAMS, solo lectura)
+      case 'wellboatLeer':       return responder(wellboatLeer());
       // Programa de biólogos (planilla Programa biólogos)
       case 'progLeer':           return responder(progLeer());
       case 'progAsignar':        return responder(progAsignar(body));
@@ -775,6 +777,24 @@ function compDescartar(body) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// ---------- Wellboats ----------
+// La pestaña wellboat de SAMS se actualiza sola con la posición de cada buque; aquí solo se lee.
+function wellboatLeer() {
+  const ss = SpreadsheetApp.openById(HOJAS.sams.archivoId);
+  const sheet = ss.getSheetByName('wellboat');
+  if (!sheet) return { ok: false, error: 'No se encontró la pestaña wellboat en la planilla SAMS' };
+  const v = sheet.getDataRange().getDisplayValues();
+  const enc = (v[0] || []).map(h => normalizar(h));
+  const col = nombres => enc.findIndex(h => nombres.some(n => h.startsWith(n)));
+  const c = { nombre: col(['wellboat', 'buque', 'nombre']), datos: col(['datos', 'estado']), lat: col(['lat']), lon: col(['lon', 'lng']), rango: col(['rango']) };
+  const numero = x => parseFloat(String(x || '').trim().replace(',', '.'));
+  const buques = v.slice(1).map(f => ({
+    nombre: String(f[c.nombre] || '').trim(), datos: c.datos >= 0 ? String(f[c.datos] || '').trim() : '',
+    lat: numero(f[c.lat]), lon: numero(f[c.lon]), rango: c.rango >= 0 ? String(f[c.rango] || '').trim() : ''
+  })).filter(b => b.nombre && isFinite(b.lat) && isFinite(b.lon));
+  return { ok: true, buques: buques, leido: ahora(ss, 'HH:mm') };
 }
 
 // ---------- Programa de biólogos ----------
