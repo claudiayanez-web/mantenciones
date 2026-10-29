@@ -772,6 +772,53 @@
     .compBarra { margin: 0 8px 10px; }
     .compContenido { padding: 0 8px 80px; }
   }
+  /* ---------- Programa de biólogos ---------- */
+  .vistaProg { min-height: 0; }
+  .progBarra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 20px 10px; }
+  .progBarra .buscador { flex: 0 1 280px; }
+  .progBarra .espacio { flex: 1; }
+  .progAviso .faltantes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .progAviso .faltantes button { padding: 3px 10px; font-size: 12px; }
+  .progContenido { flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px 24px; display: grid; gap: 14px; align-content: start; }
+  .progEquipos { display: grid; gap: 8px; }
+  .progEquipo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .progEquipo > .titulo { font-size: 12px; color: var(--suave); width: 100px; }
+  .chipBio { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 999px; font: inherit; font-size: 12px; font-weight: 600;
+    border: 1px solid transparent; background: color-mix(in srgb, var(--color) 14%, white); color: var(--texto); cursor: pointer; }
+  .chipBio::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--color); }
+  .chipBio .carga { font-weight: 400; color: var(--suave); }
+  .chipBio .carga.cero { color: var(--error); font-weight: 600; }
+  .chipBio[aria-pressed="true"] { border-color: var(--color); box-shadow: 0 0 0 1px var(--color); }
+  .chipBio.fijo { cursor: default; }
+  .chipPlancton { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; background: #eef0f3; color: var(--suave); }
+  .progAviso { background: #fffdf5; border: 1px solid #e7c66b; border-radius: 12px; padding: 12px 14px; font-size: 13px; display: grid; gap: 6px; }
+  .progAviso b { color: #7a5a00; }
+  .progTabla { background: white; border: 1px solid var(--borde); border-radius: 12px; overflow-x: auto; }
+  .progTabla table { min-width: 100%; }
+  .progTabla tbody tr { cursor: default; }
+  .progTabla td { vertical-align: middle; }
+  .progTabla tr.atenuada td { opacity: 0.35; }
+  .progTabla td.empresa { color: var(--suave); font-size: 12px; font-weight: 400; }
+  .progTabla tr.grupo td { border-top: 1px solid var(--borde); }
+  .progTabla .etiqueta { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+  .progTabla .etiqueta.nuevo { background: #e3f3e8; color: #22693f; }
+  .progTabla .etiqueta.cambio { background: #fbf3dc; color: #7a5a00; font-weight: 600; }
+  .progTabla td.acciones { overflow: visible; text-align: right; }
+  .progTabla td.acciones .botonMas { background: none; border: none; color: var(--suave); cursor: pointer; font-size: 16px; padding: 0 6px; border-radius: 6px; }
+  .progTabla td.acciones .botonMas:hover { background: var(--azul-claro); color: var(--azul); }
+  .progSeccion { background: white; border: 1px solid var(--borde); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+  .progSeccion .cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .progSeccion h3 { margin: 0; font-size: 15px; color: var(--azul); }
+  .pillSegunda { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pillSegunda.activa { background: var(--azul-claro); color: var(--azul); }
+  .pillSegunda.programada { background: #fbf3dc; color: #7a5a00; }
+  .pillSegunda.terminada { background: #eef0f3; color: var(--suave); }
+  .dialogoTicket .opcionesBio { display: flex; flex-wrap: wrap; gap: 6px; }
+  @media (max-width: 700px) {
+    .progBarra { margin: 0 8px 10px; }
+    .progContenido { padding: 0 8px 80px; }
+    .progEquipo > .titulo { width: 100%; }
+  }
   .vistaTiempo { --t-vigente: #2e8b57; --t-desactivado: #4f79b5; --t-pendiente: #b8860b; }
   .tiempoBarra {
     display: flex;
@@ -985,6 +1032,10 @@
           <span>Solicitudes</span>
           <span class="insignia" id="insigniaSolicitudes" title="Tickets por aceptar" hidden></span>
         </button>
+        <button type="button" id="btnPrograma" aria-selected="false">
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M16 4.5a3 3 0 0 1 0 6M21 20a6 6 0 0 0-4-5.6"/></svg>
+          <span>Programa biólogos</span>
+        </button>
         <button type="button" id="btnCompensaciones" aria-selected="false" hidden>
           <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M9 16l2 2 4-4"/></svg>
           <span>Compensaciones</span>
@@ -1112,6 +1163,22 @@
   </div>
 
   <!-- Línea de tiempo: todos los centros con sus periodos (SAMS + Historial) -->
+  <div class="vista vistaProg" id="vistaProg" hidden>
+    <div class="progBarra">
+      <label class="buscador">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="buscarPrograma" placeholder="Buscar centro, empresa o zona" aria-label="Buscar en el programa">
+      </label>
+      <span class="espacio"></span>
+      <button class="botonPrimario" id="btnAgregarCentroProg" type="button" hidden>+ Agregar centro</button>
+      <button class="botonIcono" id="btnRecargarPrograma" type="button" title="Recargar" aria-label="Recargar programa">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
+      </button>
+    </div>
+    <div class="progContenido" id="progContenido"></div>
+    <datalist id="listaCentrosProg"></datalist>
+  </div>
+
   <div class="vista vistaComp" id="vistaComp" hidden>
     <div class="compBarra" id="compBarra">
       <button class="botonSecundario" id="btnZonasComp" type="button" hidden>Zonas de centros</button>
@@ -1323,6 +1390,7 @@ async function iniciar() {
   document.getElementById('btnCompensaciones').hidden = !estado.admin;
   if (!estado.admin && estado.tecnico) cargarCompensaciones();
   document.getElementById('btnZonasComp').hidden = !estado.admin;
+  document.getElementById('btnAgregarCentroProg').hidden = !estado.admin;
   // Al recargar se vuelve a la vista en que se estaba (se guarda solo en esta pestaña del navegador);
   // al abrir la página de nuevo, lo primero que se ve es Solicitudes
   let anterior = {};
@@ -1333,6 +1401,7 @@ async function iniciar() {
   else if (anterior.vista === 'mapa') abrirMapa();
   else if (anterior.vista === 'tiempo') abrirLineaTiempo();
   else if (anterior.vista === 'compensaciones' && (estado.admin || estado.tecnico)) abrirCompensaciones();
+  else if (anterior.vista === 'programa') abrirPrograma();
   else abrirSolicitudes();
   if (anterior.vista && anterior.vista !== 'solicitudes') cargarSolicitudes({ silencioso: true });  // para la cantidad del menú
   precargarHojas();
@@ -1431,6 +1500,8 @@ function mostrarVista(vista) {
   document.getElementById('vistaTiempo').hidden = vista !== 'tiempo';
   document.getElementById('vistaSolicitudes').hidden = vista !== 'solicitudes';
   document.getElementById('vistaComp').hidden = vista !== 'compensaciones';
+  document.getElementById('vistaProg').hidden = vista !== 'programa';
+  document.getElementById('btnPrograma').setAttribute('aria-selected', vista === 'programa' ? 'true' : 'false');
   document.getElementById('btnCompensaciones').setAttribute('aria-selected', vista === 'compensaciones' ? 'true' : 'false');
   document.getElementById('btnSolicitudes').setAttribute('aria-selected', vista === 'solicitudes' ? 'true' : 'false');
   document.getElementById('accionesHoja').hidden = vista !== 'tabla';
@@ -3390,6 +3461,458 @@ async function abrirLineaTiempo() {
   if (estado.vista === 'tiempo') dibujarLineaTiempo();
 }
 
+// ---------- Programa de biólogos ----------
+// Se guarda en la pestaña "Programa (página)" de la planilla "Programa biólogos" (la pestaña Programa no se toca).
+// Aquí se ve y se asigna rápido; solo los administradores editan.
+// Cada centro tiene un biólogo de lunes a viernes y otro de sábado y domingo.
+
+let programa = null, programaEn = 0, bioResaltado = '', busquedaProg = '';
+const DIAS_CENTRO_NUEVO = 30;   // un centro es "nuevo" si su INICIO en SAMS es de los últimos 30 días
+const COLORES_BIO = ['#4f79b5', '#2e8b57', '#c0603a', '#7b68a6', '#c2477a', '#3e8e9a', '#b07800', '#5e7d2e', '#8a5a44', '#1f3f73', '#e0559b', '#6a7f8c'];
+const PLANCTON = { PA: 'Plancton Andino · Noruega', PAC: 'Plancton Andino · Chile' };
+
+const bioDe = sigla => programa.biologos.find(b => b.sigla === sigla);
+const colorBio = sigla => { const i = programa.biologos.findIndex(b => b.sigla === sigla); return i === -1 ? '#9ca3af' : COLORES_BIO[i % COLORES_BIO.length]; };
+const cargaBio = sigla => programa.centros.filter(c => c.semana === sigla || c.finde === sigla).length;
+
+function chipBio(sigla, opciones = {}) {
+  if (PLANCTON[sigla]) { const p = document.createElement('span'); p.className = 'chipPlancton'; p.textContent = PLANCTON[sigla]; return p; }
+  const b = document.createElement(opciones.boton ? 'button' : 'span');
+  if (opciones.boton) b.type = 'button';
+  b.className = 'chipBio' + (opciones.boton ? '' : ' fijo');
+  b.style.setProperty('--color', colorBio(sigla));
+  const bio = bioDe(sigla);
+  b.textContent = bio ? bio.nombre : (sigla || 'Sin asignar');
+  if (opciones.carga) {
+    const n = cargaBio(sigla), c = document.createElement('span');
+    c.className = 'carga' + (n ? '' : ' cero');
+    c.textContent = n;
+    b.appendChild(c);
+  }
+  return b;
+}
+
+// Datos de SAMS por nombre de centro: para saber cuáles son nuevos y cuáles faltan en el programa
+function centrosSams() {
+  const datos = datosDeHoja('sams');
+  if (!datos) return null;
+  const col = nombres => datos.columnas.find(c => nombres.includes(normalizar(c.nombre)))?.nombre;
+  const colCentro = col(['centro']), colInicio = col(['inicio']), colEmpresa = col(['empresa']), colBarrio = col(['barrio']);
+  const mapa = new Map();
+  datos.filas.forEach(f => {
+    const nombre = String(f.celdas[colCentro] || '').trim();
+    if (!nombre) return;
+    const m = String(f.celdas[colInicio] || '').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    mapa.set(nombreClave(nombre), { nombre, inicio: m ? new Date(+m[3], m[2] - 1, +m[1]) : null,
+      empresa: String(f.celdas[colEmpresa] || '').trim(), barrio: String(f.celdas[colBarrio] || '').trim() });
+  });
+  return mapa;
+}
+
+async function abrirPrograma() {
+  abrirMenu(false);
+  if (!cerrarPanel()) return;
+  mostrarVista('programa');
+  document.getElementById('tituloHoja').textContent = 'Programa de biólogos';
+  document.getElementById('actualizado').textContent = '';
+  if (programa) dibujarPrograma();
+  else { document.getElementById('conteo').textContent = 'Cargando…'; document.getElementById('progContenido').innerHTML = ''; }
+  await cargarPrograma();
+}
+
+async function cargarPrograma() {
+  const boton = document.getElementById('btnRecargarPrograma');
+  boton.classList.add('cargando');
+  if (!datosDeHoja('sams')) {
+    const s = await api('/api/hojas/sams');
+    if (s.ok) estado.cache.sams = prepararDatos(s);
+  }
+  const r = await api('/api/programa');
+  boton.classList.remove('cargando');
+  if (!r.ok) {
+    if (estado.vista === 'programa') document.getElementById('conteo').textContent = r.error || 'No se pudo leer el programa.';
+    return;
+  }
+  programa = r;
+  programaEn = Date.now();
+  if (estado.vista === 'programa') dibujarPrograma();
+}
+
+function dibujarPrograma() {
+  if (!programa) return;
+  const caja = document.getElementById('progContenido');
+  const scroll = caja.scrollTop;
+  caja.innerHTML = '';
+  const conBiologo = programa.centros.filter(c => !PLANCTON[c.semana]);
+  document.getElementById('conteo').textContent = programa.centros.length + ' centros · ' + conBiologo.length + ' con biólogo';
+  document.getElementById('actualizado').textContent = '· Actualizado ' + horaDe(new Date(programaEn));
+  const sams = centrosSams();
+
+  // Equipos con la carga de cada biólogo; al tocar uno se resaltan sus centros
+  const equipos = document.createElement('div');
+  equipos.className = 'progEquipos';
+  [['semana', 'Lunes a viernes'], ['finde', 'Sábado y domingo']].forEach(([equipo, titulo]) => {
+    const fila = document.createElement('div');
+    fila.className = 'progEquipo';
+    fila.innerHTML = '<span class="titulo"></span>';
+    fila.firstChild.textContent = titulo;
+    programa.biologos.filter(b => b.equipo === equipo).forEach(b => {
+      const chip = chipBio(b.sigla, { boton: true, carga: true });
+      chip.setAttribute('aria-pressed', bioResaltado === b.sigla ? 'true' : 'false');
+      chip.title = 'Resaltar los centros de ' + b.nombre;
+      chip.addEventListener('click', () => { bioResaltado = bioResaltado === b.sigla ? '' : b.sigla; dibujarPrograma(); });
+      fila.appendChild(chip);
+    });
+    equipos.appendChild(fila);
+  });
+  caja.appendChild(equipos);
+
+  // Centros de SAMS que no aparecen en el programa (los nombres se comparan sin tildes ni mayúsculas)
+  if (estado.admin && sams) {
+    const enPrograma = new Set(programa.centros.flatMap(c => [nombreClave(c.centro), nombreClave(c.nuevo)]).filter(Boolean));
+    const faltan = [...sams.values()].filter(x => !enPrograma.has(nombreClave(x.nombre)));
+    if (faltan.length) {
+      const aviso = document.createElement('div');
+      aviso.className = 'progAviso';
+      aviso.innerHTML = '<div><b></b></div><div class="nota">Toca uno para agregarlo al programa (o revisa si el nombre está escrito distinto).</div><div class="faltantes"></div>';
+      aviso.querySelector('b').textContent = faltan.length + (faltan.length === 1 ? ' centro de SAMS no está en el programa' : ' centros de SAMS no están en el programa');
+      faltan.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).forEach(x => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'botonSecundario';
+        b.textContent = '+ ' + x.nombre;
+        b.addEventListener('click', () => abrirAgregarCentro({ centro: x.nombre, empresa: x.empresa, barrio: x.barrio }));
+        aviso.querySelector('.faltantes').appendChild(b);
+      });
+      caja.appendChild(aviso);
+    }
+  }
+
+  // Tabla del programa, agrupada por empresa como en la planilla
+  const q = normalizar(busquedaProg.trim());
+  const filas = programa.centros.filter(c => !q || normalizar([c.empresa, c.centro, c.nuevo, c.ubicacion, c.barrio].join(' ')).includes(q));
+  const contTabla = document.createElement('div');
+  contTabla.className = 'progTabla';
+  const tabla = document.createElement('table');
+  const enc = tabla.createTHead().insertRow();
+  ['Empresa', 'Centro', 'Zona', 'Lunes a viernes', 'Sábado y domingo', ''].forEach(t => {
+    const th = document.createElement('th');
+    th.textContent = t;
+    th.style.cursor = 'default';
+    enc.appendChild(th);
+  });
+  const cuerpo = tabla.createTBody();
+  let empresaAnterior = null;
+  const hoy = new Date();
+  filas.forEach(c => {
+    const tr = cuerpo.insertRow();
+    if (c.empresa !== empresaAnterior) tr.className = 'grupo';
+    if (bioResaltado && c.semana !== bioResaltado && c.finde !== bioResaltado) tr.classList.add('atenuada');
+    const tdEmpresa = tr.insertCell();
+    tdEmpresa.className = 'empresa';
+    tdEmpresa.textContent = c.empresa !== empresaAnterior ? c.empresa : '';
+    empresaAnterior = c.empresa;
+
+    const tdCentro = tr.insertCell();
+    tdCentro.textContent = c.centro;
+    const info = sams && (sams.get(nombreClave(c.centro)) || sams.get(nombreClave(c.nuevo)));
+    if (info?.inicio && (hoy - info.inicio) / 86400000 <= DIAS_CENTRO_NUEVO && info.inicio <= hoy) {
+      const e = document.createElement('span');
+      e.className = 'etiqueta nuevo';
+      e.textContent = 'Nuevo';
+      e.title = 'Inicio en SAMS: ' + info.inicio.toLocaleDateString('es-CL');
+      tdCentro.appendChild(e);
+    }
+    if (c.nuevo) {
+      const e = document.createElement('span');
+      e.className = 'etiqueta cambio';
+      e.textContent = '→ ' + c.nuevo + (c.fecha ? ' (' + c.fecha + ')' : '');
+      e.title = 'Cambio de centro pendiente';
+      tdCentro.appendChild(e);
+    }
+    tr.insertCell().textContent = [c.ubicacion, c.barrio && 'Barrio ' + c.barrio].filter(Boolean).join(' · ');
+
+    [['semana', c.semana], ['finde', c.finde]].forEach(([tramo, sigla]) => {
+      const td = tr.insertCell();
+      const editable = estado.admin && !PLANCTON[sigla];
+      const chip = chipBio(sigla, { boton: editable });
+      if (editable) {
+        chip.title = 'Cambiar biólogo';
+        chip.addEventListener('click', () => abrirAsignarBio(c, tramo));
+      }
+      td.appendChild(chip);
+    });
+    const tdAcc = tr.insertCell();
+    tdAcc.className = 'acciones';
+    if (estado.admin) {
+      const mas = document.createElement('button');
+      mas.type = 'button';
+      mas.className = 'botonMas';
+      mas.textContent = '⋯';
+      mas.title = 'Cambio de centro o quitar';
+      mas.setAttribute('aria-label', 'Cambio de centro de ' + c.centro);
+      mas.addEventListener('click', () => abrirCambioCentro(c));
+      tdAcc.appendChild(mas);
+    }
+  });
+  if (!filas.length) cuerpo.insertRow().insertCell().textContent = 'No hay centros con esa búsqueda.';
+  contTabla.appendChild(tabla);
+  caja.appendChild(contTabla);
+
+  caja.appendChild(seccionSegundas());
+  document.getElementById('listaCentrosProg').innerHTML = programa.centros.map(c => c.centro).filter((v, i, a) => a.indexOf(v) === i)
+    .sort((a, b) => a.localeCompare(b, 'es')).map(c => '<option value="' + escaparHtml(c) + '">').join('');
+  caja.scrollTop = scroll;
+}
+
+function estadoSegunda(sg) {
+  const hoy = hoyIso();
+  return sg.fin && sg.fin < hoy ? 'terminada' : sg.inicio && sg.inicio > hoy ? 'programada' : 'activa';
+}
+
+function seccionSegundas() {
+  const sec = document.createElement('section');
+  sec.className = 'progSeccion';
+  sec.innerHTML = '<div class="cabecera"><h3>Segundas muestras</h3></div><p class="nota" style="margin:0;color:var(--suave);font-size:13px">En temporada alta los centros piden una segunda muestra y se asigna a otra bióloga por un periodo.</p>';
+  if (estado.admin) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'botonPrimario';
+    b.textContent = '+ Asignar segunda muestra';
+    b.addEventListener('click', () => abrirSegunda(null));
+    sec.querySelector('.cabecera').appendChild(b);
+  }
+  const orden = { activa: 0, programada: 1, terminada: 2 };
+  const lista = programa.segundas.slice().sort((a, b) => orden[estadoSegunda(a)] - orden[estadoSegunda(b)] || String(b.inicio).localeCompare(String(a.inicio)));
+  const cont = document.createElement('div');
+  cont.className = 'compTabla';
+  if (!lista.length) cont.innerHTML = '<div class="vacioTabla">Todavía no hay segundas muestras.</div>';
+  else {
+    const tabla = document.createElement('table');
+    const enc = tabla.createTHead().insertRow();
+    const columnas = ['Centro', 'Bióloga', 'Periodo', 'Horario', 'Tiempo', 'Estado', 'Observación'];
+    if (estado.admin) columnas.push('');
+    columnas.forEach(t => { const th = document.createElement('th'); th.textContent = t; th.style.cursor = 'default'; enc.appendChild(th); });
+    const cuerpo = tabla.createTBody();
+    lista.forEach(sg => {
+      const tr = cuerpo.insertRow();
+      [sg.centro, sg.biologa, rangoFechas(sg.inicio, sg.fin), sg.horario, sg.tiempo].forEach(v => { tr.insertCell().textContent = v || ''; });
+      const est = estadoSegunda(sg);
+      tr.insertCell().innerHTML = '<span class="pillSegunda ' + est + '">' + { activa: 'Activa', programada: 'Programada', terminada: 'Terminada' }[est] + '</span>';
+      const obs = tr.insertCell();
+      obs.textContent = sg.observacion;
+      if (sg.observacion.length > 30) obs.title = sg.observacion;
+      if (estado.admin) {
+        const td = tr.insertCell();
+        td.className = 'acciones';
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'botonSecundario';
+        b.textContent = 'Editar';
+        b.addEventListener('click', () => abrirSegunda(sg));
+        td.appendChild(b);
+      }
+    });
+    cont.appendChild(tabla);
+  }
+  sec.appendChild(cont);
+  return sec;
+}
+
+async function guardarPrograma(ruta, datos, boton, listo) {
+  const texto = boton.textContent;
+  boton.disabled = true;
+  boton.textContent = 'Guardando…';
+  const r = await api('/api/programa/' + ruta, { method: 'POST', body: JSON.stringify(datos) });
+  boton.disabled = false;
+  boton.textContent = texto;
+  if (!r.ok) { avisar(r.error || 'No se pudo guardar.', true); if (r.conflicto) cargarPrograma(); return false; }
+  avisar(listo);
+  await cargarPrograma();
+  return true;
+}
+
+// Elegir biólogo: un toque y queda asignado
+function abrirAsignarBio(c, tramo) {
+  const { dialogo, form, campos } = dialogoComp(c.centro + ' · ' + (tramo === 'semana' ? 'lunes a viernes' : 'sábado y domingo'),
+    'Toca un biólogo para asignarlo. El número es cuántos centros tiene hoy.', 'Cerrar');
+  campos.className = 'campos';
+  form.querySelector('.cancelar').hidden = true;
+  const actual = tramo === 'semana' ? c.semana : c.finde;
+  const opciones = document.createElement('div');
+  opciones.className = 'opcionesBio';
+  const lista = programa.biologos.filter(b => b.equipo === tramo).concat(programa.biologos.filter(b => b.equipo !== tramo));
+  lista.forEach((b, i) => {
+    if (i && b.equipo !== lista[i - 1].equipo) {
+      const sep = document.createElement('div');
+      sep.style.cssText = 'width:100%;font-size:12px;color:var(--suave);margin-top:4px';
+      sep.textContent = 'Del otro equipo';
+      opciones.appendChild(sep);
+    }
+    const chip = chipBio(b.sigla, { boton: true, carga: true });
+    chip.setAttribute('aria-pressed', b.sigla === actual ? 'true' : 'false');
+    chip.addEventListener('click', async () => {
+      if (b.sigla === actual) { dialogo.close(); return; }
+      const ok = await guardarPrograma('asignar', { id: c.id, centro: c.centro, tramo, sigla: b.sigla }, chip,
+        c.centro + ': ' + b.nombre + (tramo === 'semana' ? ' de lunes a viernes' : ' el fin de semana'));
+      if (ok) dialogo.close();
+    });
+    opciones.appendChild(chip);
+  });
+  campos.appendChild(opciones);
+  form.addEventListener('submit', e => { e.preventDefault(); dialogo.close(); });
+  dialogo.showModal();
+}
+
+// Cambio de centro (centro nuevo y fecha estimada, que se puede cambiar) o quitar el centro del programa
+function abrirCambioCentro(c) {
+  const { dialogo, form, error, campo, campos } = dialogoComp('Cambio de centro · ' + c.centro,
+    'Mantiene los mismos biólogos. La fecha es estimada y la puedes cambiar cuando quieras.', c.nuevo ? 'Guardar cambio' : 'Programar cambio');
+  const nuevo = campo('Centro nuevo', '<input id="progNuevo" autocomplete="off">', true);
+  nuevo.value = c.nuevo;
+  const fecha = campo('Fecha estimada (texto libre, por ejemplo 15/nov)', '<input id="progFecha" autocomplete="off">', true);
+  fecha.value = c.fecha;
+  const aviso = document.createElement('div');
+  aviso.className = 'aviso ancho';
+  campos.appendChild(aviso);
+  const actualizar = () => { aviso.textContent = 'Se verá así: ' + c.centro + (nuevo.value.trim() ? ' → ' + nuevo.value.trim() + (fecha.value.trim() ? ' (' + fecha.value.trim() + ')' : '') : ''); };
+  form.addEventListener('input', actualizar);
+  actualizar();
+  if (c.nuevo) {
+    // Con un cambio pendiente: completarlo (queda solo el nuevo) o cancelarlo (vuelve al actual)
+    const extra = document.createElement('div');
+    extra.className = 'ancho';
+    extra.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+    const completar = document.createElement('button');
+    completar.type = 'button';
+    completar.className = 'botonSecundario';
+    completar.textContent = 'Completar cambio (queda ' + c.nuevo + ')';
+    completar.addEventListener('click', async () => {
+      if (await guardarPrograma('cambio', { id: c.id, centro: c.centro, modo: 'completar' }, completar, 'Cambio completado: ahora es ' + c.nuevo)) dialogo.close();
+    });
+    const cancelar = document.createElement('button');
+    cancelar.type = 'button';
+    cancelar.className = 'botonPeligro';
+    cancelar.textContent = 'Cancelar cambio';
+    cancelar.addEventListener('click', async () => {
+      if (await guardarPrograma('cambio', { id: c.id, centro: c.centro, modo: 'quitar' }, cancelar, 'Cambio de centro cancelado')) dialogo.close();
+    });
+    extra.append(completar, cancelar);
+    campos.appendChild(extra);
+  }
+  // Quitar el centro del programa, en dos toques
+  const quitar = form.querySelector('.eliminar');
+  quitar.hidden = false;
+  quitar.textContent = 'Quitar centro del programa';
+  let confirmando = false;
+  quitar.addEventListener('click', async () => {
+    if (!confirmando) { confirmando = true; quitar.textContent = '¿Quitar ' + c.centro + '? Toca de nuevo'; return; }
+    if (await guardarPrograma('quitar', { id: c.id, centro: c.centro }, quitar, c.centro + ' quitado del programa')) dialogo.close();
+  });
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!nuevo.value.trim()) { error.textContent = 'Escribe el centro nuevo.'; return; }
+    const ok = await guardarPrograma('cambio', { id: c.id, centro: c.centro, modo: 'programar', nuevo: nuevo.value.trim(), fecha: fecha.value.trim() },
+      form.querySelector('.confirmar'), 'Cambio de centro guardado');
+    if (ok) dialogo.close();
+  });
+  dialogo.showModal();
+  nuevo.focus();
+}
+
+// Centro nuevo en el programa (por ejemplo uno que ya está en SAMS)
+function abrirAgregarCentro(base = {}) {
+  const { dialogo, form, error, campo, campos } = dialogoComp('Agregar centro', 'Queda al final de su empresa en el programa', 'Agregar');
+  const empresas = [...new Set(programa.centros.map(c => c.empresa).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+  const empresa = campo('Empresa', '<input id="progEmpresa" list="listaEmpresasProg" autocomplete="off">', true);
+  const listaEmpresas = document.createElement('datalist');
+  listaEmpresas.id = 'listaEmpresasProg';
+  listaEmpresas.innerHTML = empresas.map(e => '<option value="' + escaparHtml(e) + '">').join('');
+  form.appendChild(listaEmpresas);
+  // La empresa de SAMS puede venir escrita distinto: se usa la del programa si coincide
+  empresa.value = empresas.find(e => normalizar(e) === normalizar(base.empresa || '')) || base.empresa || '';
+  const centro = campo('Centro', '<input id="progCentroNuevo" autocomplete="off">', true);
+  centro.value = base.centro || '';
+  const ubicacion = campo('Ubicación', '<input id="progUbicacion" autocomplete="off" placeholder="Ej.: Chiloé, Aysén, Calbuco">');
+  const barrio = campo('Barrio', '<input id="progBarrio" autocomplete="off">');
+  barrio.value = base.barrio || '';
+  const elegir = (etiqueta, id, equipo) => {
+    const sel = campo(etiqueta, '<select id="' + id + '"></select>');
+    sel.add(new Option('Sin asignar', ''));
+    programa.biologos.filter(b => b.equipo === equipo).forEach(b => sel.add(new Option(b.nombre + ' (' + cargaBio(b.sigla) + ')', b.sigla)));
+    Object.entries(PLANCTON).forEach(([sigla, texto]) => sel.add(new Option(texto, sigla)));
+    return sel;
+  };
+  const semana = elegir('Lunes a viernes', 'progSemanaNuevo', 'semana');
+  const finde = elegir('Sábado y domingo', 'progFindeNuevo', 'finde');
+  // Plancton Andino va igual toda la semana
+  semana.addEventListener('change', () => { if (PLANCTON[semana.value]) finde.value = semana.value; });
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!empresa.value.trim()) { error.textContent = 'Escribe la empresa.'; return; }
+    if (!centro.value.trim()) { error.textContent = 'Escribe el centro.'; return; }
+    if (programa.centros.some(c => nombreClave(c.centro) === nombreClave(centro.value))) { error.textContent = 'Ese centro ya está en el programa.'; return; }
+    const ok = await guardarPrograma('agregar', { empresa: empresa.value.trim(), centro: centro.value.trim(), ubicacion: ubicacion.value.trim(), barrio: barrio.value.trim(),
+      semana: semana.value, finde: finde.value }, form.querySelector('.confirmar'), centro.value.trim() + ' agregado al programa');
+    if (ok) dialogo.close();
+  });
+  dialogo.showModal();
+  (centro.value ? ubicacion : empresa).focus();
+}
+
+function abrirSegunda(sg) {
+  const { dialogo, form, error, campo, campos } = dialogoComp(sg ? 'Editar segunda muestra' : 'Asignar segunda muestra', 'Queda registrada en la pestaña Segunda Muestra', 'Guardar');
+  const centro = campo('Centro', '<input id="segCentro" list="listaCentrosProg" autocomplete="off">', true);
+  centro.value = sg ? sg.centro : '';
+  const biologa = campo('Bióloga', '<select id="segBiologa"></select>', true);
+  biologa.add(new Option('Elegir…', ''));
+  programa.biologos.forEach(b => biologa.add(new Option(b.nombre + ' (' + (b.equipo === 'semana' ? 'semana' : 'fin de semana') + ')', b.nombre)));
+  if (sg && ![...biologa.options].some(o => o.value === sg.biologa)) biologa.add(new Option(sg.biologa, sg.biologa));
+  biologa.value = sg ? sg.biologa : '';
+  const inicio = campo('Inicio', '<input type="date" id="segInicio">');
+  const fin = campo('Fin', '<input type="date" id="segFin">');
+  inicio.value = sg ? sg.inicio : hoyIso();
+  fin.value = sg ? sg.fin : '';
+  const horario = campo('Horario', '<input id="segHorario" autocomplete="off" placeholder="Ej.: 08:00 o tarde">', true);
+  horario.value = sg ? sg.horario : '';
+  const obs = campo('Observación', '<input id="segObs" autocomplete="off" placeholder="Ej.: la pidió el jefe de centro">', true);
+  obs.value = sg ? sg.observacion : '';
+  const aviso = document.createElement('div');
+  aviso.className = 'aviso ancho';
+  campos.appendChild(aviso);
+  const actualizar = () => {
+    if (!inicio.value || !fin.value || fin.value < inicio.value) { aviso.textContent = 'Elige inicio y fin para ver la duración.'; return; }
+    const dias = Math.round((diaIso(fin.value) - diaIso(inicio.value)) / 86400000) + 1;
+    aviso.textContent = 'Duración: ' + (dias % 7 === 0 ? dias / 7 + (dias === 7 ? ' semana' : ' semanas') : dias + (dias === 1 ? ' día' : ' días'));
+  };
+  inicio.addEventListener('change', () => { if (fin.value && fin.value < inicio.value) fin.value = inicio.value; });
+  form.addEventListener('input', actualizar);
+  actualizar();
+  if (sg) {
+    // Eliminar en dos toques
+    const b = form.querySelector('.eliminar');
+    b.hidden = false;
+    let confirmando = false;
+    b.addEventListener('click', async () => {
+      if (!confirmando) { confirmando = true; b.textContent = '¿Eliminar? Toca de nuevo'; return; }
+      if (await guardarPrograma('eliminarSegunda', { fila: sg.fila, centroAntes: sg.centro }, b, 'Segunda muestra eliminada')) dialogo.close();
+    });
+  }
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!centro.value.trim()) { error.textContent = 'Elige el centro.'; return; }
+    if (!biologa.value) { error.textContent = 'Elige la bióloga.'; return; }
+    if (!inicio.value || !fin.value) { error.textContent = 'Elige el inicio y el fin.'; return; }
+    if (fin.value < inicio.value) { error.textContent = 'El fin es anterior al inicio.'; return; }
+    const datos = { fila: sg ? sg.fila : null, centroAntes: sg ? sg.centro : '', centro: centro.value.trim(), biologa: biologa.value,
+      inicio: inicio.value, fin: fin.value, horario: horario.value.trim(), observacion: obs.value.trim() };
+    const ok = await guardarPrograma('segunda', datos, form.querySelector('.confirmar'), sg ? 'Segunda muestra actualizada' : 'Segunda muestra asignada');
+    if (ok) dialogo.close();
+  });
+  dialogo.showModal();
+  (sg ? horario : centro).focus();
+}
+
 // ---------- Compensaciones ----------
 // Tú registras las salidas a terreno y los días libres; cada técnico solo ve lo suyo.
 // Los certificados de servicio de terreno en zonas que compensan sirven para no olvidar ninguna salida.
@@ -4134,6 +4657,10 @@ function abrirPeriodoDesdeTiempo(p) {
 document.getElementById('btnTiempo').addEventListener('click', abrirLineaTiempo);
 document.getElementById('btnSolicitudes').addEventListener('click', abrirSolicitudes);
 document.getElementById('btnCompensaciones').addEventListener('click', abrirCompensaciones);
+document.getElementById('btnPrograma').addEventListener('click', abrirPrograma);
+document.getElementById('btnRecargarPrograma').addEventListener('click', () => cargarPrograma());
+document.getElementById('btnAgregarCentroProg').addEventListener('click', () => { if (programa) abrirAgregarCentro(); });
+document.getElementById('buscarPrograma').addEventListener('input', e => { busquedaProg = e.target.value; dibujarPrograma(); });
 document.getElementById('btnRecargarComp').addEventListener('click', () => cargarCompensaciones());
 document.getElementById('btnZonasComp').addEventListener('click', abrirZonas);
 document.querySelectorAll('#selectorModo button').forEach(b => b.addEventListener('click', () => {

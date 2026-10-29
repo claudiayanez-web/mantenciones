@@ -440,4 +440,49 @@ app.post('/api/compensaciones/:accion', requiereSesion, async (req, res) => {
   }
 });
 
+// ---------- Programa de biólogos ----------
+// Todos lo ven; solo un administrador asigna, cambia centros y registra segundas muestras.
+app.get('/api/programa', requiereSesion, async (req, res) => {
+  try {
+    const r = await llamarScript({ accion: 'progLeer' });
+    res.status(r.ok ? 200 : 502).json(r);
+  } catch (err) {
+    console.error('Error al leer el programa', err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo leer el programa de biólogos.' });
+  }
+});
+
+const idYCentro = b => /^[0-9]+$/.test(String(b.id ?? '')) && texto(b.centro, 150);
+const ACCIONES_PROGRAMA = {
+  asignar: b => idYCentro(b) && ['semana', 'finde'].includes(b.tramo) && texto(b.sigla, 10) &&
+    { accion: 'progAsignar', id: String(b.id), centro: b.centro, tramo: b.tramo, sigla: b.sigla.trim() },
+  cambio: b => idYCentro(b) && ['programar', 'completar', 'quitar'].includes(b.modo) &&
+    { accion: 'progCambioCentro', id: String(b.id), centro: b.centro, modo: b.modo, nuevo: texto(b.nuevo ?? '', 150) ?? '', fecha: texto(b.fecha ?? '', 40) ?? '' },
+  agregar: b => texto(b.empresa, 100) && texto(b.centro, 150) &&
+    { accion: 'progAgregarCentro', empresa: b.empresa.trim(), centro: b.centro.trim(), semana: texto(b.semana ?? '', 10) ?? '', finde: texto(b.finde ?? '', 10) ?? '',
+      ubicacion: texto(b.ubicacion ?? '', 100) ?? '', barrio: texto(b.barrio ?? '', 20) ?? '' },
+  quitar: b => idYCentro(b) && { accion: 'progQuitarCentro', id: String(b.id), centro: b.centro },
+  segunda: b => texto(b.centro, 150) && texto(b.biologa, 100) && fechaValida(b.inicio) && fechaValida(b.fin) &&
+    (b.fila == null || Number.isInteger(b.fila)) &&
+    { accion: 'progSegunda', fila: b.fila ?? '', centroAntes: texto(b.centroAntes ?? '', 150) ?? '', centro: b.centro.trim(), biologa: b.biologa.trim(),
+      inicio: b.inicio, fin: b.fin, horario: texto(b.horario ?? '', 100) ?? '', observacion: texto(b.observacion ?? '', 500) ?? '' },
+  eliminarSegunda: b => Number.isInteger(b.fila) && texto(b.centroAntes, 150) &&
+    { accion: 'progEliminarSegunda', fila: b.fila, centroAntes: b.centroAntes }
+};
+
+app.post('/api/programa/:accion', requiereSesion, async (req, res) => {
+  if (!esAdmin(req.usuario)) return res.status(403).json({ ok: false, error: 'Solo un administrador puede editar el programa' });
+  const armar = ACCIONES_PROGRAMA[req.params.accion];
+  if (!armar) return res.status(404).json({ ok: false, error: 'Acción no válida' });
+  const cuerpo = armar(req.body || {});
+  if (!cuerpo) return res.status(400).json({ ok: false, error: 'Faltan datos' });
+  try {
+    const r = await llamarScript({ ...cuerpo, usuario: req.usuario });
+    res.status(r.ok ? 200 : 409).json(r);
+  } catch (err) {
+    console.error('Error en programa', req.params.accion, err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo guardar. Intenta de nuevo.' });
+  }
+});
+
 app.listen(PORT, () => console.log('Mantenciones escuchando en puerto ' + PORT));

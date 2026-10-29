@@ -55,6 +55,14 @@ function doPost(e) {
       case 'compEliminar':       return responder(compEliminar(body));
       case 'compZona':           return responder(compZona(body));
       case 'compDescartar':      return responder(compDescartar(body));
+      // Programa de biólogos (planilla Programa biólogos)
+      case 'progLeer':           return responder(progLeer());
+      case 'progAsignar':        return responder(progAsignar(body));
+      case 'progCambioCentro':   return responder(progCambioCentro(body));
+      case 'progAgregarCentro':  return responder(progAgregarCentro(body));
+      case 'progQuitarCentro':   return responder(progQuitarCentro(body));
+      case 'progSegunda':        return responder(progSegunda(body));
+      case 'progEliminarSegunda': return responder(progEliminarSegunda(body));
     }
 
     const config = HOJAS[body.hoja];
@@ -763,6 +771,282 @@ function compDescartar(body) {
     if (body.deshacer) { if (i !== -1) sheet.deleteRow(i + 2); }
     else if (i === -1) sheet.appendRow([clave, comoTexto(body.tecnico), comoTexto(body.centro), comoTexto(body.fecha), body.usuario || '', new Date()]);
     SpreadsheetApp.flush();
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ---------- Programa de biólogos ----------
+// La página usa pestañas propias en la planilla "Programa biólogos": "Programa (página)" con un centro por fila
+// y "Biólogos (página)". La pestaña Programa original no se modifica; solo se lee una vez para la copia inicial.
+
+const PROGRAMA = {
+  archivoId: '1kNLxUmWqlEuKNDdycweBmG_bCJSLXWZPt7RT8rP9Tnc',
+  original: 'Programa',
+  pestana: 'Programa (página)',
+  biologos: 'Biólogos (página)',
+  segunda: 'Segunda Muestra',
+  historial: 'Historial del programa',
+  plancton: ['PA', 'PAC']   // Plancton Andino (Noruega / Chile): sin biólogo
+};
+const PROG_COLUMNAS = ['ID', 'Empresa', 'Centro', 'Centro nuevo', 'Fecha cambio', 'Lunes a viernes', 'Sábado y domingo', 'Ubicación', 'Barrio', 'Actualizado por', 'Actualizado el'];
+// Columnas de "Programa (página)" (1 = A)
+const PCOL = { id: 1, empresa: 2, centro: 3, nuevo: 4, fecha: 5, semana: 6, finde: 7, ubicacion: 8, barrio: 9, por: 10, el: 11 };
+const SEGUNDA_COLUMNAS = ['Centro', 'Biologa', 'Tiempo', 'Inicio', 'Fin', 'Horario', 'Asignado por', 'Asignado el', 'Observación'];
+
+// "Rada Achao ---> Lincay (15/nov)" → { actual, nuevo, fecha }
+function partirCentro(texto) {
+  const m = String(texto || '').match(/^(.*?)\s*-+>\s*(.*?)\s*(?:\(([^)]*)\))?\s*$/);
+  return m ? { actual: m[1].trim(), nuevo: m[2].trim(), fecha: (m[3] || '').trim() } : { actual: String(texto || '').trim(), nuevo: '', fecha: '' };
+}
+
+// Crea las pestañas de la página la primera vez, copiando el programa y los biólogos de la pestaña Programa
+function prepararPrograma(ss) {
+  let sheet = ss.getSheetByName(PROGRAMA.pestana), bios = ss.getSheetByName(PROGRAMA.biologos);
+  if (sheet && bios) return { sheet, bios };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    sheet = ss.getSheetByName(PROGRAMA.pestana);
+    bios = ss.getSheetByName(PROGRAMA.biologos);
+    const original = ss.getSheetByName(PROGRAMA.original);
+    const v = original ? original.getRange(1, 1, original.getLastRow(), 12).getDisplayValues() : [[]];
+    let i = 1;
+    const centros = [];
+    let empresa = '';
+    for (; i < v.length; i++) {
+      const f = v[i];
+      if (/^total/i.test(String(f[1]).trim())) break;
+      if (String(f[1]).trim()) empresa = String(f[1]).trim();
+      const nombre = String(f[2]).trim();
+      if (!nombre) continue;
+      const c = partirCentro(nombre);
+      centros.push([centros.length + 1, empresa, c.actual, c.nuevo, c.fecha, String(f[3]).trim(), String(f[8]).trim(), String(f[10]).trim(), String(f[11]).trim(), 'Copia de Programa', new Date()]);
+    }
+    const biologos = [];
+    for (; i < v.length; i++) {
+      const f = v[i];
+      const nombre = String(f[1]).trim(), sigla = String(f[2]).trim();
+      if (!nombre || !sigla || /^total|^centros/i.test(nombre)) continue;
+      biologos.push([nombre, sigla, f.slice(3, 8).some(x => String(x).trim() !== '') ? 'Semana' : 'Fin de semana']);
+    }
+    if (!sheet) {
+      sheet = ss.insertSheet(PROGRAMA.pestana);
+      sheet.getRange(1, 1, 1, PROG_COLUMNAS.length).setValues([PROG_COLUMNAS]).setFontWeight('bold');
+      sheet.setFrozenRows(1);
+      if (centros.length) sheet.getRange(2, 1, centros.length, PROG_COLUMNAS.length).setValues(centros);
+    }
+    if (!bios) {
+      bios = ss.insertSheet(PROGRAMA.biologos);
+      bios.getRange(1, 1, 1, 3).setValues([['Nombre', 'Sigla', 'Equipo']]).setFontWeight('bold');
+      bios.setFrozenRows(1);
+      if (biologos.length) bios.getRange(2, 1, biologos.length, 3).setValues(biologos);
+    }
+    SpreadsheetApp.flush();
+    return { sheet, bios };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function progLeer() {
+  const ss = SpreadsheetApp.openById(PROGRAMA.archivoId);
+  const { sheet, bios } = prepararPrograma(ss);
+  const v = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, PROG_COLUMNAS.length).getDisplayValues() : [];
+  const centros = v.map((f, k) => ({
+    fila: k + 2, id: String(f[0]).trim(), empresa: String(f[1]).trim(), centro: String(f[2]).trim(), nuevo: String(f[3]).trim(), fecha: String(f[4]).trim(),
+    semana: String(f[5]).trim(), finde: String(f[6]).trim(), ubicacion: String(f[7]).trim(), barrio: String(f[8]).trim()
+  })).filter(c => c.id && c.centro);
+  const b = bios.getLastRow() > 1 ? bios.getRange(2, 1, bios.getLastRow() - 1, 3).getDisplayValues() : [];
+  const biologos = b.map(f => ({ nombre: String(f[0]).trim(), sigla: String(f[1]).trim(), equipo: /fin/i.test(f[2]) ? 'finde' : 'semana' }))
+    .filter(x => x.nombre && x.sigla);
+  return { ok: true, centros: centros, biologos: biologos, plancton: PROGRAMA.plancton, segundas: leerSegundas(ss) };
+}
+
+function hojaSegunda(ss) {
+  const sheet = ss.getSheetByName(PROGRAMA.segunda) || ss.insertSheet(PROGRAMA.segunda);
+  // Columnas nuevas al final (Horario, Asignado por, Asignado el, Observación) si aún no están
+  const actual = sheet.getLastColumn() ? sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), SEGUNDA_COLUMNAS.length)).getDisplayValues()[0] : [];
+  SEGUNDA_COLUMNAS.forEach((h, j) => { if (!String(actual[j] || '').trim()) sheet.getRange(1, j + 1).setValue(h).setFontWeight('bold'); });
+  return sheet;
+}
+
+function leerSegundas(ss) {
+  const sheet = ss.getSheetByName(PROGRAMA.segunda);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const zona = ss.getSpreadsheetTimeZone();
+  const v = sheet.getRange(2, 1, sheet.getLastRow() - 1, SEGUNDA_COLUMNAS.length).getValues();
+  const iso = x => x instanceof Date ? Utilities.formatDate(x, zona, 'yyyy-MM-dd') : String(x || '').trim();
+  return v.map((f, k) => ({ fila: k + 2, centro: String(f[0]).trim(), biologa: String(f[1]).trim(), tiempo: String(f[2]).trim(),
+    inicio: iso(f[3]), fin: iso(f[4]), horario: String(f[5] || '').trim(), asignadoPor: String(f[6] || '').trim(),
+    asignadoEl: iso(f[7]), observacion: String(f[8] || '').trim() })).filter(s => s.centro);
+}
+
+function historialPrograma(ss, usuario, centro, cambio, antes, despues) {
+  let sheet = ss.getSheetByName(PROGRAMA.historial);
+  if (!sheet) {
+    sheet = ss.insertSheet(PROGRAMA.historial);
+    sheet.appendRow(['Fecha', 'Usuario', 'Centro', 'Cambio', 'Antes', 'Después']);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, 6).setFontWeight('bold');
+  }
+  sheet.appendRow([new Date(), usuario || '', comoTexto(centro), cambio, comoTexto(antes), comoTexto(despues)]);
+}
+
+// Ubica el centro por su ID y confirma que sigue siendo el mismo antes de escribir
+function conCentro(body, accion) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ss = SpreadsheetApp.openById(PROGRAMA.archivoId);
+    const sheet = ss.getSheetByName(PROGRAMA.pestana);
+    if (!sheet || sheet.getLastRow() < 2) return { ok: false, conflicto: true, error: 'El programa cambió. Recarga la página.' };
+    const ids = sheet.getRange(2, PCOL.id, sheet.getLastRow() - 1, 1).getDisplayValues().map(f => String(f[0]).trim());
+    const i = ids.indexOf(String(body.id));
+    if (i === -1) return { ok: false, conflicto: true, error: 'Ese centro ya no está en el programa. Recarga la página.' };
+    const fila = i + 2;
+    const centro = sheet.getRange(fila, PCOL.centro).getDisplayValue().trim();
+    if (centro !== String(body.centro || '').trim()) return { ok: false, conflicto: true, error: 'El programa cambió. Recarga la página.' };
+    return accion(ss, sheet, fila, centro);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+const marcarActualizado = (sheet, fila, usuario) => sheet.getRange(fila, PCOL.por, 1, 2).setValues([[usuario || '', new Date()]]);
+
+// Biólogo de lunes a viernes o de sábado y domingo
+function progAsignar(body) {
+  const tramo = body.tramo === 'finde' ? 'finde' : body.tramo === 'semana' ? 'semana' : '';
+  const sigla = String(body.sigla || '').trim();
+  if (!tramo || !sigla) return { ok: false, error: 'Faltan datos' };
+  return conCentro(body, (ss, sheet, fila, centro) => {
+    const celda = sheet.getRange(fila, PCOL[tramo]);
+    const antes = celda.getDisplayValue().trim();
+    if (PROGRAMA.plancton.includes(antes)) return { ok: false, error: 'Los centros de Plancton Andino no llevan biólogo' };
+    celda.setValue(comoTexto(sigla));
+    marcarActualizado(sheet, fila, body.usuario);
+    SpreadsheetApp.flush();
+    historialPrograma(ss, body.usuario, centro, tramo === 'semana' ? 'Biólogo lunes a viernes' : 'Biólogo sábado y domingo', antes, sigla);
+    return { ok: true };
+  });
+}
+
+// Cambio de centro: programar (centro nuevo + fecha estimada), completar (queda el nuevo) o quitar (se cancela)
+function progCambioCentro(body) {
+  return conCentro(body, (ss, sheet, fila, centro) => {
+    const [nuevoActual, fechaActual] = sheet.getRange(fila, PCOL.nuevo, 1, 2).getDisplayValues()[0].map(x => String(x).trim());
+    const antes = centro + (nuevoActual ? ' → ' + nuevoActual + (fechaActual ? ' (' + fechaActual + ')' : '') : '');
+    let despues, cambio;
+    if (body.modo === 'completar' || body.modo === 'quitar') {
+      if (!nuevoActual) return { ok: false, error: 'Ese centro no tiene un cambio pendiente' };
+      if (body.modo === 'completar') sheet.getRange(fila, PCOL.centro).setValue(comoTexto(nuevoActual));
+      sheet.getRange(fila, PCOL.nuevo, 1, 2).setValues([['', '']]);
+      despues = body.modo === 'completar' ? nuevoActual : centro;
+      cambio = body.modo === 'completar' ? 'Cambio de centro completado' : 'Cambio de centro cancelado';
+    } else {
+      const nuevo = String(body.nuevo || '').trim(), fecha = String(body.fecha || '').trim();
+      if (!nuevo) return { ok: false, error: 'Escribe el centro nuevo' };
+      sheet.getRange(fila, PCOL.nuevo, 1, 2).setValues([[comoTexto(nuevo), comoTexto(fecha)]]);
+      despues = centro + ' → ' + nuevo + (fecha ? ' (' + fecha + ')' : '');
+      cambio = nuevoActual ? 'Cambio de centro editado' : 'Cambio de centro programado';
+    }
+    marcarActualizado(sheet, fila, body.usuario);
+    SpreadsheetApp.flush();
+    historialPrograma(ss, body.usuario, centro, cambio, antes, despues);
+    return { ok: true };
+  });
+}
+
+// Centro nuevo: queda al final de su empresa (o al final si la empresa es nueva)
+function progAgregarCentro(body) {
+  const centro = String(body.centro || '').trim(), empresa = String(body.empresa || '').trim();
+  if (!centro || !empresa) return { ok: false, error: 'Escribe la empresa y el centro' };
+  const ss = SpreadsheetApp.openById(PROGRAMA.archivoId);
+  const { sheet } = prepararPrograma(ss);   // fuera del bloqueo: prepararPrograma usa su propio bloqueo
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const v = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, PROG_COLUMNAS.length).getDisplayValues() : [];
+    if (v.some(f => normalizar(f[PCOL.centro - 1]) === normalizar(centro))) return { ok: false, error: 'Ese centro ya está en el programa' };
+    const id = Math.max(0, ...v.map(f => Number(f[0])).filter(n => !isNaN(n))) + 1;
+    let despuesDe = -1, empresaFinal = empresa;
+    v.forEach((f, k) => { if (normalizar(f[PCOL.empresa - 1]) === normalizar(empresa)) { despuesDe = k; empresaFinal = String(f[PCOL.empresa - 1]).trim(); } });
+    const fila = despuesDe === -1 ? v.length + 2 : despuesDe + 3;
+    if (fila <= sheet.getLastRow()) sheet.insertRowBefore(fila);
+    sheet.getRange(fila, 1, 1, PROG_COLUMNAS.length).setValues([[id, comoTexto(empresaFinal), comoTexto(centro), '', '', comoTexto(body.semana), comoTexto(body.finde),
+      comoTexto(body.ubicacion), comoTexto(body.barrio), body.usuario || '', new Date()]]);
+    SpreadsheetApp.flush();
+    historialPrograma(ss, body.usuario, centro, 'Centro agregado', '', [empresaFinal, body.semana, body.finde].filter(Boolean).join(' · '));
+    return { ok: true, id: id };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function progQuitarCentro(body) {
+  return conCentro(body, (ss, sheet, fila, centro) => {
+    const antes = sheet.getRange(fila, 1, 1, PROG_COLUMNAS.length - 2).getDisplayValues()[0].join(' · ');
+    sheet.deleteRow(fila);
+    SpreadsheetApp.flush();
+    historialPrograma(ss, body.usuario, centro, 'Centro quitado del programa', antes, '');
+    return { ok: true };
+  });
+}
+
+function textoTiempo(inicio, fin) {
+  const dias = Math.round((fin - inicio) / 86400000) + 1;
+  return dias % 7 === 0 ? (dias / 7) + (dias === 7 ? ' semana' : ' semanas') : dias + (dias === 1 ? ' día' : ' días');
+}
+
+// Crea (sin fila) o edita (con fila) una segunda muestra
+function progSegunda(body) {
+  const centro = String(body.centro || '').trim(), biologa = String(body.biologa || '').trim();
+  const inicio = aFechaHoja(body.inicio), fin = aFechaHoja(body.fin);
+  if (!centro || !biologa) return { ok: false, error: 'Elige el centro y la bióloga' };
+  if (!inicio || !fin) return { ok: false, error: 'Revisa las fechas' };
+  if (fin < inicio) return { ok: false, error: 'La fecha de fin es anterior al inicio' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ss = SpreadsheetApp.openById(PROGRAMA.archivoId);
+    const sheet = hojaSegunda(ss);
+    const datos = [comoTexto(centro), comoTexto(biologa), textoTiempo(inicio, fin), inicio, fin, comoTexto(body.horario)];
+    let fila = Number(body.fila), antes = '';
+    if (body.fila) {
+      if (!Number.isInteger(fila) || fila < 2 || fila > sheet.getLastRow()) return { ok: false, conflicto: true, error: 'Ese registro ya no existe. Recarga la página.' };
+      const actual = sheet.getRange(fila, 1, 1, 2).getDisplayValues()[0];
+      if (actual[0].trim() !== String(body.centroAntes || '').trim()) return { ok: false, conflicto: true, error: 'La planilla cambió. Recarga la página.' };
+      antes = actual.join(' · ');
+      sheet.getRange(fila, 1, 1, 6).setValues([datos]);
+      sheet.getRange(fila, 9).setValue(comoTexto(body.observacion));
+    } else {
+      fila = sheet.getLastRow() + 1;
+      sheet.getRange(fila, 1, 1, 9).setValues([datos.concat([body.usuario || '', new Date(), comoTexto(body.observacion)])]);
+    }
+    SpreadsheetApp.flush();
+    historialPrograma(ss, body.usuario, centro, body.fila ? 'Segunda muestra editada' : 'Segunda muestra asignada', antes,
+      biologa + ' · ' + body.inicio + ' a ' + body.fin + (body.horario ? ' · ' + body.horario : ''));
+    return { ok: true, fila: fila };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function progEliminarSegunda(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ss = SpreadsheetApp.openById(PROGRAMA.archivoId);
+    const sheet = ss.getSheetByName(PROGRAMA.segunda);
+    const fila = Number(body.fila);
+    if (!sheet || !Number.isInteger(fila) || fila < 2 || fila > sheet.getLastRow()) return { ok: false, conflicto: true, error: 'Ese registro ya no existe. Recarga la página.' };
+    const actual = sheet.getRange(fila, 1, 1, 5).getDisplayValues()[0];
+    if (actual[0].trim() !== String(body.centroAntes || '').trim()) return { ok: false, conflicto: true, error: 'La planilla cambió. Recarga la página.' };
+    sheet.deleteRow(fila);
+    SpreadsheetApp.flush();
+    historialPrograma(ss, body.usuario, actual[0], 'Segunda muestra eliminada', actual.join(' · '), '');
     return { ok: true };
   } finally {
     lock.releaseLock();
