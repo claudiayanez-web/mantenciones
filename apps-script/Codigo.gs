@@ -48,6 +48,13 @@ function doPost(e) {
       case 'solicitudesNuevo':   return responder(solicitudesNuevo(body));
       case 'solicitudesCentro':  return responder(solicitudesCentro(body));
       case 'solicitudesEliminar': return responder(solicitudesEliminar(body));
+      // Compensaciones de los técnicos (planilla TURNOS TECNICOS - COMPENSACIONES)
+      case 'compLeer':           return responder(compLeer(body));
+      case 'compSalida':         return responder(compGuardar('salidas', body));
+      case 'compLibre':          return responder(compGuardar('libres', body));
+      case 'compEliminar':       return responder(compEliminar(body));
+      case 'compZona':           return responder(compZona(body));
+      case 'compDescartar':      return responder(compDescartar(body));
     }
 
     const config = HOJAS[body.hoja];
@@ -518,6 +525,248 @@ function solicitudesEliminar(body) {
     registrar([new Date(), body.usuario || '', 'Solicitudes', fila, body.id, '(ticket eliminado)', valores[COL.centro - 1], motivo]);
     return { ok: true };
   });
+}
+
+// ---------- Compensaciones de los técnicos ----------
+// Pestañas nuevas en la planilla de compensaciones; las pestañas por técnico quedan como historial.
+// Las salidas a terreno suman días; los días libres dados los restan.
+
+const COMPENSACIONES = {
+  archivoId: '1xux68mBpvF0flEUX2_j1JiVb81kEVwN_cILzCczQpiM',
+  tecnicos: ['Adrián Calcumil', 'Sergio Martin', 'Wilmer Ruiz', 'Matias Pineda'],
+  hojas: {
+    salidas: { pestana: 'Salidas', columnas: ['ID', 'Técnico', 'Centro', 'Desde', 'Hasta', 'Días', 'Tramos de vuelo', 'Domingos',
+      'Feriados', 'Retorno domingo', 'Total', 'Observación', 'Registrado por', 'Registrado el'] },
+    libres: { pestana: 'Días libres', columnas: ['ID', 'Técnico', 'Desde', 'Hasta', 'Días', 'Observación', 'Registrado por', 'Registrado el'] },
+    zonas: { pestana: 'Zonas', columnas: ['Centro', 'Compensa', 'Actualizado por', 'Actualizado el'] },
+    descartados: { pestana: 'Certificados descartados', columnas: ['Clave', 'Técnico', 'Centro', 'Fecha', 'Descartado por', 'Descartado el'] }
+  },
+  // Formulario "Certificado de Servicios": de aquí sale a dónde fue cada técnico
+  certificados: { archivoId: '1ILyE1aSgBv5JAPOAYINz75aYIl6K7pdPyajVSmWQYBc', pestana: 'Respuestas de formulario 1' }
+};
+
+// Días compensados de una salida: ⅓ por día trabajado, 0,25 por tramo en avión,
+// 1,5 por domingo o feriado trabajado y 0,5 por retorno en domingo (sin redondear: ⅓ se guarda exacto)
+function totalSalida(s) {
+  return Math.round((s['Días'] / 3 + s['Tramos de vuelo'] * 0.25 + s['Domingos'] * 1.5 + s['Feriados'] * 1.5 +
+    s['Retorno domingo'] * 0.5) * 1e6) / 1e6;
+}
+
+function hojaComp(ss, tipo) {
+  const config = COMPENSACIONES.hojas[tipo];
+  let sheet = ss.getSheetByName(config.pestana);
+  if (!sheet) {
+    sheet = ss.insertSheet(config.pestana);
+    sheet.appendRow(config.columnas);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, config.columnas.length).setFontWeight('bold');
+  }
+  return sheet;
+}
+
+// Filas como objetos por encabezado; las fechas salen como yyyy-MM-dd
+function filasComp(ss, tipo) {
+  const sheet = hojaComp(ss, tipo);
+  const valores = sheet.getDataRange().getValues();
+  const encabezados = valores[0].map(h => String(h).trim());
+  const zona = ss.getSpreadsheetTimeZone();
+  return valores.slice(1).map((f, i) => {
+    const o = { fila: i + 2 };
+    encabezados.forEach((h, j) => {
+      const v = f[j];
+      o[h] = v instanceof Date ? Utilities.formatDate(v, zona, 'yyyy-MM-dd') : v;
+    });
+    return o;
+  }).filter(o => o[encabezados[0]] !== '' && o[encabezados[0]] != null);
+}
+
+function compLeer(body) {
+  const ss = SpreadsheetApp.openById(COMPENSACIONES.archivoId);
+  const respuesta = {
+    ok: true,
+    tecnicos: COMPENSACIONES.tecnicos,
+    salidas: filasComp(ss, 'salidas'),
+    libres: filasComp(ss, 'libres')
+  };
+  // Lo que solo usa quien administra: zonas, certificados y descartados
+  if (body.conCertificados) {
+    respuesta.zonas = filasComp(ss, 'zonas');
+    respuesta.descartados = filasComp(ss, 'descartados').map(d => String(d['Clave']));
+    respuesta.certificados = leerCertificados(Number(body.dias) || 120);
+  }
+  return respuesta;
+}
+
+// Certificados de terreno de los últimos días; uno por técnico (a veces van dos al mismo centro)
+function leerCertificados(dias) {
+  const ss = SpreadsheetApp.openById(COMPENSACIONES.certificados.archivoId);
+  const sheet = ss.getSheetByName(COMPENSACIONES.certificados.pestana);
+  if (!sheet) return [];
+  const zona = ss.getSpreadsheetTimeZone();
+  const valores = sheet.getDataRange().getValues();
+  const enc = valores[0].map(h => normalizar(h));
+  const col = nombre => enc.findIndex(h => h.startsWith(nombre));
+  const c = { marca: col('marca temporal'), fecha: col('fecha mantencion'), centro: col('nombre centro'), tecnico: col('tecnico responsable'),
+    tipo: col('tipo de servicio'), empresa: col('empresa'), modalidad: col('modalidad') };
+  const desde = new Date(Date.now() - dias * 86400000);
+  const aFecha = v => {
+    if (v instanceof Date) return v;
+    const m = String(v || '').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : null;
+  };
+  const lista = [];
+  valores.slice(1).forEach(f => {
+    const fecha = aFecha(f[c.fecha]) || aFecha(f[c.marca]);
+    if (!fecha || fecha < desde) return;
+    if (c.modalidad >= 0 && /remot/i.test(String(f[c.modalidad]))) return;
+    const centro = String(f[c.centro] || '').trim();
+    if (!centro) return;
+    const marca = f[c.marca] instanceof Date ? Utilities.formatDate(f[c.marca], zona, "yyyy-MM-dd'T'HH:mm:ss") : String(f[c.marca]);
+    String(f[c.tecnico] || '').split(/,| y /).map(t => t.trim()).filter(Boolean).forEach(tecnico => {
+      lista.push({
+        clave: marca + '|' + normalizar(centro) + '|' + normalizar(tecnico),
+        fecha: Utilities.formatDate(fecha, zona, 'yyyy-MM-dd'),
+        centro: centro, tecnico: tecnico,
+        tipo: String(f[c.tipo] || ''), empresa: String(f[c.empresa] || '').trim()
+      });
+    });
+  });
+  return lista;
+}
+
+const aFechaHoja = texto => {
+  const m = String(texto || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+};
+const numeroComp = (v, max) => {
+  const n = Number(v);
+  return isFinite(n) && n >= 0 && n <= max ? n : null;
+};
+
+// Crea o actualiza (si trae id) una salida o un día libre
+function compGuardar(tipo, body) {
+  const config = COMPENSACIONES.hojas[tipo];
+  const tecnico = COMPENSACIONES.tecnicos.find(t => normalizar(t) === normalizar(body.tecnico));
+  if (!tecnico) return { ok: false, error: 'Elige un técnico de la lista' };
+  const desde = aFechaHoja(body.desde), hasta = aFechaHoja(body.hasta || body.desde);
+  if (!desde || !hasta) return { ok: false, error: 'Revisa las fechas' };
+  if (hasta < desde) return { ok: false, error: 'La fecha "hasta" es anterior a "desde"' };
+
+  const d = { 'Técnico': tecnico, 'Desde': desde, 'Hasta': hasta, 'Observación': comoTexto(body.observacion) };
+  if (tipo === 'salidas') {
+    d['Centro'] = comoTexto(body.centro);
+    if (!d['Centro']) return { ok: false, error: 'Escribe el centro' };
+    d['Días'] = numeroComp(body.dias, 60);
+    d['Tramos de vuelo'] = numeroComp(body.tramos, 10);
+    d['Domingos'] = numeroComp(body.domingos, 20);
+    d['Feriados'] = numeroComp(body.feriados, 20);
+    d['Retorno domingo'] = numeroComp(body.retornoDomingo, 5);
+    if ([d['Días'], d['Tramos de vuelo'], d['Domingos'], d['Feriados'], d['Retorno domingo']].some(v => v === null)) {
+      return { ok: false, error: 'Revisa los números' };
+    }
+    d['Total'] = totalSalida(d);
+  } else {
+    d['Días'] = numeroComp(body.dias, 60);
+    if (!d['Días']) return { ok: false, error: 'Escribe cuántos días libres' };
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ss = SpreadsheetApp.openById(COMPENSACIONES.archivoId);
+    const sheet = hojaComp(ss, tipo);
+    const encabezados = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h).trim());
+    const ids = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().map(f => Number(f[0])) : [];
+    let id = Number(body.id), fila;
+    if (body.id != null && body.id !== '') {
+      const i = ids.indexOf(id);
+      if (i === -1) return { ok: false, conflicto: true, error: 'Ese registro ya no existe. Recarga la página.' };
+      fila = i + 2;
+    } else {
+      id = Math.max(0, ...ids.filter(n => !isNaN(n))) + 1;
+      fila = sheet.getLastRow() + 1;
+      d['Registrado por'] = body.usuario || '';
+      d['Registrado el'] = new Date();
+    }
+    d['ID'] = id;
+    const actual = fila <= sheet.getLastRow() ? sheet.getRange(fila, 1, 1, encabezados.length).getValues()[0] : encabezados.map(() => '');
+    const nueva = encabezados.map((h, j) => h in d ? d[h] : actual[j]);
+    sheet.getRange(fila, 1, 1, encabezados.length).setValues([nueva]);
+    SpreadsheetApp.flush();
+    registrar([new Date(), body.usuario || '', 'Compensaciones', fila, id, body.id ? '(' + config.pestana + ' editada)' : '(' + config.pestana + ' nueva)',
+      tecnico, tipo === 'salidas' ? d['Centro'] + ' · ' + d['Total'] : d['Días'] + ' días']);
+    return { ok: true, id: id };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function compEliminar(body) {
+  const tipo = body.tipo === 'libres' ? 'libres' : body.tipo === 'salidas' ? 'salidas' : '';
+  if (!tipo) return { ok: false, error: 'Tipo no válido' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ss = SpreadsheetApp.openById(COMPENSACIONES.archivoId);
+    const sheet = hojaComp(ss, tipo);
+    if (sheet.getLastRow() < 2) return { ok: false, conflicto: true, error: 'Ese registro ya no existe. Recarga la página.' };
+    const ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().map(f => Number(f[0]));
+    const i = ids.indexOf(Number(body.id));
+    if (i === -1) return { ok: false, conflicto: true, error: 'Ese registro ya no existe. Recarga la página.' };
+    const valores = sheet.getRange(i + 2, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
+    sheet.deleteRow(i + 2);
+    SpreadsheetApp.flush();
+    registrar([new Date(), body.usuario || '', 'Compensaciones', i + 2, body.id, '(' + COMPENSACIONES.hojas[tipo].pestana + ' eliminada)', valores.join(' | '), '']);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Si un centro compensa o no. compensa: true, false o null (vuelve a la zona automática)
+function compZona(body) {
+  const centro = String(body.centro || '').trim();
+  if (!centro) return { ok: false, error: 'Falta el centro' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ss = SpreadsheetApp.openById(COMPENSACIONES.archivoId);
+    const sheet = hojaComp(ss, 'zonas');
+    const centros = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().map(f => normalizar(f[0])) : [];
+    const i = centros.indexOf(normalizar(centro));
+    if (body.compensa === null) {
+      if (i !== -1) sheet.deleteRow(i + 2);
+    } else {
+      const fila = [comoTexto(centro), body.compensa ? 'Sí' : 'No', body.usuario || '', new Date()];
+      if (i === -1) sheet.appendRow(fila);
+      else sheet.getRange(i + 2, 1, 1, 4).setValues([fila]);
+    }
+    SpreadsheetApp.flush();
+    registrar([new Date(), body.usuario || '', 'Compensaciones', '', '', '(zona)', centro, body.compensa === null ? 'automática' : body.compensa ? 'compensa' : 'no compensa']);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Certificado que no corresponde compensar (o que ya está cubierto de otra forma)
+function compDescartar(body) {
+  const clave = String(body.clave || '').trim();
+  if (!clave) return { ok: false, error: 'Falta el certificado' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ss = SpreadsheetApp.openById(COMPENSACIONES.archivoId);
+    const sheet = hojaComp(ss, 'descartados');
+    const claves = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().map(f => String(f[0])) : [];
+    const i = claves.indexOf(clave);
+    if (body.deshacer) { if (i !== -1) sheet.deleteRow(i + 2); }
+    else if (i === -1) sheet.appendRow([clave, comoTexto(body.tecnico), comoTexto(body.centro), comoTexto(body.fecha), body.usuario || '', new Date()]);
+    SpreadsheetApp.flush();
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // Escribe G a K, avisa a n8n y deja registro. Común a cerrar y gestión.

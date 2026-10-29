@@ -728,6 +728,47 @@
 
   /* ---------- Línea de tiempo ---------- */
   /* Colores validados para daltonismo; "vigente" además lleva etiqueta y Pendiente borde punteado */
+  /* ---------- Compensaciones ---------- */
+  .vistaComp { min-height: 0; }
+  .compBarra { display: flex; justify-content: flex-end; gap: 8px; margin: 0 20px 10px; }
+  .compContenido { flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px 24px; display: grid; gap: 16px; align-content: start; }
+  .compTarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .compTarjeta { text-align: left; background: white; border: 1px solid var(--borde); border-radius: 12px; padding: 12px 14px; cursor: pointer; font: inherit; color: var(--texto); display: grid; gap: 2px; }
+  .compTarjeta[aria-pressed="true"] { border-color: var(--azul); box-shadow: 0 0 0 1px var(--azul); }
+  .compTarjeta .nombre { font-size: 13px; color: var(--suave); }
+  .compTarjeta .saldo { font-size: 26px; font-weight: 700; color: var(--azul); font-variant-numeric: tabular-nums; }
+  .compTarjeta .saldo.debe0 { color: var(--suave); }
+  .compTarjeta .detalle { font-size: 12px; color: var(--suave); }
+  .compSeccion { background: white; border: 1px solid var(--borde); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+  .compSeccion.revisar { border-color: #e7c66b; background: #fffdf5; }
+  .compSeccion h3 { margin: 0; font-size: 15px; color: var(--azul); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .compSeccion h3 .cuenta { font-size: 12px; font-weight: 600; background: #fbf3dc; color: #7a5a00; border-radius: 999px; padding: 1px 8px; }
+  .compSeccion .cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .compSeccion .nota { color: var(--suave); font-size: 13px; margin: 0; }
+  .compRevisar { display: grid; gap: 0; }
+  .compRevisar > div { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #f0e6c8; flex-wrap: wrap; font-size: 13px; }
+  .compRevisar .botones { display: flex; gap: 6px; }
+  .compRevisar button { padding: 4px 10px; font-size: 12px; }
+  .pillZona { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--azul-claro); color: var(--azul); margin-left: 4px; }
+  .pillZona.desconocida { background: #fbf3dc; color: #7a5a00; }
+  .compTabla { overflow-x: auto; }
+  .compTabla table { min-width: 100%; }
+  .compTabla tbody tr { cursor: default; }
+  .compTabla td.num, .compTabla th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .compTabla td.acciones { overflow: visible; }
+  .compTabla td.acciones button { padding: 3px 8px; font-size: 12px; }
+  .compTabla .vacioTabla { color: var(--suave); font-size: 13px; padding: 8px 0; }
+  .compResumen { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--suave); }
+  .compResumen b { color: var(--texto); font-variant-numeric: tabular-nums; }
+  .dialogoTicket .dosColumnas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .dialogoTicket .dosColumnas > .ancho { grid-column: 1 / -1; }
+  .dialogoTicket .listaZonas { max-height: 50vh; overflow-y: auto; display: grid; gap: 6px; }
+  .dialogoTicket .listaZonas > div { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; }
+  .dialogoTicket .listaZonas select { width: auto; }
+  @media (max-width: 700px) {
+    .compBarra { margin: 0 8px 10px; }
+    .compContenido { padding: 0 8px 80px; }
+  }
   .vistaTiempo { --t-vigente: #2e8b57; --t-desactivado: #4f79b5; --t-pendiente: #b8860b; }
   .tiempoBarra {
     display: flex;
@@ -941,6 +982,10 @@
           <span>Solicitudes</span>
           <span class="insignia" id="insigniaSolicitudes" title="Tickets por aceptar" hidden></span>
         </button>
+        <button type="button" id="btnCompensaciones" aria-selected="false" hidden>
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M9 16l2 2 4-4"/></svg>
+          <span>Compensaciones</span>
+        </button>
       </nav>
       <div class="tituloMenu" id="tituloMenu">Planillas</div>
       <nav class="pestanas" id="pestanas" role="tablist" aria-labelledby="tituloMenu"></nav>
@@ -1064,6 +1109,17 @@
   </div>
 
   <!-- Línea de tiempo: todos los centros con sus periodos (SAMS + Historial) -->
+  <div class="vista vistaComp" id="vistaComp" hidden>
+    <div class="compBarra" id="compBarra">
+      <button class="botonSecundario" id="btnZonasComp" type="button" hidden>Zonas de centros</button>
+      <button class="botonIcono" id="btnRecargarComp" type="button" title="Recargar" aria-label="Recargar compensaciones">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
+      </button>
+    </div>
+    <div class="compContenido" id="compContenido"></div>
+    <datalist id="listaCentrosComp"></datalist>
+  </div>
+
   <div class="vista vistaTiempo" id="vistaTiempo" hidden>
     <div class="tiempoBarra">
       <input type="search" id="buscarTiempo" placeholder="Buscar centro o empresa" aria-label="Buscar centro o empresa" />
@@ -1260,6 +1316,8 @@ async function iniciar() {
   estado.hojas = r.hojas;
   mostrarApp();
   dibujarPestanas();
+  document.getElementById('btnCompensaciones').hidden = !(estado.admin || estado.tecnico);
+  document.getElementById('btnZonasComp').hidden = !estado.admin;
   // Al recargar se vuelve a la vista en que se estaba (se guarda solo en esta pestaña del navegador);
   // al abrir la página de nuevo, lo primero que se ve es Solicitudes
   let anterior = {};
@@ -1269,6 +1327,7 @@ async function iniciar() {
   if (anterior.vista === 'tabla' && hojaAnterior) cambiarHoja(hojaAnterior);
   else if (anterior.vista === 'mapa') abrirMapa();
   else if (anterior.vista === 'tiempo') abrirLineaTiempo();
+  else if (anterior.vista === 'compensaciones' && (estado.admin || estado.tecnico)) abrirCompensaciones();
   else abrirSolicitudes();
   if (anterior.vista && anterior.vista !== 'solicitudes') cargarSolicitudes({ silencioso: true });  // para la cantidad del menú
   precargarHojas();
@@ -1366,6 +1425,8 @@ function mostrarVista(vista) {
   document.getElementById('vistaMapa').hidden = vista !== 'mapa';
   document.getElementById('vistaTiempo').hidden = vista !== 'tiempo';
   document.getElementById('vistaSolicitudes').hidden = vista !== 'solicitudes';
+  document.getElementById('vistaComp').hidden = vista !== 'compensaciones';
+  document.getElementById('btnCompensaciones').setAttribute('aria-selected', vista === 'compensaciones' ? 'true' : 'false');
   document.getElementById('btnSolicitudes').setAttribute('aria-selected', vista === 'solicitudes' ? 'true' : 'false');
   document.getElementById('accionesHoja').hidden = vista !== 'tabla';
   document.getElementById('btnTiempo').setAttribute('aria-selected', vista === 'tiempo' ? 'true' : 'false');
@@ -3324,6 +3385,476 @@ async function abrirLineaTiempo() {
   if (estado.vista === 'tiempo') dibujarLineaTiempo();
 }
 
+// ---------- Compensaciones ----------
+// Tú registras las salidas a terreno y los días libres; cada técnico solo ve lo suyo.
+// Los certificados de servicio de terreno en zonas que compensan sirven para no olvidar ninguna salida.
+
+let comp = null, compTecnico = '', compEn = 0;
+const MARGEN_DIAS_CERTIFICADO = 2;  // el certificado puede quedar con 1 o 2 días de diferencia
+const numeroComp = n => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('es-CL', { maximumFractionDigits: 2 });
+const nombreClave = t => normalizar(String(t || '')).replace(/^centro\s+/, '');
+const fechaCorta = iso => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '/' + m[2] + '/' + m[1].slice(2) : ''; };
+const rangoFechas = (a, b) => !a ? '' : (!b || a === b) ? fechaCorta(a) : fechaCorta(a) + ' al ' + fechaCorta(b);
+const diaIso = iso => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? new Date(+m[1], m[2] - 1, +m[3]) : null; };
+const hoyIso = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+
+// Chiloé, Palena y Aysén compensan; Puerto Montt, Calbuco y el resto no. Sale de las coordenadas de SAMS/Historial.
+function zonaPorCoordenadas(lat, lon) {
+  if (!(lat < -15 && lon < -60)) return null;                   // fuera de Chile: se decide a mano
+  if (lat < -43.75) return { nombre: 'Aysén', compensa: true };
+  if (lat <= -41.75 && lon < -73.35) return { nombre: 'Chiloé', compensa: true };
+  if (lat <= -41.9) return { nombre: 'Palena', compensa: true };
+  return { nombre: 'Puerto Montt / Calbuco', compensa: false };
+}
+
+function coordenadasCentros() {
+  const mapa = new Map();
+  const numero = v => parseFloat(String(v ?? '').trim().replace(',', '.'));
+  ['historial', 'sams'].forEach(id => {   // SAMS al final: si está en ambas, manda la ubicación actual
+    const datos = datosDeHoja(id);
+    if (!datos) return;
+    const col = nombres => datos.columnas.find(c => nombres.includes(normalizar(c.nombre)))?.nombre;
+    const colCentro = col(['centro']), colLat = col(MAPA.columnasLat), colLon = col(MAPA.columnasLon);
+    if (!colCentro || !colLat || !colLon) return;
+    datos.filas.forEach(f => {
+      const lat = numero(f.celdas[colLat]), lon = numero(f.celdas[colLon]);
+      if (isFinite(lat) && isFinite(lon) && f.celdas[colCentro]) mapa.set(nombreClave(f.celdas[colCentro]), [lat, lon]);
+    });
+  });
+  return mapa;
+}
+
+// Zona de un centro: lo marcado a mano en "Zonas" manda sobre lo automático
+function zonaDe(centro) {
+  const clave = nombreClave(centro);
+  const marcada = (comp.zonas || []).find(z => nombreClave(z['Centro']) === clave);
+  if (marcada) return { nombre: marcada['Compensa'] === 'Sí' ? 'Compensa' : 'No compensa', compensa: marcada['Compensa'] === 'Sí', marcada: true };
+  const c = comp.coordenadas.get(clave);
+  return c ? zonaPorCoordenadas(c[0], c[1]) : null;
+}
+
+async function abrirCompensaciones() {
+  abrirMenu(false);
+  if (!cerrarPanel()) return;
+  mostrarVista('compensaciones');
+  document.getElementById('tituloHoja').textContent = 'Compensaciones';
+  document.getElementById('actualizado').textContent = '';
+  if (comp) dibujarCompensaciones();
+  else { document.getElementById('conteo').textContent = 'Cargando…'; document.getElementById('compContenido').innerHTML = ''; }
+  await cargarCompensaciones();
+}
+
+async function cargarCompensaciones() {
+  const boton = document.getElementById('btnRecargarComp');
+  boton.classList.add('cargando');
+  // Las zonas automáticas usan las coordenadas de SAMS e Historial
+  if (estado.admin) for (const h of estado.hojas) {
+    if (datosDeHoja(h.id)) continue;
+    const r = await api('/api/hojas/' + h.id);
+    if (r.ok) estado.cache[h.id] = prepararDatos(r);
+  }
+  const r = await api('/api/compensaciones');
+  boton.classList.remove('cargando');
+  if (!r.ok) {
+    if (estado.vista === 'compensaciones') document.getElementById('conteo').textContent = r.error || 'No se pudieron leer las compensaciones.';
+    return;
+  }
+  comp = r;
+  comp.coordenadas = estado.admin ? coordenadasCentros() : new Map();
+  compEn = Date.now();
+  if (!comp.tecnicos.includes(compTecnico)) compTecnico = comp.tecnicos[0] || '';
+  if (estado.vista === 'compensaciones') dibujarCompensaciones();
+}
+
+function saldoDe(tecnico) {
+  const ganado = comp.salidas.filter(x => x['Técnico'] === tecnico).reduce((a, x) => a + (Number(x['Total']) || 0), 0);
+  const dado = comp.libres.filter(x => x['Técnico'] === tecnico).reduce((a, x) => a + (Number(x['Días']) || 0), 0);
+  return { ganado, dado, saldo: ganado - dado };
+}
+
+// Certificados de terreno de los técnicos con compensación que aún no tienen salida registrada
+function certificadosPorRevisar() {
+  if (!comp.certificados) return [];
+  const descartados = new Set(comp.descartados || []);
+  const margen = MARGEN_DIAS_CERTIFICADO * 86400000;
+  return comp.certificados.map(c => {
+    const tecnico = comp.tecnicos.find(t => normalizar(t) === normalizar(c.tecnico));
+    return tecnico ? { ...c, tecnico, zona: zonaDe(c.centro) } : null;
+  }).filter(c => {
+    if (!c || descartados.has(c.clave) || (c.zona && !c.zona.compensa)) return false;
+    const fecha = diaIso(c.fecha);
+    return !comp.salidas.some(x => x['Técnico'] === c.tecnico && nombreClave(x['Centro']) === nombreClave(c.centro) &&
+      fecha >= diaIso(x['Desde']) - margen && fecha <= (diaIso(x['Hasta']) || diaIso(x['Desde'])) - (-margen));
+  }).sort((a, b) => b.fecha.localeCompare(a.fecha));
+}
+
+function dibujarCompensaciones() {
+  if (!comp) return;
+  const caja = document.getElementById('compContenido');
+  const scroll = caja.scrollTop;
+  caja.innerHTML = '';
+  document.getElementById('conteo').textContent = estado.admin ? comp.tecnicos.length + ' técnicos con compensación' : '';
+  document.getElementById('actualizado').textContent = '· Actualizado ' + horaDe(new Date(compEn));
+
+  // Una tarjeta por técnico con lo que se le debe
+  const tarjetas = document.createElement('div');
+  tarjetas.className = 'compTarjetas';
+  comp.tecnicos.forEach(t => {
+    const { ganado, dado, saldo } = saldoDe(t);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'compTarjeta';
+    b.setAttribute('aria-pressed', t === compTecnico ? 'true' : 'false');
+    b.innerHTML = '<span class="nombre"></span><span class="saldo"></span><span class="detalle"></span>';
+    b.querySelector('.nombre').textContent = t;
+    b.querySelector('.saldo').textContent = numeroComp(saldo) + (Math.abs(saldo) === 1 ? ' día' : ' días');
+    b.querySelector('.saldo').classList.toggle('debe0', Math.abs(saldo) < 0.005);
+    b.querySelector('.detalle').textContent = 'por dar · ganó ' + numeroComp(ganado) + ', se le dio ' + numeroComp(dado);
+    b.addEventListener('click', () => { compTecnico = t; dibujarCompensaciones(); });
+    tarjetas.appendChild(b);
+  });
+  caja.appendChild(tarjetas);
+
+  if (estado.admin) caja.appendChild(seccionPorRevisar());
+  if (compTecnico) caja.appendChild(seccionSalidas(compTecnico));
+  if (compTecnico) caja.appendChild(seccionLibres(compTecnico));
+
+  const centros = new Set([...(comp.certificados || []).map(c => c.centro.trim()), ...comp.salidas.map(x => String(x['Centro']).trim())]);
+  document.getElementById('listaCentrosComp').innerHTML = [...centros].filter(Boolean).sort((a, b) => a.localeCompare(b, 'es'))
+    .map(c => '<option value="' + escaparHtml(c) + '">').join('');
+  caja.scrollTop = scroll;
+}
+
+function seccionPorRevisar() {
+  const lista = certificadosPorRevisar();
+  const sec = document.createElement('section');
+  sec.className = 'compSeccion revisar';
+  sec.innerHTML = '<h3>Por revisar <span class="cuenta"></span></h3><p class="nota">Certificados de terreno de los últimos meses en zonas que compensan (o sin zona conocida) que todavía no tienen una salida registrada. Nada se agrega solo.</p><div class="compRevisar"></div>';
+  sec.querySelector('.cuenta').textContent = lista.length + (lista.length === 1 ? ' certificado' : ' certificados');
+  const cont = sec.querySelector('.compRevisar');
+  if (!lista.length) cont.innerHTML = '<div><span class="nota">No hay certificados pendientes.</span></div>';
+  lista.forEach(c => {
+    const fila = document.createElement('div');
+    fila.innerHTML = '<span><b></b> · <span class="centro"></span> · <span class="fecha"></span> <span class="pillZona"></span><br><span class="nota tipo"></span></span><span class="botones"></span>';
+    fila.querySelector('b').textContent = c.tecnico;
+    fila.querySelector('.centro').textContent = c.centro;
+    fila.querySelector('.fecha').textContent = fechaCorta(c.fecha);
+    fila.querySelector('.tipo').textContent = [c.tipo, c.empresa].filter(Boolean).join(' · ');
+    const pill = fila.querySelector('.pillZona');
+    pill.textContent = c.zona ? c.zona.nombre : 'Zona desconocida';
+    if (!c.zona) pill.classList.add('desconocida');
+    const botones = fila.querySelector('.botones');
+    const boton = (texto, principal, accion) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = principal ? 'botonPrimario' : 'botonSecundario';
+      b.textContent = texto;
+      b.addEventListener('click', () => accion(b));
+      botones.appendChild(b);
+    };
+    if (c.zona) {
+      boton('Registrar', true, () => abrirDialogoSalida(null, { tecnico: c.tecnico, centro: c.centro, desde: c.fecha, hasta: c.fecha }));
+      boton('Descartar', false, b => guardarComp('descartar', { clave: c.clave, tecnico: c.tecnico, centro: c.centro, fecha: c.fecha }, b, 'Certificado descartado'));
+    } else {
+      boton('Compensa', false, b => guardarComp('zona', { centro: c.centro, compensa: true }, b, c.centro + ' quedó como zona que compensa'));
+      boton('No compensa', false, b => guardarComp('zona', { centro: c.centro, compensa: false }, b, c.centro + ' quedó como zona que no compensa'));
+    }
+    cont.appendChild(fila);
+  });
+  return sec;
+}
+
+function tablaComp(columnas, filas, celda) {
+  const div = document.createElement('div');
+  div.className = 'compTabla';
+  if (!filas.length) { div.innerHTML = '<div class="vacioTabla">Todavía no hay registros.</div>'; return div; }
+  const tabla = document.createElement('table');
+  const enc = tabla.createTHead().insertRow();
+  columnas.forEach(([titulo, num]) => {
+    const th = document.createElement('th');
+    th.textContent = titulo;
+    th.style.cursor = 'default';
+    if (num) th.className = 'num';
+    enc.appendChild(th);
+  });
+  const cuerpo = tabla.createTBody();
+  filas.forEach(x => {
+    const tr = cuerpo.insertRow();
+    columnas.forEach((col, i) => {
+      const td = tr.insertCell();
+      if (col[1]) td.className = 'num';
+      celda(td, x, i);
+    });
+  });
+  div.appendChild(tabla);
+  return div;
+}
+
+function seccionSalidas(tecnico) {
+  const filas = comp.salidas.filter(x => x['Técnico'] === tecnico).sort((a, b) => String(b['Desde']).localeCompare(String(a['Desde'])));
+  const { ganado, dado, saldo } = saldoDe(tecnico);
+  const sec = document.createElement('section');
+  sec.className = 'compSeccion';
+  sec.innerHTML = '<div class="cabecera"><h3></h3></div><div class="compResumen"></div>';
+  sec.querySelector('h3').textContent = 'Salidas a terreno · ' + tecnico;
+  sec.querySelector('.compResumen').innerHTML = '<span>Ganó <b>' + numeroComp(ganado) + '</b></span><span>Se le dio <b>' + numeroComp(dado) +
+    '</b></span><span>Por dar <b>' + numeroComp(saldo) + '</b> días</span>';
+  if (estado.admin) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'botonPrimario';
+    b.textContent = '+ Registrar salida';
+    b.addEventListener('click', () => abrirDialogoSalida(null, { tecnico }));
+    sec.querySelector('.cabecera').appendChild(b);
+  }
+  const columnas = [['Centro'], ['Fechas'], ['Días', 1], ['Vuelos', 1], ['Domingos', 1], ['Feriados', 1], ['Retorno dom.', 1], ['Total', 1], ['Observación']];
+  if (estado.admin) columnas.push(['']);
+  sec.appendChild(tablaComp(columnas, filas, (td, x, i) => {
+    const valores = [x['Centro'], rangoFechas(x['Desde'], x['Hasta']), numeroComp(x['Días']), x['Tramos de vuelo'] ? numeroComp(x['Tramos de vuelo']) + ' tramo' + (x['Tramos de vuelo'] == 1 ? '' : 's') : '–',
+      x['Domingos'] ? numeroComp(x['Domingos']) : '–', x['Feriados'] ? numeroComp(x['Feriados']) : '–', x['Retorno domingo'] ? numeroComp(x['Retorno domingo']) : '–', numeroComp(x['Total']), x['Observación'] || ''];
+    if (i < valores.length) { td.textContent = valores[i]; if (i === 7) td.style.fontWeight = '600'; if (i === 8 && valores[i].length > 30) td.title = valores[i]; return; }
+    td.className = 'acciones';
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'botonSecundario';
+    b.textContent = 'Editar';
+    b.addEventListener('click', () => abrirDialogoSalida(x));
+    td.appendChild(b);
+  }));
+  return sec;
+}
+
+function seccionLibres(tecnico) {
+  const filas = comp.libres.filter(x => x['Técnico'] === tecnico).sort((a, b) => String(b['Desde'] || '').localeCompare(String(a['Desde'] || '')));
+  const sec = document.createElement('section');
+  sec.className = 'compSeccion';
+  sec.innerHTML = '<div class="cabecera"><h3></h3></div>';
+  sec.querySelector('h3').textContent = 'Días libres dados · ' + tecnico;
+  if (estado.admin) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'botonPrimario';
+    b.textContent = '+ Dar días libres';
+    b.addEventListener('click', () => abrirDialogoLibre(null, tecnico));
+    sec.querySelector('.cabecera').appendChild(b);
+  }
+  const columnas = [['Fechas'], ['Días', 1], ['Observación']];
+  if (estado.admin) columnas.push(['']);
+  sec.appendChild(tablaComp(columnas, filas, (td, x, i) => {
+    const valores = [rangoFechas(x['Desde'], x['Hasta']) || 'Sin fecha', numeroComp(x['Días']), x['Observación'] || ''];
+    if (i < valores.length) { td.textContent = valores[i]; return; }
+    td.className = 'acciones';
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'botonSecundario';
+    b.textContent = 'Editar';
+    b.addEventListener('click', () => abrirDialogoLibre(x, tecnico));
+    td.appendChild(b);
+  }));
+  return sec;
+}
+
+async function guardarComp(ruta, datos, boton, listo) {
+  const texto = boton.textContent;
+  boton.disabled = true;
+  boton.textContent = 'Guardando…';
+  const r = await api('/api/compensaciones/' + ruta, { method: 'POST', body: JSON.stringify(datos) });
+  boton.disabled = false;
+  boton.textContent = texto;
+  if (!r.ok) { avisar(r.error || 'No se pudo guardar.', true); if (r.conflicto) cargarCompensaciones(); return false; }
+  avisar(listo);
+  await cargarCompensaciones();
+  return true;
+}
+
+// Esqueleto común de los formularios de compensaciones (usa el mismo diálogo que los tickets)
+function dialogoComp(titulo, subtitulo, textoBoton) {
+  const dialogo = document.getElementById('dialogoTicket');
+  dialogo.innerHTML = '<form method="dialog" novalidate>' +
+    '<div class="cabeceraDialogo"><div><h2 id="dialogoTitulo"></h2><div class="sub"></div></div>' +
+    '<button type="button" class="cerrarDialogo" aria-label="Cerrar">&times;</button></div>' +
+    '<div class="campos dosColumnas"></div><div class="error" role="alert"></div>' +
+    '<div class="botones"><button type="button" class="botonPeligro eliminar" hidden>Eliminar</button><span style="flex:1"></span>' +
+    '<button type="button" class="botonSecundario cancelar">Cancelar</button><button type="submit" class="botonPrimario confirmar"></button></div></form>';
+  const form = dialogo.querySelector('form');
+  dialogo.querySelector('h2').textContent = titulo;
+  dialogo.querySelector('.sub').textContent = subtitulo;
+  form.querySelector('.confirmar').textContent = textoBoton;
+  const cerrar = () => dialogo.close();
+  dialogo.querySelector('.cerrarDialogo').addEventListener('click', cerrar);
+  form.querySelector('.cancelar').addEventListener('click', cerrar);
+  const error = form.querySelector('.error');
+  form.addEventListener('input', () => { error.textContent = ''; });
+  const campo = (etiqueta, html, ancho) => {
+    const l = document.createElement('label');
+    if (ancho) l.className = 'ancho';
+    l.innerHTML = '<span></span>' + html;
+    l.firstChild.textContent = etiqueta;
+    form.querySelector('.campos').appendChild(l);
+    return l.lastElementChild;
+  };
+  return { dialogo, form, error, campo, campos: form.querySelector('.campos') };
+}
+
+// Eliminar en dos toques, para que no se borre por error
+function botonEliminarComp(form, tipo, id, error) {
+  const b = form.querySelector('.eliminar');
+  b.hidden = false;
+  let confirmando = false;
+  b.addEventListener('click', async () => {
+    if (!confirmando) { confirmando = true; b.textContent = '¿Eliminar? Toca de nuevo'; return; }
+    b.disabled = true;
+    const r = await api('/api/compensaciones/eliminar', { method: 'POST', body: JSON.stringify({ tipo, id }) });
+    b.disabled = false;
+    if (!r.ok) { error.textContent = r.error || 'No se pudo eliminar.'; return; }
+    document.getElementById('dialogoTicket').close();
+    avisar(tipo === 'salidas' ? 'Salida eliminada' : 'Días libres eliminados');
+    cargarCompensaciones();
+  });
+}
+
+function abrirDialogoSalida(salida, base = {}) {
+  const v = salida ? { tecnico: salida['Técnico'], centro: salida['Centro'], desde: salida['Desde'], hasta: salida['Hasta'], dias: salida['Días'],
+    tramos: salida['Tramos de vuelo'], domingos: salida['Domingos'], feriados: salida['Feriados'], retorno: salida['Retorno domingo'], obs: salida['Observación'] }
+    : { dias: 1, tramos: 0, domingos: 0, feriados: 0, retorno: 0, desde: hoyIso(), ...base };
+  const { dialogo, form, error, campo, campos } = dialogoComp(salida ? 'Editar salida' : 'Registrar salida', 'Salida a terreno que da días compensados', 'Guardar');
+  const tecnico = campo('Técnico', '<select id="compTecnico"></select>', true);
+  comp.tecnicos.forEach(t => tecnico.add(new Option(t, t)));
+  tecnico.value = v.tecnico || compTecnico;
+  const centro = campo('Centro', '<input id="compCentro" list="listaCentrosComp" autocomplete="off">', true);
+  centro.value = v.centro || '';
+  const desde = campo('Desde', '<input type="date" id="compDesde">');
+  const hasta = campo('Hasta', '<input type="date" id="compHasta">');
+  desde.value = v.desde || ''; hasta.value = v.hasta || v.desde || '';
+  const num = (etiqueta, id, valor, paso) => { const i = campo(etiqueta, '<input type="number" min="0" step="' + paso + '" id="' + id + '">'); i.value = valor ?? 0; return i; };
+  const dias = num('Días trabajados', 'compDias', v.dias, 1);
+  const tramos = num('Tramos en avión (ida = 1, ida y vuelta = 2)', 'compTramos', v.tramos, 1);
+  const domingos = num('Domingos trabajados', 'compDomingos', v.domingos, 1);
+  const feriados = num('Feriados trabajados', 'compFeriados', v.feriados, 1);
+  const retorno = num('Retornos en domingo', 'compRetorno', v.retorno, 0.5);
+  const obs = campo('Observación', '<input id="compObs" autocomplete="off">', true);
+  obs.value = v.obs || '';
+  const calculo = document.createElement('div');
+  calculo.className = 'aviso ancho';
+  campos.appendChild(calculo);
+  const zona = document.createElement('div');
+  zona.className = 'ancho nota';
+  zona.style.fontSize = '12px';
+  zona.style.color = 'var(--suave)';
+  campos.appendChild(zona);
+  const n = i => Math.max(0, Number(i.value) || 0);
+  const recalcular = () => {
+    const partes = [[n(dias), 1 / 3, 'día', 'días', '⅓'], [n(tramos), 0.25, 'tramo', 'tramos', '0,25'], [n(domingos), 1.5, 'domingo', 'domingos', '1,5'],
+      [n(feriados), 1.5, 'feriado', 'feriados', '1,5'], [n(retorno), 0.5, 'retorno dom.', 'retornos dom.', '0,5']].filter(p => p[0]);
+    const total = partes.reduce((a, p) => a + p[0] * p[1], 0);
+    calculo.textContent = (partes.length ? partes.map(p => numeroComp(p[0]) + ' ' + (p[0] === 1 ? p[2] : p[3]) + ' × ' + p[4]).join(' + ') + ' = ' : '') +
+      'Total ' + numeroComp(total) + ' días';
+    const z = centro.value.trim() && comp.coordenadas ? zonaDe(centro.value) : null;
+    zona.textContent = !centro.value.trim() ? '' : !z ? 'Zona del centro desconocida' : z.marcada ? 'Zona marcada a mano: ' + (z.compensa ? 'compensa' : 'no compensa') : 'Zona: ' + z.nombre + (z.compensa ? ' (compensa)' : ' (no compensa)');
+  };
+  form.addEventListener('input', recalcular);
+  desde.addEventListener('change', () => { if (!hasta.value || hasta.value < desde.value) hasta.value = desde.value; });
+  recalcular();
+  if (salida) botonEliminarComp(form, 'salidas', Number(salida['ID']), error);
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!centro.value.trim()) { error.textContent = 'Escribe el centro.'; return; }
+    if (!desde.value) { error.textContent = 'Elige la fecha.'; return; }
+    if (hasta.value && hasta.value < desde.value) { error.textContent = 'La fecha "hasta" es anterior a "desde".'; return; }
+    const datos = { id: salida ? Number(salida['ID']) : null, tecnico: tecnico.value, centro: centro.value.trim(), desde: desde.value, hasta: hasta.value || desde.value,
+      dias: n(dias), tramos: n(tramos), domingos: n(domingos), feriados: n(feriados), retornoDomingo: n(retorno), observacion: obs.value.trim() };
+    const ok = await guardarComp('salida', datos, form.querySelector('.confirmar'), salida ? 'Salida actualizada' : 'Salida registrada');
+    if (ok) dialogo.close();
+  });
+  dialogo.showModal();
+  (centro.value ? dias : centro).focus();
+}
+
+function abrirDialogoLibre(libre, tecnicoBase) {
+  const { dialogo, form, error, campo, campos } = dialogoComp(libre ? 'Editar días libres' : 'Dar días libres', 'Días que se le devuelven al técnico', 'Guardar');
+  const tecnico = campo('Técnico', '<select id="compTecnicoLibre"></select>', true);
+  comp.tecnicos.forEach(t => tecnico.add(new Option(t, t)));
+  tecnico.value = libre ? libre['Técnico'] : tecnicoBase;
+  const desde = campo('Desde', '<input type="date" id="compLibreDesde">');
+  const hasta = campo('Hasta', '<input type="date" id="compLibreHasta">');
+  desde.value = libre ? libre['Desde'] || '' : hoyIso();
+  hasta.value = libre ? libre['Hasta'] || libre['Desde'] || '' : desde.value;
+  const dias = campo('Días', '<input type="number" min="0.5" step="0.5" id="compLibreDias">', true);
+  dias.value = libre ? libre['Días'] : 1;
+  const obs = campo('Observación', '<input id="compLibreObs" autocomplete="off">', true);
+  obs.value = libre ? libre['Observación'] || '' : '';
+  const aviso = document.createElement('div');
+  aviso.className = 'aviso ancho';
+  campos.appendChild(aviso);
+  let diasTocados = !!libre;
+  dias.addEventListener('input', () => { diasTocados = true; });
+  const actualizar = () => {
+    // Si no se escribió a mano, los días son los del rango
+    if (!diasTocados && desde.value && hasta.value >= desde.value) dias.value = Math.round((diaIso(hasta.value) - diaIso(desde.value)) / 86400000) + 1;
+    const { saldo } = saldoDe(tecnico.value);
+    const despues = saldo + (libre ? Number(libre['Días']) || 0 : 0) - (Number(dias.value) || 0);
+    aviso.textContent = 'Por dar ahora: ' + numeroComp(saldo + (libre ? Number(libre['Días']) || 0 : 0)) + ' días · después de guardar: ' + numeroComp(despues) + ' días';
+  };
+  desde.addEventListener('change', () => { if (!hasta.value || hasta.value < desde.value) hasta.value = desde.value; });
+  form.addEventListener('input', actualizar);
+  actualizar();
+  if (libre) botonEliminarComp(form, 'libres', Number(libre['ID']), error);
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!desde.value) { error.textContent = 'Elige la fecha.'; return; }
+    if (hasta.value && hasta.value < desde.value) { error.textContent = 'La fecha "hasta" es anterior a "desde".'; return; }
+    if (!(Number(dias.value) > 0)) { error.textContent = 'Escribe cuántos días.'; return; }
+    const datos = { id: libre ? Number(libre['ID']) : null, tecnico: tecnico.value, desde: desde.value, hasta: hasta.value || desde.value,
+      dias: Number(dias.value), observacion: obs.value.trim() };
+    const ok = await guardarComp('libre', datos, form.querySelector('.confirmar'), libre ? 'Días libres actualizados' : 'Días libres registrados');
+    if (ok) dialogo.close();
+  });
+  dialogo.showModal();
+  desde.focus();
+}
+
+// Zona de cada centro: automática por coordenadas o marcada a mano
+function abrirZonas() {
+  if (!comp) return;
+  const { dialogo, form, campos } = dialogoComp('Zonas de centros', 'Chiloé, Palena y Aysén compensan; Puerto Montt y Calbuco no. Corrige aquí los centros mal ubicados.', 'Listo');
+  campos.className = 'campos';
+  const centros = new Map();
+  [...(comp.certificados || []).map(c => c.centro), ...comp.salidas.map(x => x['Centro']), ...(comp.zonas || []).map(z => z['Centro'])]
+    .forEach(c => { const k = nombreClave(c); if (k && !centros.has(k)) centros.set(k, String(c).trim()); });
+  const lista = document.createElement('div');
+  lista.className = 'listaZonas';
+  [...centros.values()].sort((a, b) => a.localeCompare(b, 'es')).forEach(centro => {
+    const marcada = (comp.zonas || []).find(z => nombreClave(z['Centro']) === nombreClave(centro));
+    const c = comp.coordenadas.get(nombreClave(centro));
+    const auto = c ? zonaPorCoordenadas(c[0], c[1]) : null;
+    const fila = document.createElement('div');
+    fila.innerHTML = '<span></span><select></select>';
+    fila.firstChild.textContent = centro;
+    const sel = fila.querySelector('select');
+    sel.add(new Option('Automática: ' + (auto ? auto.nombre + (auto.compensa ? ' (compensa)' : ' (no compensa)') : 'desconocida'), 'auto'));
+    sel.add(new Option('Compensa', 'si'));
+    sel.add(new Option('No compensa', 'no'));
+    sel.value = marcada ? (marcada['Compensa'] === 'Sí' ? 'si' : 'no') : 'auto';
+    sel.addEventListener('change', async () => {
+      sel.disabled = true;
+      const r = await api('/api/compensaciones/zona', { method: 'POST', body: JSON.stringify({ centro, compensa: sel.value === 'auto' ? null : sel.value === 'si' }) });
+      sel.disabled = false;
+      if (!r.ok) { avisar(r.error || 'No se pudo guardar.', true); return; }
+      avisar('Zona de ' + centro + ' guardada');
+      const zonas = (comp.zonas || []).filter(z => nombreClave(z['Centro']) !== nombreClave(centro));
+      if (sel.value !== 'auto') zonas.push({ 'Centro': centro, 'Compensa': sel.value === 'si' ? 'Sí' : 'No' });
+      comp.zonas = zonas;
+      dibujarCompensaciones();
+    });
+    lista.appendChild(fila);
+  });
+  if (!centros.size) lista.innerHTML = '<div class="nota">Todavía no hay centros.</div>';
+  campos.appendChild(lista);
+  form.querySelector('.cancelar').hidden = true;
+  form.addEventListener('submit', e => { e.preventDefault(); dialogo.close(); });
+  dialogo.showModal();
+}
+
 function datosDeHoja(id) {
   return id === estado.hojaActual && estado.datos ? estado.datos : estado.cache[id];
 }
@@ -3567,6 +4098,9 @@ function abrirPeriodoDesdeTiempo(p) {
 
 document.getElementById('btnTiempo').addEventListener('click', abrirLineaTiempo);
 document.getElementById('btnSolicitudes').addEventListener('click', abrirSolicitudes);
+document.getElementById('btnCompensaciones').addEventListener('click', abrirCompensaciones);
+document.getElementById('btnRecargarComp').addEventListener('click', () => cargarCompensaciones());
+document.getElementById('btnZonasComp').addEventListener('click', abrirZonas);
 document.querySelectorAll('#selectorModo button').forEach(b => b.addEventListener('click', () => {
   modoSolicitudes = b.dataset.modo;
   try { localStorage.setItem(CLAVE_MODO_SOLICITUDES, modoSolicitudes); } catch {}

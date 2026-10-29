@@ -384,4 +384,58 @@ app.post('/api/solicitudes/:accion', requiereSesion, async (req, res) => {
   }
 });
 
+// ---------- Compensaciones ----------
+// Solo un administrador registra y ve todo; cada técnico ve únicamente lo suyo.
+const mismoNombre = (a, b) => String(a || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim() ===
+  String(b || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+app.get('/api/compensaciones', requiereSesion, async (req, res) => {
+  const admin = esAdmin(req.usuario);
+  const tecnico = tecnicos[req.usuario];
+  if (!admin && !tecnico) {
+    return res.status(403).json({ ok: false, error: 'Tu usuario no tiene un técnico asignado. Pídeselo a un administrador.' });
+  }
+  try {
+    const r = await llamarScript({ accion: 'compLeer', conCertificados: admin });
+    if (r.ok && !admin) {
+      r.tecnicos = (r.tecnicos || []).filter(t => mismoNombre(t, tecnico));
+      r.salidas = (r.salidas || []).filter(s => mismoNombre(s['Técnico'], tecnico));
+      r.libres = (r.libres || []).filter(s => mismoNombre(s['Técnico'], tecnico));
+      delete r.zonas; delete r.certificados; delete r.descartados;
+    }
+    res.status(r.ok ? 200 : 502).json(r);
+  } catch (err) {
+    console.error('Error al leer compensaciones', err.message);
+    res.status(502).json({ ok: false, error: 'No se pudieron leer las compensaciones.' });
+  }
+});
+
+const fechaValida = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const ACCIONES_COMP = {
+  salida: b => texto(b.tecnico, 100) && texto(b.centro, 200) && fechaValida(b.desde) && fechaValida(b.hasta) &&
+    { accion: 'compSalida', id: b.id ?? '', tecnico: b.tecnico, centro: b.centro, desde: b.desde, hasta: b.hasta, dias: b.dias, tramos: b.tramos,
+      domingos: b.domingos, feriados: b.feriados, retornoDomingo: b.retornoDomingo, observacion: texto(b.observacion ?? '') ?? '' },
+  libre: b => texto(b.tecnico, 100) && fechaValida(b.desde) && fechaValida(b.hasta) &&
+    { accion: 'compLibre', id: b.id ?? '', tecnico: b.tecnico, desde: b.desde, hasta: b.hasta, dias: b.dias, observacion: texto(b.observacion ?? '') ?? '' },
+  eliminar: b => ['salidas', 'libres'].includes(b.tipo) && Number.isInteger(b.id) && { accion: 'compEliminar', tipo: b.tipo, id: b.id },
+  zona: b => texto(b.centro, 200) && [true, false, null].includes(b.compensa) && { accion: 'compZona', centro: b.centro, compensa: b.compensa },
+  descartar: b => texto(b.clave, 300) && { accion: 'compDescartar', clave: b.clave, tecnico: texto(b.tecnico ?? '', 100) ?? '',
+    centro: texto(b.centro ?? '', 200) ?? '', fecha: texto(b.fecha ?? '', 20) ?? '', deshacer: !!b.deshacer }
+};
+
+app.post('/api/compensaciones/:accion', requiereSesion, async (req, res) => {
+  if (!esAdmin(req.usuario)) return res.status(403).json({ ok: false, error: 'Solo un administrador puede registrar compensaciones' });
+  const armar = ACCIONES_COMP[req.params.accion];
+  if (!armar) return res.status(404).json({ ok: false, error: 'Acción no válida' });
+  const cuerpo = armar(req.body || {});
+  if (!cuerpo) return res.status(400).json({ ok: false, error: 'Faltan datos' });
+  try {
+    const r = await llamarScript({ ...cuerpo, usuario: req.usuario });
+    res.status(r.ok ? 200 : 409).json(r);
+  } catch (err) {
+    console.error('Error en compensaciones', req.params.accion, err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo guardar. Intenta de nuevo.' });
+  }
+});
+
 app.listen(PORT, () => console.log('Mantenciones escuchando en puerto ' + PORT));
