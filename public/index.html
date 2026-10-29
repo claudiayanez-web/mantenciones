@@ -1245,6 +1245,7 @@ document.getElementById('formLogin').addEventListener('submit', async (e) => {
 
 document.getElementById('btnSalir').addEventListener('click', async () => {
   await api('/api/logout', { method: 'POST' });
+  try { sessionStorage.removeItem(CLAVE_VISTA); } catch {}
   mostrarLogin();
 });
 
@@ -1259,9 +1260,17 @@ async function iniciar() {
   estado.hojas = r.hojas;
   mostrarApp();
   dibujarPestanas();
-  // Lo primero que se ve es Solicitudes; las planillas se leen en segundo plano
-  estado.hojaActual = estado.hojaActual || r.hojas[0].id;
-  abrirSolicitudes();
+  // Al recargar se vuelve a la vista en que se estaba (se guarda solo en esta pestaña del navegador);
+  // al abrir la página de nuevo, lo primero que se ve es Solicitudes
+  let anterior = {};
+  try { anterior = JSON.parse(sessionStorage.getItem(CLAVE_VISTA) || '{}'); } catch {}
+  const hojaAnterior = r.hojas.some(h => h.id === anterior.hoja) ? anterior.hoja : '';
+  estado.hojaActual = estado.hojaActual || hojaAnterior || r.hojas[0].id;
+  if (anterior.vista === 'tabla' && hojaAnterior) cambiarHoja(hojaAnterior);
+  else if (anterior.vista === 'mapa') abrirMapa();
+  else if (anterior.vista === 'tiempo') abrirLineaTiempo();
+  else abrirSolicitudes();
+  if (anterior.vista && anterior.vista !== 'solicitudes') cargarSolicitudes({ silencioso: true });  // para la cantidad del menú
   precargarHojas();
 }
 
@@ -1349,8 +1358,10 @@ function textoAgregar() {
   return hojaConCodigo() ? 'Agregar periodo' : 'Agregar centro';
 }
 
+const CLAVE_VISTA = 'mantenciones.vista';
 function mostrarVista(vista) {
   estado.vista = vista;
+  try { sessionStorage.setItem(CLAVE_VISTA, JSON.stringify({ vista, hoja: estado.hojaActual })); } catch {}
   document.getElementById('vistaTabla').hidden = vista !== 'tabla';
   document.getElementById('vistaMapa').hidden = vista !== 'mapa';
   document.getElementById('vistaTiempo').hidden = vista !== 'tiempo';
