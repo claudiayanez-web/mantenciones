@@ -1318,7 +1318,9 @@ async function iniciar() {
   estado.hojas = r.hojas;
   mostrarApp();
   dibujarPestanas();
-  document.getElementById('btnCompensaciones').hidden = !(estado.admin || estado.tecnico);
+  // Compensaciones: a los técnicos solo se les muestra si están en el sistema (lo confirma el servidor)
+  document.getElementById('btnCompensaciones').hidden = !estado.admin;
+  if (!estado.admin && estado.tecnico) cargarCompensaciones();
   document.getElementById('btnZonasComp').hidden = !estado.admin;
   // Al recargar se vuelve a la vista en que se estaba (se guarda solo en esta pestaña del navegador);
   // al abrir la página de nuevo, lo primero que se ve es Solicitudes
@@ -3460,6 +3462,12 @@ async function cargarCompensaciones() {
   }
   const r = await api('/api/compensaciones');
   boton.classList.remove('cargando');
+  if (r.sinAcceso) {
+    document.getElementById('btnCompensaciones').hidden = true;
+    if (estado.vista === 'compensaciones') abrirSolicitudes();
+    return;
+  }
+  if (r.ok) document.getElementById('btnCompensaciones').hidden = false;
   if (!r.ok) {
     if (estado.vista === 'compensaciones') document.getElementById('conteo').textContent = r.error || 'No se pudieron leer las compensaciones.';
     return;

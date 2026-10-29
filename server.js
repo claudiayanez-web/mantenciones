@@ -402,6 +402,8 @@ app.get('/api/compensaciones', requiereSesion, async (req, res) => {
       r.salidas = (r.salidas || []).filter(s => mismoNombre(s['Técnico'], tecnico));
       r.libres = (r.libres || []).filter(s => mismoNombre(s['Técnico'], tecnico));
       delete r.zonas; delete r.certificados; delete r.descartados;
+      // Técnicos remotos u otros que no están en el sistema de compensaciones: sin acceso
+      if (!r.tecnicos.length) return res.status(403).json({ ok: false, sinAcceso: true, error: 'No tienes acceso a compensaciones.' });
     }
     res.status(r.ok ? 200 : 502).json(r);
   } catch (err) {
