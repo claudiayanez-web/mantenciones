@@ -732,7 +732,7 @@
   /* ---------- Compensaciones ---------- */
   .vistaComp { min-height: 0; }
   .compBarra { display: flex; justify-content: flex-end; gap: 8px; margin: 0 20px 10px; }
-  .compContenido { flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px 24px; display: grid; gap: 16px; align-content: start; }
+  .compContenido { flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px 24px; display: grid; grid-auto-rows: max-content; gap: 16px; align-content: start; }
   .compTarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
   .compTarjeta { text-align: left; background: white; border: 1px solid var(--borde); border-radius: 12px; padding: 12px 14px; cursor: pointer; font: inherit; color: var(--texto); display: grid; gap: 2px; }
   .compTarjeta[aria-pressed="true"] { border-color: var(--azul); box-shadow: 0 0 0 1px var(--azul); }
@@ -779,7 +779,8 @@
   .progBarra .espacio { flex: 1; }
   .progAviso .faltantes { display: flex; flex-wrap: wrap; gap: 6px; }
   .progAviso .faltantes button { padding: 3px 10px; font-size: 12px; }
-  .progContenido { flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px 24px; display: grid; gap: 14px; align-content: start; }
+  /* grid-auto-rows: max-content evita que las tablas (con scroll horizontal) se encojan al alto de la pantalla */
+  .progContenido { flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px 24px; display: grid; grid-auto-rows: max-content; gap: 14px; align-content: start; }
   .avatarBio { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%;
     background: var(--color); color: white; font-size: 11px; font-weight: 700; flex: none; }
   .bioNombre { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 13px; color: var(--texto); background: none; border: 1px solid transparent;
@@ -789,7 +790,10 @@
   .progVistas { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .progAviso.plegado { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; }
   .progAviso .verMas { background: none; border: none; color: #7a5a00; text-decoration: underline; cursor: pointer; font: inherit; font-size: 13px; padding: 0; }
-  .progTabla tr.franja td { background: #f3f5f8; color: var(--suave); font-size: 12px; font-weight: 600; padding: 5px 12px; letter-spacing: 0.02em; }
+  .progTabla tr.franja td { background: color-mix(in srgb, var(--colorEmp) 13%, white); color: var(--texto); font-size: 14px; font-weight: 700;
+    padding: 8px 12px; border-left: 4px solid var(--colorEmp); }
+  .progTabla tr.franja .cuenta { font-size: 12px; font-weight: 400; color: var(--suave); margin-left: 6px; }
+  .progTabla td.nombreCentro { border-left: 4px solid var(--colorEmp); }
   .progTabla td.nombreCentro { font-weight: 500; }
   .progTablero { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: start; }
   .colBio { background: #eef1f5; border-radius: 12px; padding: 10px; display: grid; gap: 6px; }
@@ -3489,6 +3493,8 @@ try { if (localStorage.getItem(CLAVE_VISTA_PROG) === 'biologos') vistaProg = 'bi
 const DIAS_CENTRO_NUEVO = 30;   // un centro es "nuevo" si su INICIO en SAMS es de los últimos 30 días
 const COLORES_BIO = ['#4f79b5', '#2e8b57', '#c0603a', '#7b68a6', '#c2477a', '#3e8e9a', '#b07800', '#5e7d2e', '#8a5a44', '#1f3f73', '#e0559b', '#6a7f8c'];
 const PLANCTON = { PA: 'Plancton Andino · Noruega', PAC: 'Plancton Andino · Chile' };
+// Un color por empresa (distintos de los de biólogos) para la franja y el borde de sus centros
+const COLORES_EMPRESA = ['#0f6e56', '#a3461f', '#534ab7', '#1f5f9e', '#9a6b00', '#8c2f63', '#3b6d11', '#5f5e5a', '#0e7490', '#b45309'];
 
 const bioDe = sigla => programa.biologos.find(b => b.sigla === sigla);
 const colorBio = sigla => { const i = programa.biologos.findIndex(b => b.sigla === sigla); return i === -1 ? '#9ca3af' : COLORES_BIO[i % COLORES_BIO.length]; };
@@ -3678,17 +3684,24 @@ function tablaCentros(filas, sams) {
     enc.appendChild(th);
   });
   const cuerpo = tabla.createTBody();
-  let empresaAnterior = null;
+  // El color de cada empresa se fija por su orden en el programa completo, así no cambia al buscar
+  const empresas = [...new Set(programa.centros.map(x => x.empresa))];
+  let empresaAnterior = null, colorEmpresa = '';
   filas.forEach(c => {
     if (c.empresa !== empresaAnterior) {
+      colorEmpresa = COLORES_EMPRESA[empresas.indexOf(c.empresa) % COLORES_EMPRESA.length];
       const franja = cuerpo.insertRow();
       franja.className = 'franja';
+      franja.style.setProperty('--colorEmp', colorEmpresa);
       const td = franja.insertCell();
       td.colSpan = 4;
       td.textContent = c.empresa || 'Sin empresa';
+      const n = filas.filter(x => x.empresa === c.empresa).length;
+      td.insertAdjacentHTML('beforeend', '<span class="cuenta">' + n + (n === 1 ? ' centro' : ' centros') + '</span>');
       empresaAnterior = c.empresa;
     }
     const tr = cuerpo.insertRow();
+    tr.style.setProperty('--colorEmp', colorEmpresa);
     const tdCentro = tr.insertCell();
     tdCentro.className = 'nombreCentro';
     tdCentro.textContent = c.centro;
