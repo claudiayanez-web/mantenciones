@@ -3489,7 +3489,7 @@ async function abrirLineaTiempo() {
 let programa = null, programaEn = 0, busquedaProg = '', avisoSamsAbierto = false;
 const CLAVE_VISTA_PROG = 'mantenciones.programa.vista', CLAVE_TRAMO_PROG = 'mantenciones.programa.tramo';
 let vistaProg = 'centros', tramoProg = 'semana';
-try { if (localStorage.getItem(CLAVE_VISTA_PROG) === 'biologos') vistaProg = 'biologos'; if (localStorage.getItem(CLAVE_TRAMO_PROG) === 'finde') tramoProg = 'finde'; } catch {}
+try { const v = localStorage.getItem(CLAVE_VISTA_PROG); if (v === 'biologos' || v === 'segundas') vistaProg = v; if (localStorage.getItem(CLAVE_TRAMO_PROG) === 'finde') tramoProg = 'finde'; } catch {}
 const DIAS_CENTRO_NUEVO = 30;   // un centro es "nuevo" si su INICIO en SAMS es de los últimos 30 días
 const COLORES_BIO = ['#4f79b5', '#2e8b57', '#c0603a', '#7b68a6', '#c2477a', '#3e8e9a', '#b07800', '#5e7d2e', '#8a5a44', '#1f3f73', '#e0559b', '#6a7f8c'];
 const PLANCTON = { PA: 'Plancton Andino · Noruega', PAC: 'Plancton Andino · Chile' };
@@ -3612,10 +3612,12 @@ function dibujarPrograma() {
   const vistas = document.createElement('div');
   vistas.className = 'progVistas';
   vistas.innerHTML = '<div class="selectorModo" role="group" aria-label="Ver programa"></div>';
-  [['centros', 'Por centro'], ['biologos', 'Por biólogo']].forEach(([id, texto]) => {
+  const activas = programa.segundas.filter(sg => estadoSegunda(sg) === 'activa').length;
+  [['centros', 'Por centro'], ['biologos', 'Por biólogo'], ['segundas', 'Segundas muestras' + (activas ? ' (' + activas + ')' : '')]].forEach(([id, texto]) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.textContent = texto;
+    if (id === 'segundas') b.title = activas + (activas === 1 ? ' segunda muestra activa' : ' segundas muestras activas');
     b.setAttribute('aria-pressed', id === vistaProg ? 'true' : 'false');
     b.addEventListener('click', () => { vistaProg = id; try { localStorage.setItem(CLAVE_VISTA_PROG, id); } catch {} dibujarPrograma(); });
     vistas.firstChild.appendChild(b);
@@ -3634,6 +3636,13 @@ function dibujarPrograma() {
     vistas.appendChild(tramos);
   }
   caja.appendChild(vistas);
+
+  // Segundas muestras en su propia pestaña
+  if (vistaProg === 'segundas') {
+    caja.appendChild(seccionSegundas());
+    caja.scrollTop = scroll;
+    return;
+  }
 
   // Centros de SAMS que no aparecen en el programa: una línea que se despliega
   if (estado.admin && sams) {
@@ -3665,7 +3674,6 @@ function dibujarPrograma() {
   const q = normalizar(busquedaProg.trim());
   const filas = programa.centros.filter(c => !q || normalizar([c.empresa, c.centro, c.nuevo, c.ubicacion, c.barrio].join(' ')).includes(q));
   caja.appendChild(vistaProg === 'biologos' ? tableroBiologos(filas, sams) : tablaCentros(filas, sams));
-  caja.appendChild(seccionSegundas());
   document.getElementById('listaCentrosProg').innerHTML = programa.centros.map(c => c.centro).filter((v, i, a) => a.indexOf(v) === i)
     .sort((a, b) => a.localeCompare(b, 'es')).map(c => '<option value="' + escaparHtml(c) + '">').join('');
   caja.scrollTop = scroll;
