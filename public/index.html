@@ -647,6 +647,22 @@
   .ticket .cabeceraTicket { display: flex; justify-content: space-between; gap: 8px; }
   .ticket strong { color: var(--azul); font-size: 14px; }
   .ticket .numero { color: var(--suave); font-size: 12px; }
+  .ticket .ladoTicket { display: flex; align-items: start; gap: 2px; }
+  .ticket .botonMas {
+    background: none; border: none; color: var(--suave); cursor: pointer;
+    font-size: 16px; line-height: 1; padding: 0 4px 4px; margin-top: -2px; border-radius: 6px;
+  }
+  .ticket .botonMas:hover, .ticket .botonMas:focus-visible { background: var(--azul-claro); color: var(--azul); }
+  .dialogoTicket .seccionOpcion { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid #e2e6ec; }
+  .dialogoTicket .seccionOpcion h3 { margin: 0; font-size: 14px; color: var(--azul); }
+  .dialogoTicket .seccionOpcion.peligro h3 { color: var(--error); }
+  .dialogoTicket .seccionOpcion .fila { display: flex; gap: 8px; align-items: end; }
+  .dialogoTicket .seccionOpcion .fila label { flex: 1; min-width: 0; }
+  .dialogoTicket .paso2 { display: grid; gap: 10px; }
+  .dialogoTicket .paso2[hidden] { display: none; }
+  .dialogoTicket .avisoPeligro { padding: 8px 10px; border-radius: 8px; background: var(--error-fondo); color: var(--error); font-size: 13px; }
+  .botonPeligroLleno { background: var(--error); color: white; border: 1px solid var(--error); border-radius: 8px; padding: 7px 12px; cursor: pointer; font-weight: 600; }
+  .botonPeligroLleno:disabled { opacity: 0.45; cursor: not-allowed; }
   .ticket .problema { margin: 3px 0; }
   .ticket .meta { color: var(--suave); font-size: 12px; }
   .ticket .nota { margin-top: 6px; padding: 6px 8px; background: #f5f7fa; border-radius: 6px; color: var(--texto); font-size: 12px; }
@@ -1207,9 +1223,10 @@ async function iniciar() {
   estado.hojas = r.hojas;
   mostrarApp();
   dibujarPestanas();
-  await cambiarHoja(estado.hojaActual || r.hojas[0].id);
+  // Lo primero que se ve es Solicitudes; las planillas se leen en segundo plano
+  estado.hojaActual = estado.hojaActual || r.hojas[0].id;
+  abrirSolicitudes();
   precargarHojas();
-  cargarSolicitudes({ silencioso: true });  // para la cantidad por aceptar en el menú
 }
 
 // Lee en segundo plano las otras planillas: así cambiar entre ellas es inmediato
@@ -2810,12 +2827,23 @@ function tarjetaTicket(t) {
     meta = (t.tecnico || '') + ' · ' + horaDe(fechaTicket(t.fechaTecnico)) + (t.tipo ? ' · ' + t.tipo : '');
   }
   div.className = 'ticket ' + clase;
-  div.innerHTML = '<div class="cabeceraTicket"><strong></strong><span class="numero"></span></div>' +
+  div.innerHTML = '<div class="cabeceraTicket"><strong></strong><span class="ladoTicket"><span class="numero"></span></span></div>' +
     '<div class="problema"></div><div class="meta"></div>';
   div.querySelector('strong').textContent = t.centro || 'Sin centro';
   div.querySelector('.numero').textContent = '#' + t.id;
   div.querySelector('.problema').textContent = t.problema;
   div.querySelector('.meta').textContent = meta;
+  // Corregir el centro o eliminar: solo tickets que no están finalizados
+  if (t.columna !== 'finalizado') {
+    const mas = document.createElement('button');
+    mas.type = 'button';
+    mas.className = 'botonMas';
+    mas.textContent = '⋯';
+    mas.title = 'Más opciones del ticket';
+    mas.setAttribute('aria-label', 'Más opciones del ticket #' + t.id);
+    mas.addEventListener('click', () => abrirOpcionesTicket(t));
+    div.querySelector('.ladoTicket').appendChild(mas);
+  }
   if (t.observaciones && t.columna !== 'aceptar') {
     const nota = document.createElement('div');
     nota.className = 'nota';
@@ -2964,6 +2992,104 @@ function abrirDialogoTicket(modo, t) {
   });
   dialogo.showModal();
   (centro || tecnico).select.focus();
+}
+
+// Cambiar el centro y eliminar la solicitud (cualquier técnico; el servidor exige un técnico asignado)
+function abrirOpcionesTicket(t) {
+  if (!solicitudes) return;
+  const dialogo = document.getElementById('dialogoTicket');
+  dialogo.innerHTML = '<form method="dialog" novalidate>' +
+    '<div class="cabeceraDialogo"><div><h2 id="dialogoTitulo"></h2><div class="sub"></div></div>' +
+    '<button type="button" class="cerrarDialogo" aria-label="Cerrar">&times;</button></div>' +
+    '<div class="seccionOpcion" id="opcionCentro"><h3>Cambiar el centro</h3></div>' +
+    '<div class="error" role="alert"></div>' +
+    '<div class="botones"><button type="button" class="botonSecundario cancelar">Cerrar</button></div></form>';
+  const form = dialogo.querySelector('form');
+  const error = form.querySelector('.error');
+  dialogo.querySelector('h2').textContent = 'Ticket #' + t.id + ' · ' + t.centro;
+  dialogo.querySelector('.sub').textContent = [t.problema, t.nombre, t.estado].filter(Boolean).join(' · ');
+  const cerrar = () => dialogo.close();
+  dialogo.querySelector('.cerrarDialogo').addEventListener('click', cerrar);
+  form.querySelector('.cancelar').addEventListener('click', cerrar);
+  form.addEventListener('submit', e => e.preventDefault());
+  form.addEventListener('input', () => { error.textContent = ''; });
+
+  const guardar = async (ruta, datos, boton, listo) => {
+    const texto = boton.textContent;
+    boton.disabled = true;
+    boton.textContent = 'Guardando…';
+    const r = await api('/api/solicitudes/' + ruta, { method: 'POST', body: JSON.stringify({ fila: t.fila, id: t.id, ...datos }) });
+    boton.disabled = false;
+    boton.textContent = texto;
+    if (!r.ok) {
+      error.textContent = r.error || 'No se pudo guardar.';
+      if (r.conflicto) cargarSolicitudes({ silencioso: true });
+      return;
+    }
+    dialogo.close();
+    avisar(listo);
+    cargarSolicitudes({ silencioso: true });
+  };
+
+  // Cambiar centro
+  const centros = solicitudes.centros.slice().sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+  if (t.centro && !centros.includes(t.centro)) centros.unshift(t.centro);
+  const centro = campoSelect('Centro correcto', centros, t.centro);
+  const filaCentro = document.createElement('div');
+  filaCentro.className = 'fila';
+  const botonCentro = document.createElement('button');
+  botonCentro.type = 'button';
+  botonCentro.className = 'botonPrimario';
+  botonCentro.textContent = 'Guardar centro';
+  botonCentro.disabled = true;
+  filaCentro.append(centro.label, botonCentro);
+  const avisoCentro = document.createElement('div');
+  avisoCentro.className = 'aviso';
+  avisoCentro.textContent = 'Solo corrige el centro en la planilla. No se avisa a nadie.';
+  form.querySelector('#opcionCentro').append(filaCentro, avisoCentro);
+  centro.select.addEventListener('change', () => {
+    botonCentro.disabled = !centro.select.value || centro.select.value === t.centro;
+  });
+  botonCentro.addEventListener('click', () => {
+    if (!centro.select.value || centro.select.value === t.centro) return;
+    guardar('centro', { centro: centro.select.value }, botonCentro, 'Centro del ticket #' + t.id + ' cambiado a ' + centro.select.value);
+  });
+
+  // Eliminar: en dos pasos, con motivo y escribiendo el número del ticket
+  const seccion = document.createElement('div');
+  seccion.className = 'seccionOpcion peligro';
+  seccion.innerHTML = '<h3>Eliminar solicitud</h3>' +
+    '<div class="sub">Para solicitudes que no corresponden: duplicadas, de prueba o enviadas por error.</div>' +
+    '<div class="paso1"><button type="button" class="botonPeligro">Eliminar esta solicitud…</button></div>' +
+    '<div class="paso2" hidden>' +
+    '<div class="avisoPeligro"></div>' +
+    '<label><span>Motivo (obligatorio)</span><textarea id="motivoEliminar" placeholder="Ej.: duplicada con el ticket 185"></textarea></label>' +
+    '<label><span class="textoConfirmar"></span><input id="confirmarEliminar" inputmode="numeric" autocomplete="off"></label>' +
+    '<div class="botones"><button type="button" class="botonPeligroLleno" disabled>Eliminar definitivamente</button></div>' +
+    '</div>';
+  error.before(seccion);
+  const paso1 = seccion.querySelector('.paso1');
+  const paso2 = seccion.querySelector('.paso2');
+  seccion.querySelector('.avisoPeligro').textContent = 'Se borra la fila del ticket #' + t.id + ' (' + t.centro + ' · ' + t.problema +
+    ') de la planilla Mantenciones. Queda una copia en el log, pero el ticket desaparece del tablero y de la planilla.';
+  seccion.querySelector('.textoConfirmar').textContent = 'Para confirmar, escribe el número del ticket: ' + t.id;
+  const motivo = seccion.querySelector('#motivoEliminar');
+  const confirmar = seccion.querySelector('#confirmarEliminar');
+  const botonEliminar = seccion.querySelector('.botonPeligroLleno');
+  const completo = () => motivo.value.trim().length >= 5 && confirmar.value.trim() === String(t.id);
+  paso1.querySelector('button').addEventListener('click', () => {
+    paso1.hidden = true;
+    paso2.hidden = false;
+    motivo.focus();
+  });
+  [motivo, confirmar].forEach(el => el.addEventListener('input', () => { botonEliminar.disabled = !completo(); }));
+  botonEliminar.addEventListener('click', () => {
+    if (!completo()) return;
+    guardar('eliminar', { motivo: motivo.value.trim(), confirmacion: confirmar.value.trim() }, botonEliminar, 'Ticket #' + t.id + ' eliminado');
+  });
+
+  dialogo.showModal();
+  centro.select.focus();
 }
 
 function campoSelect(titulo, valores, elegido) {

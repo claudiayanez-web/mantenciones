@@ -342,7 +342,11 @@ const ACCIONES_SOLICITUD = {
   cerrar: b => texto(b.tecnico, 100) && listaTextos(b.tipos) && texto(b.observaciones ?? '') !== null &&
     { accion: 'solicitudesCerrar', tecnico: b.tecnico.trim(), tipos: listaTextos(b.tipos), observaciones: (b.observaciones || '').trim() },
   gestion: b => texto(b.tecnico, 100) && ['centro', 'terreno'].includes(b.gestion) && texto(b.observaciones ?? '') !== null &&
-    { accion: 'solicitudesGestion', tecnico: b.tecnico.trim(), gestion: b.gestion, observaciones: (b.observaciones || '').trim() }
+    { accion: 'solicitudesGestion', tecnico: b.tecnico.trim(), gestion: b.gestion, observaciones: (b.observaciones || '').trim() },
+  centro: b => texto(b.centro, 200) && { accion: 'solicitudesCentro', centro: b.centro.trim() },
+  // Hay que escribir el número del ticket y un motivo; el script lo vuelve a comprobar
+  eliminar: b => texto(b.motivo, 500) && b.motivo.trim().length >= 5 && String(b.confirmacion ?? '').trim() === String(b.id) &&
+    { accion: 'solicitudesEliminar', motivo: b.motivo.trim(), confirmacion: String(b.confirmacion).trim() }
 };
 
 app.post('/api/solicitudes/:accion', requiereSesion, async (req, res) => {

@@ -46,6 +46,8 @@ function doPost(e) {
       case 'solicitudesCerrar':  return responder(solicitudesCerrar(body));
       case 'solicitudesGestion': return responder(solicitudesGestion(body));
       case 'solicitudesNuevo':   return responder(solicitudesNuevo(body));
+      case 'solicitudesCentro':  return responder(solicitudesCentro(body));
+      case 'solicitudesEliminar': return responder(solicitudesEliminar(body));
     }
 
     const config = HOJAS[body.hoja];
@@ -459,6 +461,63 @@ function solicitudesNuevo(body) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// Corrige el centro (E) de un ticket abierto que llegó con el centro equivocado. No avisa a nadie.
+function solicitudesCentro(body) {
+  const centro = String(body.centro || '').trim();
+  if (!centro) return { ok: false, error: 'Elige el centro' };
+  return conTicket(body, (ss, sheet, fila) => {
+    const centros = ss.getSheetByName(SOLICITUDES.listas).getRange('J:J').getDisplayValues().flat().map(v => v.trim());
+    if (!centros.includes(centro)) return { ok: false, error: 'Ese centro no está en la lista de la planilla' };
+    if (/^finaliz/i.test(sheet.getRange(fila, COL.estado).getDisplayValue().trim())) {
+      return { ok: false, conflicto: true, error: 'El ticket ya está finalizado. Recarga la página.' };
+    }
+    const anterior = sheet.getRange(fila, COL.centro).getDisplayValue();
+    if (anterior.trim() === centro) return { ok: false, error: 'El ticket ya tiene ese centro' };
+    sheet.getRange(fila, COL.centro).setValue(centro);
+    SpreadsheetApp.flush();
+    registrar([new Date(), body.usuario || '', 'Solicitudes', fila, body.id, '(centro corregido)', anterior, centro]);
+    return { ok: true };
+  });
+}
+
+// Borra la fila de un ticket abierto. Antes copia la fila completa a "Solicitudes eliminadas"
+// en la planilla de log, con quién y por qué; si no se puede respaldar, no se borra nada.
+function solicitudesEliminar(body) {
+  const motivo = String(body.motivo || '').trim();
+  if (motivo.length < 5) return { ok: false, error: 'Escribe el motivo' };
+  if (String(body.confirmacion || '').trim() !== String(body.id)) {
+    return { ok: false, error: 'El número escrito no coincide con el ticket' };
+  }
+  const logId = PropertiesService.getScriptProperties().getProperty('LOG_ID');
+  if (!logId) return { ok: false, error: 'No hay planilla de log para guardar el respaldo. No se borró nada.' };
+  return conTicket(body, (ss, sheet, fila) => {
+    if (/^finaliz/i.test(sheet.getRange(fila, COL.estado).getDisplayValue().trim())) {
+      return { ok: false, error: 'Un ticket finalizado no se puede eliminar' };
+    }
+    const columnas = Math.max(sheet.getLastColumn(), COL.gestionTerreno);
+    const valores = sheet.getRange(fila, 1, 1, columnas).getDisplayValues()[0];
+
+    const log = SpreadsheetApp.openById(logId);
+    let respaldo = log.getSheetByName('Solicitudes eliminadas');
+    if (!respaldo) {
+      respaldo = log.insertSheet('Solicitudes eliminadas');
+      const enc = sheet.getRange(1, 1, 1, columnas).getDisplayValues()[0];
+      respaldo.appendRow(['Eliminado el', 'Usuario', 'Motivo', 'Fila'].concat(enc));
+      respaldo.setFrozenRows(1);
+    }
+    respaldo.appendRow([new Date(), body.usuario || '', motivo, fila].concat(valores.map(comoTexto)));
+    SpreadsheetApp.flush();
+    // Se comprueba que el respaldo quedó escrito antes de borrar
+    const ultima = respaldo.getRange(respaldo.getLastRow(), 5).getDisplayValue().trim();
+    if (ultima !== String(body.id)) return { ok: false, error: 'No se pudo guardar el respaldo. No se borró nada.' };
+
+    sheet.deleteRow(fila);
+    SpreadsheetApp.flush();
+    registrar([new Date(), body.usuario || '', 'Solicitudes', fila, body.id, '(ticket eliminado)', valores[COL.centro - 1], motivo]);
+    return { ok: true };
+  });
 }
 
 // Escribe G a K, avisa a n8n y deja registro. Común a cerrar y gestión.
