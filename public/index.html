@@ -124,6 +124,7 @@
     font-size: 15px;
     text-align: left;
   }
+  nav.pestanas button[hidden] { display: none; }
   nav.pestanas button:hover { background: #f6f8fb; }
   nav.pestanas button[aria-selected="true"] { background: var(--azul-claro); color: var(--azul); }
   .pieMenu { padding: 12px; }
@@ -3464,7 +3465,7 @@ async function cargarCompensaciones() {
   boton.classList.remove('cargando');
   if (r.sinAcceso) {
     document.getElementById('btnCompensaciones').hidden = true;
-    if (estado.vista === 'compensaciones') abrirSolicitudes();
+    if (estado.vista === 'compensaciones') { abrirSolicitudes(); avisar('No tienes acceso a Compensaciones: es solo para los técnicos en terreno.', true); }
     return;
   }
   if (r.ok) document.getElementById('btnCompensaciones').hidden = false;
