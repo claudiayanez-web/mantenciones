@@ -3582,6 +3582,8 @@ const PLANCTON = { PA: 'Plancton Andino · Noruega', PAC: 'Plancton Andino · Ch
 // Un color por empresa (distintos de los de biólogos) para la franja y el borde de sus centros
 const COLORES_EMPRESA = ['#0f6e56', '#a3461f', '#534ab7', '#1f5f9e', '#9a6b00', '#8c2f63', '#3b6d11', '#5f5e5a', '#0e7490', '#b45309'];
 
+// "Aqua Chile" y "AquaChile" son la misma empresa
+const claveEmpresa = x => normalizar(String(x || '')).replace(/[^a-z0-9]/g, '');
 const bioDe = sigla => programa.biologos.find(b => b.sigla === sigla);
 const colorBio = sigla => { const i = programa.biologos.findIndex(b => b.sigla === sigla); return i === -1 ? '#9ca3af' : COLORES_BIO[i % COLORES_BIO.length]; };
 const cargaBio = sigla => programa.centros.filter(c => c.semana === sigla || c.finde === sigla).length;
@@ -3847,20 +3849,24 @@ function tablaCentros(filas, sams) {
   });
   const cuerpo = tabla.createTBody();
   // El color de cada empresa se fija por su orden en el programa completo, así no cambia al buscar
-  const empresas = [...new Set(programa.centros.map(x => x.empresa))];
+  const empresas = [...new Set(programa.centros.map(x => claveEmpresa(x.empresa)))];
+  const nombreEmpresa = new Map();
+  programa.centros.forEach(x => { if (!nombreEmpresa.has(claveEmpresa(x.empresa))) nombreEmpresa.set(claveEmpresa(x.empresa), x.empresa); });
+  // Todos los centros de una empresa juntos, en el orden en que aparece la empresa
+  filas = filas.slice().sort((a, b) => empresas.indexOf(claveEmpresa(a.empresa)) - empresas.indexOf(claveEmpresa(b.empresa)));
   let empresaAnterior = null, colorEmpresa = '';
   filas.forEach(c => {
-    if (c.empresa !== empresaAnterior) {
-      colorEmpresa = COLORES_EMPRESA[empresas.indexOf(c.empresa) % COLORES_EMPRESA.length];
+    if (claveEmpresa(c.empresa) !== empresaAnterior) {
+      colorEmpresa = COLORES_EMPRESA[empresas.indexOf(claveEmpresa(c.empresa)) % COLORES_EMPRESA.length];
       const franja = cuerpo.insertRow();
       franja.className = 'franja';
       franja.style.setProperty('--colorEmp', colorEmpresa);
       const td = franja.insertCell();
       td.colSpan = 4;
-      td.textContent = c.empresa || 'Sin empresa';
-      const n = filas.filter(x => x.empresa === c.empresa).length;
+      td.textContent = nombreEmpresa.get(claveEmpresa(c.empresa)) || 'Sin empresa';
+      const n = filas.filter(x => claveEmpresa(x.empresa) === claveEmpresa(c.empresa)).length;
       td.insertAdjacentHTML('beforeend', '<span class="cuenta">' + n + (n === 1 ? ' centro' : ' centros') + '</span>');
-      empresaAnterior = c.empresa;
+      empresaAnterior = claveEmpresa(c.empresa);
     }
     const tr = cuerpo.insertRow();
     tr.style.setProperty('--colorEmp', colorEmpresa);
@@ -4281,14 +4287,16 @@ function abrirCambioCentro(c) {
 // Centro nuevo en el programa (por ejemplo uno que ya está en SAMS)
 function abrirAgregarCentro(base = {}) {
   const { dialogo, form, error, campo, campos } = dialogoComp('Agregar centro', 'Queda al final de su empresa en el programa', 'Agregar');
-  const empresas = [...new Set(programa.centros.map(c => c.empresa).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+  const porClave = new Map();
+  programa.centros.forEach(c => { if (c.empresa && !porClave.has(claveEmpresa(c.empresa))) porClave.set(claveEmpresa(c.empresa), c.empresa); });
+  const empresas = [...porClave.values()].sort((a, b) => a.localeCompare(b, 'es'));
   const empresa = campo('Empresa', '<input id="progEmpresa" list="listaEmpresasProg" autocomplete="off">', true);
   const listaEmpresas = document.createElement('datalist');
   listaEmpresas.id = 'listaEmpresasProg';
   listaEmpresas.innerHTML = empresas.map(e => '<option value="' + escaparHtml(e) + '">').join('');
   form.appendChild(listaEmpresas);
   // La empresa de SAMS puede venir escrita distinto: se usa la del programa si coincide
-  empresa.value = empresas.find(e => normalizar(e) === normalizar(base.empresa || '')) || base.empresa || '';
+  empresa.value = empresas.find(e => claveEmpresa(e) === claveEmpresa(base.empresa)) || base.empresa || '';
   const centro = campo('Centro', '<input id="progCentroNuevo" autocomplete="off">', true);
   centro.value = base.centro || '';
   const ubicacion = campo('Ubicación', '<input id="progUbicacion" autocomplete="off" placeholder="Ej.: Chiloé, Aysén, Calbuco">');
@@ -4310,6 +4318,8 @@ function abrirAgregarCentro(base = {}) {
     if (!empresa.value.trim()) { error.textContent = 'Escribe la empresa.'; return; }
     if (!centro.value.trim()) { error.textContent = 'Escribe el centro.'; return; }
     if (programa.centros.some(c => nombreClave(c.centro) === nombreClave(centro.value))) { error.textContent = 'Ese centro ya está en el programa.'; return; }
+    const igual = empresas.find(e => claveEmpresa(e) === claveEmpresa(empresa.value));
+    if (igual) empresa.value = igual;
     const ok = await guardarPrograma('agregar', { empresa: empresa.value.trim(), centro: centro.value.trim(), ubicacion: ubicacion.value.trim(), barrio: barrio.value.trim(),
       semana: semana.value, finde: finde.value }, form.querySelector('.confirmar'), centro.value.trim() + ' agregado al programa');
     if (ok) dialogo.close();

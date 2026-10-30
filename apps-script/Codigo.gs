@@ -1090,7 +1090,9 @@ function progAgregarCentro(body) {
     if (v.some(f => normalizar(f[PCOL.centro - 1]) === normalizar(centro))) return { ok: false, error: 'Ese centro ya está en el programa' };
     const id = Math.max(0, ...v.map(f => Number(f[0])).filter(n => !isNaN(n))) + 1;
     let despuesDe = -1, empresaFinal = empresa;
-    v.forEach((f, k) => { if (normalizar(f[PCOL.empresa - 1]) === normalizar(empresa)) { despuesDe = k; empresaFinal = String(f[PCOL.empresa - 1]).trim(); } });
+    // "Aqua Chile" (como viene de SAMS) y "AquaChile" son la misma empresa
+    const claveEmpresa = x => normalizar(x).replace(/[^a-z0-9]/g, '');
+    v.forEach((f, k) => { if (claveEmpresa(f[PCOL.empresa - 1]) === claveEmpresa(empresa)) { despuesDe = k; empresaFinal = String(f[PCOL.empresa - 1]).trim(); } });
     const fila = despuesDe === -1 ? v.length + 2 : despuesDe + 3;
     if (fila <= sheet.getLastRow()) sheet.insertRowBefore(fila);
     sheet.getRange(fila, 1, 1, PROG_COLUMNAS.length).setValues([[id, comoTexto(empresaFinal), comoTexto(centro), '', '', comoTexto(body.semana), comoTexto(body.finde),
