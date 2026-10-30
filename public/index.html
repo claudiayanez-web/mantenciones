@@ -3962,7 +3962,23 @@ function seccionReemplazos() {
     b.className = 'botonPrimario';
     b.textContent = '+ Nuevo reemplazo';
     b.addEventListener('click', () => abrirNuevoReemplazo());
-    sec.querySelector('.cabecera').appendChild(b);
+    const nb = document.createElement('button');
+    nb.type = 'button';
+    nb.className = 'botonSecundario';
+    nb.textContent = '+ Agregar biólogo';
+    nb.addEventListener('click', () => abrirAgregarBiologo());
+    const botones = document.createElement('span');
+    botones.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+    botones.append(nb, b);
+    sec.querySelector('.cabecera').appendChild(botones);
+  }
+  const soloReemp = programa.biologos.filter(b => b.equipo === 'reemplazo');
+  if (soloReemp.length) {
+    const p = document.createElement('div');
+    p.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px;color:var(--suave)';
+    p.innerHTML = '<span>Para cubrir reemplazos (sin centros fijos):</span>';
+    soloReemp.forEach(b => p.appendChild(nombreBio(b.sigla)));
+    sec.appendChild(p);
   }
   const orden = { activo: 0, programado: 1, terminado: 2 };
   const lista = (programa.reemplazos || []).slice().sort((a, b) => orden[estadoReemplazo(a)] - orden[estadoReemplazo(b)] || String(b.desde).localeCompare(String(a.desde)));
@@ -4010,10 +4026,12 @@ function seccionReemplazos() {
 const opcionesBio = (sel, excluir, fecha) => {
   sel.innerHTML = '';
   sel.add(new Option('Elegir…', ''));
-  ['semana', 'finde'].forEach(equipo => {
+  ['semana', 'finde', 'reemplazo'].forEach(equipo => {
+    const lista = programa.biologos.filter(b => b.equipo === equipo && b.sigla !== excluir);
+    if (!lista.length) return;
     const grupo = document.createElement('optgroup');
-    grupo.label = equipo === 'semana' ? 'Lunes a viernes' : 'Sábado y domingo';
-    programa.biologos.filter(b => b.equipo === equipo && b.sigla !== excluir)
+    grupo.label = { semana: 'Lunes a viernes', finde: 'Sábado y domingo', reemplazo: 'Solo reemplazos' }[equipo];
+    lista
       .forEach(b => grupo.appendChild(new Option(b.nombre + ' (' + cargaEn(b.sigla, fecha) + ')', b.sigla)));
     sel.appendChild(grupo);
   });
@@ -4024,7 +4042,7 @@ function abrirNuevoReemplazo() {
   const { dialogo, form, error, campo, campos } = dialogoComp('Nuevo reemplazo', 'Mientras dure, sus centros aparecen a nombre de quien los cubre', 'Guardar reemplazo');
   const titular = campo('Biólogo que no estará', '<select id="reempTitular"></select>', true);
   titular.add(new Option('Elegir…', ''));
-  programa.biologos.forEach(b => titular.add(new Option(b.nombre + ' (' + (b.equipo === 'semana' ? 'lunes a viernes' : 'fin de semana') + ')', b.sigla)));
+  programa.biologos.filter(b => b.equipo !== 'reemplazo').forEach(b => titular.add(new Option(b.nombre + ' (' + (b.equipo === 'semana' ? 'lunes a viernes' : 'fin de semana') + ')', b.sigla)));
   const desde = campo('Desde', '<input type="date" id="reempDesde">');
   const hasta = campo('Hasta', '<input type="date" id="reempHasta">');
   desde.value = fechaVerProg();
@@ -4089,6 +4107,36 @@ function abrirNuevoReemplazo() {
   });
   dialogo.showModal();
   titular.focus();
+}
+
+// Biólogo nuevo: de semana, de fin de semana o solo para reemplazos
+function abrirAgregarBiologo() {
+  const { dialogo, form, error, campo, campos } = dialogoComp('Agregar biólogo', 'Queda en la pestaña "Biólogos (página)" de la planilla', 'Agregar');
+  const nombre = campo('Nombre', '<input id="bioNombre" autocomplete="off" placeholder="Ej.: Mauricio">', true);
+  const sigla = campo('Sigla (iniciales)', '<input id="bioSigla" autocomplete="off" maxlength="4" placeholder="Ej.: ME">');
+  const equipo = campo('Equipo', '<select id="bioEquipo"><option value="reemplazo">Solo reemplazos</option><option value="semana">Lunes a viernes</option><option value="finde">Sábado y domingo</option></select>');
+  const nota = document.createElement('div');
+  nota.className = 'aviso ancho';
+  nota.textContent = '"Solo reemplazos" es para quien no tiene centros fijos: aparece al elegir quién cubre un reemplazo.';
+  campos.appendChild(nota);
+  let siglaTocada = false;
+  sigla.addEventListener('input', () => { siglaTocada = true; sigla.value = sigla.value.toUpperCase(); });
+  nombre.addEventListener('input', () => {
+    if (siglaTocada) return;
+    const partes = nombre.value.trim().split(/\s+/).filter(Boolean);
+    sigla.value = (partes.length > 1 ? partes[0][0] + partes[1][0] : (partes[0] || '').slice(0, 2)).toUpperCase();
+  });
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const sg = sigla.value.trim().toUpperCase();
+    if (!nombre.value.trim()) { error.textContent = 'Escribe el nombre.'; return; }
+    if (!/^[A-ZÁÉÍÓÚÑ]{1,4}$/.test(sg)) { error.textContent = 'La sigla son de 1 a 4 letras.'; return; }
+    if (programa.biologos.some(b => b.sigla.toUpperCase() === sg)) { error.textContent = 'Ya hay un biólogo con la sigla ' + sg + '.'; return; }
+    const ok = await guardarPrograma('agregarBiologo', { nombre: nombre.value.trim(), sigla: sg, equipo: equipo.value }, form.querySelector('.confirmar'), nombre.value.trim() + ' agregado');
+    if (ok) dialogo.close();
+  });
+  dialogo.showModal();
+  nombre.focus();
 }
 
 function abrirEditarReemplazo(r) {
@@ -4334,7 +4382,7 @@ function abrirSegunda(sg) {
   centro.value = sg ? sg.centro : '';
   const biologa = campo('Bióloga', '<select id="segBiologa"></select>', true);
   biologa.add(new Option('Elegir…', ''));
-  programa.biologos.forEach(b => biologa.add(new Option(b.nombre + ' (' + (b.equipo === 'semana' ? 'semana' : 'fin de semana') + ')', b.nombre)));
+  programa.biologos.forEach(b => biologa.add(new Option(b.nombre + ' (' + { semana: 'semana', finde: 'fin de semana', reemplazo: 'reemplazos' }[b.equipo] + ')', b.nombre)));
   if (sg && ![...biologa.options].some(o => o.value === sg.biologa)) biologa.add(new Option(sg.biologa, sg.biologa));
   biologa.value = sg ? sg.biologa : '';
   const inicio = campo('Inicio', '<input type="date" id="segInicio">');

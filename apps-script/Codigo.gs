@@ -66,6 +66,7 @@ function doPost(e) {
       case 'progSegunda':        return responder(progSegunda(body));
       case 'progEliminarSegunda': return responder(progEliminarSegunda(body));
       case 'progReemplazo':      return responder(progReemplazo(body));
+      case 'progAgregarBiologo': return responder(progAgregarBiologo(body));
       case 'progEditarReemplazo': return responder(progEditarReemplazo(body));
       case 'progEliminarReemplazo': return responder(progEliminarReemplazo(body));
     }
@@ -885,7 +886,9 @@ function progLeer() {
     semana: String(f[5]).trim(), finde: String(f[6]).trim(), ubicacion: String(f[7]).trim(), barrio: String(f[8]).trim()
   })).filter(c => c.id && c.centro);
   const b = bios.getLastRow() > 1 ? bios.getRange(2, 1, bios.getLastRow() - 1, 3).getDisplayValues() : [];
-  const biologos = b.map(f => ({ nombre: String(f[0]).trim(), sigla: String(f[1]).trim(), equipo: /fin/i.test(f[2]) ? 'finde' : 'semana' }))
+  // Equipo: "Semana", "Fin de semana" o "Solo reemplazos" (sin centros fijos, para cubrir ausencias)
+  const biologos = b.map(f => ({ nombre: String(f[0]).trim(), sigla: String(f[1]).trim(),
+    equipo: /reempl/i.test(f[2]) ? 'reemplazo' : /fin/i.test(f[2]) ? 'finde' : 'semana' }))
     .filter(x => x.nombre && x.sigla);
   return { ok: true, centros: centros, biologos: biologos, plancton: PROGRAMA.plancton, segundas: leerSegundas(ss), reemplazos: leerReemplazos(ss) };
 }
@@ -936,6 +939,29 @@ function progReemplazo(body) {
     SpreadsheetApp.flush();
     centros.forEach(c => historialPrograma(ss, body.usuario, c.centro, 'Reemplazo ' + (tramo === 'finde' ? 'sábado y domingo' : 'lunes a viernes'),
       titular, c.reemplazo + ' · ' + body.desde + ' a ' + body.hasta + (body.motivo ? ' · ' + body.motivo : '')));
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Biólogo nuevo en "Biólogos (página)"
+function progAgregarBiologo(body) {
+  const nombre = String(body.nombre || '').trim(), sigla = String(body.sigla || '').trim().toUpperCase();
+  const equipo = { semana: 'Semana', finde: 'Fin de semana', reemplazo: 'Solo reemplazos' }[body.equipo];
+  if (!nombre || !sigla || !equipo) return { ok: false, error: 'Completa nombre, sigla y equipo' };
+  if (PROGRAMA.plancton.includes(sigla)) return { ok: false, error: 'Esa sigla es la de Plancton Andino' };
+  const ss = SpreadsheetApp.openById(PROGRAMA.archivoId);
+  const { bios } = prepararPrograma(ss);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const v = bios.getLastRow() > 1 ? bios.getRange(2, 1, bios.getLastRow() - 1, 2).getDisplayValues() : [];
+    if (v.some(f => String(f[1]).trim().toUpperCase() === sigla)) return { ok: false, error: 'Ya hay un biólogo con la sigla ' + sigla };
+    if (v.some(f => normalizar(f[0]) === normalizar(nombre))) return { ok: false, error: nombre + ' ya está en la lista' };
+    bios.appendRow([comoTexto(nombre), comoTexto(sigla), equipo]);
+    SpreadsheetApp.flush();
+    historialPrograma(ss, body.usuario, '', 'Biólogo agregado', '', nombre + ' (' + sigla + ') · ' + equipo);
     return { ok: true };
   } finally {
     lock.releaseLock();

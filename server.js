@@ -490,7 +490,9 @@ const ACCIONES_PROGRAMA = {
   editarReemplazo: b => /^[0-9]+$/.test(String(b.id ?? '')) && texto(b.reemplazo, 10) && fechaValida(b.desde) && fechaValida(b.hasta) &&
     { accion: 'progEditarReemplazo', id: String(b.id), reemplazo: b.reemplazo.trim(), desde: b.desde, hasta: b.hasta,
       motivo: texto(b.motivo ?? '', 60) ?? '', observacion: texto(b.observacion ?? '', 500) ?? '' },
-  eliminarReemplazo: b => /^[0-9]+$/.test(String(b.id ?? '')) && { accion: 'progEliminarReemplazo', id: String(b.id) }
+  eliminarReemplazo: b => /^[0-9]+$/.test(String(b.id ?? '')) && { accion: 'progEliminarReemplazo', id: String(b.id) },
+  agregarBiologo: b => texto(b.nombre, 60) && /^[A-Za-zÁÉÍÓÚÑáéíóúñ]{1,4}$/.test(String(b.sigla ?? '').trim()) && ['semana', 'finde', 'reemplazo'].includes(b.equipo) &&
+    { accion: 'progAgregarBiologo', nombre: b.nombre.trim(), sigla: b.sigla.trim(), equipo: b.equipo }
 };
 
 app.post('/api/programa/:accion', requiereSesion, async (req, res) => {
