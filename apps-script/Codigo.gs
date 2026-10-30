@@ -65,6 +65,9 @@ function doPost(e) {
       case 'progQuitarCentro':   return responder(progQuitarCentro(body));
       case 'progSegunda':        return responder(progSegunda(body));
       case 'progEliminarSegunda': return responder(progEliminarSegunda(body));
+      case 'progReemplazo':      return responder(progReemplazo(body));
+      case 'progEditarReemplazo': return responder(progEditarReemplazo(body));
+      case 'progEliminarReemplazo': return responder(progEliminarReemplazo(body));
     }
 
     const config = HOJAS[body.hoja];
@@ -808,12 +811,15 @@ const PROGRAMA = {
   biologos: 'Biólogos (página)',
   segunda: 'Segunda Muestra',
   historial: 'Historial del programa',
+  reemplazos: 'Reemplazos',
   plancton: ['PA', 'PAC']   // Plancton Andino (Noruega / Chile): sin biólogo
 };
 const PROG_COLUMNAS = ['ID', 'Empresa', 'Centro', 'Centro nuevo', 'Fecha cambio', 'Lunes a viernes', 'Sábado y domingo', 'Ubicación', 'Barrio', 'Actualizado por', 'Actualizado el'];
 // Columnas de "Programa (página)" (1 = A)
 const PCOL = { id: 1, empresa: 2, centro: 3, nuevo: 4, fecha: 5, semana: 6, finde: 7, ubicacion: 8, barrio: 9, por: 10, el: 11 };
 const SEGUNDA_COLUMNAS = ['Centro', 'Biologa', 'Tiempo', 'Inicio', 'Fin', 'Horario', 'Asignado por', 'Asignado el', 'Observación'];
+// Reemplazos temporales: el titular sigue en el programa; entre Desde y Hasta el centro lo cubre otro biólogo
+const REEMP_COLUMNAS = ['ID', 'Centro ID', 'Centro', 'Tramo', 'Titular', 'Reemplazo', 'Desde', 'Hasta', 'Motivo', 'Observación', 'Registrado por', 'Registrado el'];
 
 // "Rada Achao ---> Lincay (15/nov)" → { actual, nuevo, fecha }
 function partirCentro(texto) {
@@ -881,7 +887,99 @@ function progLeer() {
   const b = bios.getLastRow() > 1 ? bios.getRange(2, 1, bios.getLastRow() - 1, 3).getDisplayValues() : [];
   const biologos = b.map(f => ({ nombre: String(f[0]).trim(), sigla: String(f[1]).trim(), equipo: /fin/i.test(f[2]) ? 'finde' : 'semana' }))
     .filter(x => x.nombre && x.sigla);
-  return { ok: true, centros: centros, biologos: biologos, plancton: PROGRAMA.plancton, segundas: leerSegundas(ss) };
+  return { ok: true, centros: centros, biologos: biologos, plancton: PROGRAMA.plancton, segundas: leerSegundas(ss), reemplazos: leerReemplazos(ss) };
+}
+
+function hojaReemplazos(ss) {
+  let sheet = ss.getSheetByName(PROGRAMA.reemplazos);
+  if (!sheet) {
+    sheet = ss.insertSheet(PROGRAMA.reemplazos);
+    sheet.getRange(1, 1, 1, REEMP_COLUMNAS.length).setValues([REEMP_COLUMNAS]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function leerReemplazos(ss) {
+  const sheet = ss.getSheetByName(PROGRAMA.reemplazos);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const zona = ss.getSpreadsheetTimeZone();
+  const iso = x => x instanceof Date ? Utilities.formatDate(x, zona, 'yyyy-MM-dd') : String(x || '').trim();
+  return sheet.getRange(2, 1, sheet.getLastRow() - 1, REEMP_COLUMNAS.length).getValues().map(f => ({
+    id: String(f[0]).trim(), centroId: String(f[1]).trim(), centro: String(f[2]).trim(), tramo: /s.bado|fin/i.test(f[3]) ? 'finde' : 'semana',
+    titular: String(f[4]).trim(), reemplazo: String(f[5]).trim(), desde: iso(f[6]), hasta: iso(f[7]), motivo: String(f[8] || '').trim(),
+    observacion: String(f[9] || '').trim(), registradoPor: String(f[10] || '').trim()
+  })).filter(r => r.id && r.centro);
+}
+
+// Registra un reemplazo para uno o varios centros del mismo titular (una fila por centro)
+function progReemplazo(body) {
+  const tramo = body.tramo === 'finde' ? 'finde' : 'semana';
+  const titular = String(body.titular || '').trim();
+  const desde = aFechaHoja(body.desde), hasta = aFechaHoja(body.hasta);
+  const centros = Array.isArray(body.centros) ? body.centros : [];
+  if (!titular) return { ok: false, error: 'Elige el biólogo que no estará' };
+  if (!desde || !hasta) return { ok: false, error: 'Revisa las fechas' };
+  if (hasta < desde) return { ok: false, error: 'La fecha "hasta" es anterior a "desde"' };
+  if (!centros.length) return { ok: false, error: 'Marca al menos un centro' };
+  if (centros.some(c => !String(c.reemplazo || '').trim() || String(c.reemplazo).trim() === titular)) return { ok: false, error: 'Elige quién cubre cada centro' };
+  const ss = SpreadsheetApp.openById(PROGRAMA.archivoId);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = hojaReemplazos(ss);
+    const ids = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().map(f => Number(f[0])).filter(n => !isNaN(n)) : [];
+    let id = Math.max(0, ...ids);
+    const filas = centros.map(c => [++id, comoTexto(c.id), comoTexto(c.centro), tramo === 'finde' ? 'Sábado y domingo' : 'Lunes a viernes', comoTexto(titular),
+      comoTexto(c.reemplazo), desde, hasta, comoTexto(body.motivo), comoTexto(body.observacion), body.usuario || '', new Date()]);
+    sheet.getRange(sheet.getLastRow() + 1, 1, filas.length, REEMP_COLUMNAS.length).setValues(filas);
+    SpreadsheetApp.flush();
+    centros.forEach(c => historialPrograma(ss, body.usuario, c.centro, 'Reemplazo ' + (tramo === 'finde' ? 'sábado y domingo' : 'lunes a viernes'),
+      titular, c.reemplazo + ' · ' + body.desde + ' a ' + body.hasta + (body.motivo ? ' · ' + body.motivo : '')));
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function conReemplazo(body, accion) {
+  const ss = SpreadsheetApp.openById(PROGRAMA.archivoId);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = ss.getSheetByName(PROGRAMA.reemplazos);
+    if (!sheet || sheet.getLastRow() < 2) return { ok: false, conflicto: true, error: 'Ese reemplazo ya no existe. Recarga la página.' };
+    const ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues().map(f => String(f[0]).trim());
+    const i = ids.indexOf(String(body.id));
+    if (i === -1) return { ok: false, conflicto: true, error: 'Ese reemplazo ya no existe. Recarga la página.' };
+    return accion(ss, sheet, i + 2, sheet.getRange(i + 2, 1, 1, REEMP_COLUMNAS.length).getDisplayValues()[0]);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function progEditarReemplazo(body) {
+  const desde = aFechaHoja(body.desde), hasta = aFechaHoja(body.hasta);
+  const reemplazo = String(body.reemplazo || '').trim();
+  if (!reemplazo) return { ok: false, error: 'Elige quién cubre' };
+  if (!desde || !hasta) return { ok: false, error: 'Revisa las fechas' };
+  if (hasta < desde) return { ok: false, error: 'La fecha "hasta" es anterior a "desde"' };
+  return conReemplazo(body, (ss, sheet, fila, actual) => {
+    if (reemplazo === actual[4]) return { ok: false, error: 'Quien cubre no puede ser el mismo titular' };
+    sheet.getRange(fila, 6, 1, 5).setValues([[comoTexto(reemplazo), desde, hasta, comoTexto(body.motivo), comoTexto(body.observacion)]]);
+    SpreadsheetApp.flush();
+    historialPrograma(ss, body.usuario, actual[2], 'Reemplazo editado', actual[5] + ' · ' + actual[6] + ' a ' + actual[7], reemplazo + ' · ' + body.desde + ' a ' + body.hasta);
+    return { ok: true };
+  });
+}
+
+function progEliminarReemplazo(body) {
+  return conReemplazo(body, (ss, sheet, fila, actual) => {
+    sheet.deleteRow(fila);
+    SpreadsheetApp.flush();
+    historialPrograma(ss, body.usuario, actual[2], 'Reemplazo eliminado', actual[4] + ' → ' + actual[5] + ' · ' + actual[6] + ' a ' + actual[7], '');
+    return { ok: true };
+  });
 }
 
 function hojaSegunda(ss) {

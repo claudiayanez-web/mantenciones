@@ -479,7 +479,18 @@ const ACCIONES_PROGRAMA = {
     { accion: 'progSegunda', fila: b.fila ?? '', centroAntes: texto(b.centroAntes ?? '', 150) ?? '', centro: b.centro.trim(), biologa: b.biologa.trim(),
       inicio: b.inicio, fin: b.fin, horario: texto(b.horario ?? '', 100) ?? '', observacion: texto(b.observacion ?? '', 500) ?? '' },
   eliminarSegunda: b => Number.isInteger(b.fila) && texto(b.centroAntes, 150) &&
-    { accion: 'progEliminarSegunda', fila: b.fila, centroAntes: b.centroAntes }
+    { accion: 'progEliminarSegunda', fila: b.fila, centroAntes: b.centroAntes },
+  // Reemplazo temporal de uno o varios centros del mismo titular
+  reemplazo: b => texto(b.titular, 10) && ['semana', 'finde'].includes(b.tramo) && fechaValida(b.desde) && fechaValida(b.hasta) &&
+    Array.isArray(b.centros) && b.centros.length > 0 && b.centros.length <= 80 &&
+    b.centros.every(c => /^[0-9]+$/.test(String(c.id ?? '')) && texto(c.centro, 150) && texto(c.reemplazo, 10)) &&
+    { accion: 'progReemplazo', titular: b.titular.trim(), tramo: b.tramo, desde: b.desde, hasta: b.hasta,
+      motivo: texto(b.motivo ?? '', 60) ?? '', observacion: texto(b.observacion ?? '', 500) ?? '',
+      centros: b.centros.map(c => ({ id: String(c.id), centro: c.centro.trim(), reemplazo: c.reemplazo.trim() })) },
+  editarReemplazo: b => /^[0-9]+$/.test(String(b.id ?? '')) && texto(b.reemplazo, 10) && fechaValida(b.desde) && fechaValida(b.hasta) &&
+    { accion: 'progEditarReemplazo', id: String(b.id), reemplazo: b.reemplazo.trim(), desde: b.desde, hasta: b.hasta,
+      motivo: texto(b.motivo ?? '', 60) ?? '', observacion: texto(b.observacion ?? '', 500) ?? '' },
+  eliminarReemplazo: b => /^[0-9]+$/.test(String(b.id ?? '')) && { accion: 'progEliminarReemplazo', id: String(b.id) }
 };
 
 app.post('/api/programa/:accion', requiereSesion, async (req, res) => {

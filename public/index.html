@@ -794,6 +794,18 @@
     border-radius: 999px; padding: 2px 10px 2px 2px; }
   button.bioNombre { cursor: pointer; }
   button.bioNombre:hover { border-color: var(--borde); background: #f6f8fb; }
+  .progVistas .derecha { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .progFecha { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--suave); }
+  .progFecha input { width: auto; padding: 5px 8px; border: 1px solid var(--borde); border-radius: 8px; font: inherit; color: var(--texto); }
+  .progFecha button { background: none; border: none; color: var(--azul); cursor: pointer; font: inherit; font-size: 13px; text-decoration: underline; padding: 0; }
+  .avisoReemplazos { background: #fbf3dc; color: #7a5a00; border-radius: 10px; padding: 8px 12px; font-size: 13px; }
+  .avisoReemplazos b { font-weight: 700; }
+  .etiquetaReemp { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #fbf3dc; color: #7a5a00; white-space: nowrap; }
+  .tarjetaCentro .etiquetaReemp { justify-self: start; margin: 2px 0 0; }
+  .dialogoTicket .listaReemp { display: grid; gap: 6px; max-height: 40vh; overflow-y: auto; }
+  .dialogoTicket .listaReemp > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+  .dialogoTicket .listaReemp label { display: flex; align-items: center; gap: 6px; color: var(--texto); font-size: 13px; }
+  .dialogoTicket .listaReemp select { width: auto; min-width: 150px; }
   .progVistas { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .progAviso.plegado { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; }
   .progAviso .verMas { background: none; border: none; color: #7a5a00; text-decoration: underline; cursor: pointer; font: inherit; font-size: 13px; padding: 0; }
@@ -3560,8 +3572,10 @@ async function abrirLineaTiempo() {
 
 let programa = null, programaEn = 0, busquedaProg = '', avisoSamsAbierto = false;
 const CLAVE_VISTA_PROG = 'mantenciones.programa.vista', CLAVE_TRAMO_PROG = 'mantenciones.programa.tramo';
-let vistaProg = 'centros', tramoProg = 'semana';
-try { const v = localStorage.getItem(CLAVE_VISTA_PROG); if (v === 'biologos' || v === 'segundas') vistaProg = v; if (localStorage.getItem(CLAVE_TRAMO_PROG) === 'finde') tramoProg = 'finde'; } catch {}
+let vistaProg = 'centros', tramoProg = 'semana', fechaProg = '';
+const MOTIVOS_REEMPLAZO = ['Vacaciones', 'Licencia', 'Pidió ayuda', 'Otro'];
+const fechaVerProg = () => fechaProg || hoyIso();
+try { const v = localStorage.getItem(CLAVE_VISTA_PROG); if (['biologos', 'segundas', 'reemplazos'].includes(v)) vistaProg = v; if (localStorage.getItem(CLAVE_TRAMO_PROG) === 'finde') tramoProg = 'finde'; } catch {}
 const DIAS_CENTRO_NUEVO = 30;   // un centro es "nuevo" si su INICIO en SAMS es de los últimos 30 días
 const COLORES_BIO = ['#4f79b5', '#2e8b57', '#c0603a', '#7b68a6', '#c2477a', '#3e8e9a', '#b07800', '#5e7d2e', '#8a5a44', '#1f3f73', '#e0559b', '#6a7f8c'];
 const PLANCTON = { PA: 'Plancton Andino · Noruega', PAC: 'Plancton Andino · Chile' };
@@ -3601,6 +3615,24 @@ function nombreBio(sigla, boton) {
   if (!sigla) el.firstChild.style.background = '#c4c9d1';
   el.lastChild.textContent = bio ? bio.nombre : (sigla ? sigla : 'Sin asignar');
   return el;
+}
+
+// Reemplazo vigente de un centro en una fecha (o ninguno)
+function reemplazoDe(c, tramo, fecha) {
+  return (programa.reemplazos || []).find(r => r.centroId === String(c.id) && r.tramo === tramo && r.desde <= fecha && fecha <= r.hasta);
+}
+const siglaEfectiva = (c, tramo, fecha) => { const r = reemplazoDe(c, tramo, fecha); return r ? r.reemplazo : c[tramo]; };
+// Centros que cubre un biólogo en una fecha, contando los reemplazos
+const cargaEn = (sigla, fecha) => programa.centros.filter(c => siglaEfectiva(c, 'semana', fecha) === sigla || siglaEfectiva(c, 'finde', fecha) === sigla).length;
+const estadoReemplazo = r => { const hoy = hoyIso(); return r.hasta < hoy ? 'terminado' : r.desde > hoy ? 'programado' : 'activo'; };
+
+function etiquetaReemplazo(r) {
+  const e = document.createElement('span');
+  e.className = 'etiquetaReemp';
+  const titular = bioDe(r.titular)?.nombre || r.titular;
+  e.textContent = 'cubre a ' + titular + ' · hasta ' + fechaCorta(r.hasta).slice(0, 5);
+  e.title = (r.motivo ? r.motivo + ' · ' : '') + rangoFechas(r.desde, r.hasta) + (r.observacion ? ' · ' + r.observacion : '');
+  return e;
 }
 
 function etiquetasCentro(c, sams) {
@@ -3685,7 +3717,9 @@ function dibujarPrograma() {
   vistas.className = 'progVistas';
   vistas.innerHTML = '<div class="selectorModo" role="group" aria-label="Ver programa"></div>';
   const activas = programa.segundas.filter(sg => estadoSegunda(sg) === 'activa').length;
-  [['centros', 'Por centro'], ['biologos', 'Por biólogo'], ['segundas', 'Segundas muestras' + (activas ? ' (' + activas + ')' : '')]].forEach(([id, texto]) => {
+  const reempActivos = (programa.reemplazos || []).filter(r => estadoReemplazo(r) === 'activo').length;
+  [['centros', 'Por centro'], ['biologos', 'Por biólogo'], ['segundas', 'Segundas muestras' + (activas ? ' (' + activas + ')' : '')],
+    ['reemplazos', 'Reemplazos' + (reempActivos ? ' (' + reempActivos + ')' : '')]].forEach(([id, texto]) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.textContent = texto;
@@ -3707,7 +3741,55 @@ function dibujarPrograma() {
     });
     vistas.appendChild(tramos);
   }
+  // Ver el programa de otro día (por ejemplo, la semana de unas vacaciones)
+  const fecha = fechaVerProg();
+  if (vistaProg === 'centros' || vistaProg === 'biologos') {
+    const derecha = document.createElement('div');
+    derecha.className = 'derecha';
+    const lab = document.createElement('label');
+    lab.className = 'progFecha';
+    lab.innerHTML = '<span>Ver programa del</span><input type="date" id="fechaPrograma">';
+    const input = lab.querySelector('input');
+    input.value = fecha;
+    input.addEventListener('change', () => { fechaProg = input.value && input.value !== hoyIso() ? input.value : ''; dibujarPrograma(); });
+    derecha.appendChild(lab);
+    if (fechaProg) {
+      const volver = document.createElement('button');
+      volver.type = 'button';
+      volver.className = 'botonSecundario';
+      volver.textContent = 'Volver a hoy';
+      volver.addEventListener('click', () => { fechaProg = ''; dibujarPrograma(); });
+      derecha.appendChild(volver);
+    }
+    const tramosEl = vistas.querySelector('.chips');
+    if (tramosEl) derecha.prepend(tramosEl);
+    vistas.appendChild(derecha);
+  }
   caja.appendChild(vistas);
+
+  // Reemplazos en su propia pestaña
+  if (vistaProg === 'reemplazos') {
+    caja.appendChild(seccionReemplazos());
+    caja.scrollTop = scroll;
+    return;
+  }
+  // Aviso de los reemplazos que rigen el día que se está mirando
+  if (vistaProg === 'centros' || vistaProg === 'biologos') {
+    const vigentes = (programa.reemplazos || []).filter(r => r.desde <= fecha && fecha <= r.hasta);
+    if (vigentes.length) {
+      const porTitular = new Map();
+      vigentes.forEach(r => { const k = r.titular + '|' + r.motivo + '|' + r.desde + '|' + r.hasta; porTitular.set(k, [...(porTitular.get(k) || []), r]); });
+      const aviso = document.createElement('div');
+      aviso.className = 'avisoReemplazos';
+      aviso.innerHTML = '<b></b> <span></span>';
+      aviso.querySelector('b').textContent = vigentes.length + (vigentes.length === 1 ? ' centro con reemplazo' : ' centros con reemplazo') + (fechaProg ? ' el ' + fechaCorta(fecha) : ' hoy') + ':';
+      aviso.querySelector('span').textContent = [...porTitular.values()].map(lista => {
+        const r = lista[0];
+        return (bioDe(r.titular)?.nombre || r.titular) + (r.motivo ? ' (' + r.motivo.toLowerCase() + ')' : '') + ' ' + rangoFechas(r.desde, r.hasta) + ' → ' + lista.map(x => x.centro).join(', ');
+      }).join(' · ');
+      caja.appendChild(aviso);
+    }
+  }
 
   // Segundas muestras en su propia pestaña
   if (vistaProg === 'segundas') {
@@ -3787,11 +3869,19 @@ function tablaCentros(filas, sams) {
     tdCentro.textContent = c.centro;
     tdCentro.title = [c.ubicacion, c.barrio && 'Barrio ' + c.barrio].filter(Boolean).join(' · ');
     etiquetasCentro(c, sams).forEach(e => tdCentro.appendChild(e));
+    const fechaTabla = fechaVerProg();
     [['semana', c.semana], ['finde', c.finde]].forEach(([tramo, sigla]) => {
+      const r = !PLANCTON[sigla] && reemplazoDe(c, tramo, fechaTabla);
       const editable = estado.admin && !PLANCTON[sigla];
-      const el = nombreBio(sigla, editable);
-      if (editable) el.addEventListener('click', () => abrirAsignarBio(c, tramo));
-      tr.insertCell().appendChild(el);
+      const el = nombreBio(r ? r.reemplazo : sigla, editable);
+      // Con reemplazo vigente, tocar abre el reemplazo; si no, se cambia el titular
+      if (editable) {
+        el.title = r ? 'Editar el reemplazo' : 'Cambiar biólogo';
+        el.addEventListener('click', () => r ? abrirEditarReemplazo(r) : abrirAsignarBio(c, tramo));
+      }
+      const td = tr.insertCell();
+      td.appendChild(el);
+      if (r) td.appendChild(etiquetaReemplazo(r));
     });
     const tdAcc = tr.insertCell();
     tdAcc.className = 'acciones';
@@ -3816,14 +3906,15 @@ function tableroBiologos(filas, sams) {
   const tablero = document.createElement('div');
   tablero.className = 'progTablero';
   const tramo = tramoProg;
-  const conBio = filas.filter(c => !PLANCTON[c.semana]);
+  const fecha = fechaVerProg();
+  const conBio = filas.filter(c => !PLANCTON[c.semana]).map(c => ({ c, sigla: siglaEfectiva(c, tramo, fecha) || '', r: reemplazoDe(c, tramo, fecha) }));
   const columnas = programa.biologos.filter(b => b.equipo === tramo).map(b => ({ sigla: b.sigla, nombre: b.nombre }));
   // Biólogos del otro equipo que igual tienen centros en este tramo, y centros sin asignar
-  const otros = [...new Set(conBio.map(c => c[tramo]))].filter(sg => sg && !columnas.some(x => x.sigla === sg));
+  const otros = [...new Set(conBio.map(x => x.sigla))].filter(sg => sg && !columnas.some(x => x.sigla === sg));
   otros.forEach(sg => columnas.push({ sigla: sg, nombre: bioDe(sg)?.nombre || sg }));
-  if (conBio.some(c => !c[tramo])) columnas.push({ sigla: '', nombre: 'Sin asignar' });
+  if (conBio.some(x => !x.sigla)) columnas.push({ sigla: '', nombre: 'Sin asignar' });
   columnas.forEach(col => {
-    const centros = conBio.filter(c => (c[tramo] || '') === col.sigla);
+    const centros = conBio.filter(x => x.sigla === col.sigla);
     const div = document.createElement('section');
     div.className = 'colBio';
     div.style.setProperty('--color', col.sigla ? colorBio(col.sigla) : '#c4c9d1');
@@ -3834,20 +3925,202 @@ function tableroBiologos(filas, sams) {
     cuenta.textContent = centros.length;
     if (!centros.length) cuenta.classList.add('cero');
     if (!centros.length) div.insertAdjacentHTML('beforeend', '<div class="vacia">Sin centros</div>');
-    centros.forEach(c => {
+    centros.forEach(({ c, r }) => {
       const t = document.createElement(estado.admin ? 'button' : 'div');
-      if (estado.admin) { t.type = 'button'; t.title = 'Cambiar biólogo de ' + c.centro; t.addEventListener('click', () => abrirAsignarBio(c, tramo)); }
+      if (estado.admin) {
+        t.type = 'button';
+        t.title = r ? 'Editar el reemplazo de ' + c.centro : 'Cambiar biólogo de ' + c.centro;
+        t.addEventListener('click', () => r ? abrirEditarReemplazo(r) : abrirAsignarBio(c, tramo));
+      }
       t.className = 'tarjetaCentro';
       t.innerHTML = '<span></span><span class="sub"></span>';
       t.firstChild.textContent = c.centro;
       t.querySelector('.sub').textContent = c.empresa;
       etiquetasCentro(c, sams).forEach(e => t.appendChild(e));
+      if (r) t.appendChild(etiquetaReemplazo(r));
       div.appendChild(t);
     });
     tablero.appendChild(div);
   });
   if (!columnas.length) tablero.innerHTML = '<div class="vacia">No hay biólogos en este equipo.</div>';
   return tablero;
+}
+
+function seccionReemplazos() {
+  const sec = document.createElement('section');
+  sec.className = 'progSeccion';
+  sec.innerHTML = '<div class="cabecera"><h3>Reemplazos</h3></div><p class="nota" style="margin:0;color:var(--suave);font-size:13px">Cuando un biólogo se va de vacaciones, tiene licencia o pide ayuda, sus centros los cubre otro por unas fechas. Al terminar, el centro vuelve solo a su titular.</p>';
+  if (estado.admin) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'botonPrimario';
+    b.textContent = '+ Nuevo reemplazo';
+    b.addEventListener('click', () => abrirNuevoReemplazo());
+    sec.querySelector('.cabecera').appendChild(b);
+  }
+  const orden = { activo: 0, programado: 1, terminado: 2 };
+  const lista = (programa.reemplazos || []).slice().sort((a, b) => orden[estadoReemplazo(a)] - orden[estadoReemplazo(b)] || String(b.desde).localeCompare(String(a.desde)));
+  const cont = document.createElement('div');
+  cont.className = 'compTabla';
+  if (!lista.length) cont.innerHTML = '<div class="vacioTabla">Todavía no hay reemplazos.</div>';
+  else {
+    const tabla = document.createElement('table');
+    const enc = tabla.createTHead().insertRow();
+    const columnas = ['Centro', 'Tramo', 'Titular', 'Lo cubre', 'Periodo', 'Motivo', 'Estado', 'Observación'];
+    if (estado.admin) columnas.push('');
+    columnas.forEach(t => { const th = document.createElement('th'); th.textContent = t; th.style.cursor = 'default'; enc.appendChild(th); });
+    const cuerpo = tabla.createTBody();
+    lista.forEach(r => {
+      const tr = cuerpo.insertRow();
+      tr.insertCell().textContent = r.centro;
+      tr.insertCell().textContent = r.tramo === 'finde' ? 'Sábado y domingo' : 'Lunes a viernes';
+      tr.insertCell().appendChild(nombreBio(r.titular));
+      tr.insertCell().appendChild(nombreBio(r.reemplazo));
+      tr.insertCell().textContent = rangoFechas(r.desde, r.hasta);
+      tr.insertCell().textContent = r.motivo;
+      const est = estadoReemplazo(r);
+      tr.insertCell().innerHTML = '<span class="pillSegunda ' + { activo: 'activa', programado: 'programada', terminado: 'terminada' }[est] + '">' +
+        { activo: 'Activo', programado: 'Programado', terminado: 'Terminado' }[est] + '</span>';
+      const obs = tr.insertCell();
+      obs.textContent = r.observacion;
+      if (r.observacion.length > 30) obs.title = r.observacion;
+      if (estado.admin) {
+        const td = tr.insertCell();
+        td.className = 'acciones';
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'botonSecundario';
+        b.textContent = 'Editar';
+        b.addEventListener('click', () => abrirEditarReemplazo(r));
+        td.appendChild(b);
+      }
+    });
+    cont.appendChild(tabla);
+  }
+  sec.appendChild(cont);
+  return sec;
+}
+
+const opcionesBio = (sel, excluir, fecha) => {
+  sel.innerHTML = '';
+  sel.add(new Option('Elegir…', ''));
+  ['semana', 'finde'].forEach(equipo => {
+    const grupo = document.createElement('optgroup');
+    grupo.label = equipo === 'semana' ? 'Lunes a viernes' : 'Sábado y domingo';
+    programa.biologos.filter(b => b.equipo === equipo && b.sigla !== excluir)
+      .forEach(b => grupo.appendChild(new Option(b.nombre + ' (' + cargaEn(b.sigla, fecha) + ')', b.sigla)));
+    sel.appendChild(grupo);
+  });
+};
+
+// Nuevo reemplazo: el titular que no estará, las fechas y quién cubre cada uno de sus centros
+function abrirNuevoReemplazo() {
+  const { dialogo, form, error, campo, campos } = dialogoComp('Nuevo reemplazo', 'Mientras dure, sus centros aparecen a nombre de quien los cubre', 'Guardar reemplazo');
+  const titular = campo('Biólogo que no estará', '<select id="reempTitular"></select>', true);
+  titular.add(new Option('Elegir…', ''));
+  programa.biologos.forEach(b => titular.add(new Option(b.nombre + ' (' + (b.equipo === 'semana' ? 'lunes a viernes' : 'fin de semana') + ')', b.sigla)));
+  const desde = campo('Desde', '<input type="date" id="reempDesde">');
+  const hasta = campo('Hasta', '<input type="date" id="reempHasta">');
+  desde.value = fechaVerProg();
+  hasta.value = fechaVerProg();
+  const motivo = campo('Motivo', '<select id="reempMotivo"></select>');
+  MOTIVOS_REEMPLAZO.forEach(m => motivo.add(new Option(m, m)));
+  const tramo = campo('Tramo', '<select id="reempTramo"><option value="semana">Lunes a viernes</option><option value="finde">Sábado y domingo</option></select>');
+  const obs = campo('Observación', '<input id="reempObs" autocomplete="off">', true);
+  const todos = document.createElement('div');
+  todos.className = 'ancho';
+  todos.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;color:var(--suave)';
+  todos.innerHTML = '<span>Asignar todos a</span><select id="reempTodos" style="width:auto;min-width:150px"></select>';
+  campos.appendChild(todos);
+  const lista = document.createElement('div');
+  lista.className = 'listaReemp ancho';
+  campos.appendChild(lista);
+  const selTodos = todos.querySelector('select');
+
+  const dibujarLista = () => {
+    lista.innerHTML = '';
+    const centros = programa.centros.filter(c => c[tramo.value] === titular.value);
+    opcionesBio(selTodos, titular.value, desde.value || fechaVerProg());
+    todos.style.display = centros.length > 1 ? 'flex' : 'none';
+    if (!titular.value) { lista.innerHTML = '<div class="nota" style="color:var(--suave)">Elige el biólogo para ver sus centros.</div>'; return; }
+    if (!centros.length) { lista.innerHTML = '<div class="nota" style="color:var(--suave)">No tiene centros en ese tramo.</div>'; return; }
+    centros.forEach(c => {
+      const fila = document.createElement('div');
+      fila.innerHTML = '<label><input type="checkbox" checked><span></span></label><select></select>';
+      fila.querySelector('span').textContent = c.centro;
+      fila.dataset.id = c.id;
+      fila.dataset.centro = c.centro;
+      const sel = fila.querySelector('select');
+      opcionesBio(sel, titular.value, desde.value || fechaVerProg());
+      fila.querySelector('input').addEventListener('change', e => { sel.disabled = !e.target.checked; });
+      lista.appendChild(fila);
+    });
+  };
+  titular.addEventListener('change', () => {
+    const bio = bioDe(titular.value);
+    if (bio) tramo.value = bio.equipo;
+    if (bio && bio.equipo === 'finde') motivo.value = 'Pidió ayuda';
+    dibujarLista();
+  });
+  tramo.addEventListener('change', dibujarLista);
+  desde.addEventListener('change', () => { if (!hasta.value || hasta.value < desde.value) hasta.value = desde.value; });
+  selTodos.addEventListener('change', () => { lista.querySelectorAll('select').forEach(s => { if (!s.disabled) s.value = selTodos.value; }); });
+  dibujarLista();
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!titular.value) { error.textContent = 'Elige el biólogo que no estará.'; return; }
+    if (!desde.value || !hasta.value) { error.textContent = 'Elige las fechas.'; return; }
+    if (hasta.value < desde.value) { error.textContent = 'La fecha "hasta" es anterior a "desde".'; return; }
+    const elegidos = [...lista.querySelectorAll(':scope > div')].filter(d => d.querySelector('input')?.checked)
+      .map(d => ({ id: d.dataset.id, centro: d.dataset.centro, reemplazo: d.querySelector('select').value }));
+    if (!elegidos.length) { error.textContent = 'Marca al menos un centro.'; return; }
+    if (elegidos.some(x => !x.reemplazo)) { error.textContent = 'Elige quién cubre cada centro marcado.'; return; }
+    const ok = await guardarPrograma('reemplazo', { titular: titular.value, tramo: tramo.value, desde: desde.value, hasta: hasta.value, motivo: motivo.value,
+      observacion: obs.value.trim(), centros: elegidos }, form.querySelector('.confirmar'),
+      elegidos.length === 1 ? 'Reemplazo guardado' : elegidos.length + ' centros con reemplazo');
+    if (ok) dialogo.close();
+  });
+  dialogo.showModal();
+  titular.focus();
+}
+
+function abrirEditarReemplazo(r) {
+  const { dialogo, form, error, campo } = dialogoComp('Reemplazo · ' + r.centro,
+    (r.tramo === 'finde' ? 'Sábado y domingo' : 'Lunes a viernes') + ' · titular: ' + (bioDe(r.titular)?.nombre || r.titular), 'Guardar');
+  const quien = campo('Lo cubre', '<select id="reempQuien"></select>', true);
+  opcionesBio(quien, r.titular, r.desde);
+  if (![...quien.options].some(o => o.value === r.reemplazo)) quien.add(new Option(r.reemplazo, r.reemplazo));
+  quien.value = r.reemplazo;
+  const desde = campo('Desde', '<input type="date" id="reempEdDesde">');
+  const hasta = campo('Hasta', '<input type="date" id="reempEdHasta">');
+  desde.value = r.desde;
+  hasta.value = r.hasta;
+  const motivo = campo('Motivo', '<select id="reempEdMotivo"></select>');
+  [...new Set([...MOTIVOS_REEMPLAZO, r.motivo].filter(Boolean))].forEach(m => motivo.add(new Option(m, m)));
+  motivo.value = r.motivo || MOTIVOS_REEMPLAZO[0];
+  const obs = campo('Observación', '<input id="reempEdObs" autocomplete="off">');
+  obs.value = r.observacion;
+  // Terminar hoy o eliminar
+  const b = form.querySelector('.eliminar');
+  b.hidden = false;
+  b.textContent = 'Eliminar reemplazo';
+  let confirmando = false;
+  b.addEventListener('click', async () => {
+    if (!confirmando) { confirmando = true; b.textContent = '¿Eliminar? Toca de nuevo'; return; }
+    if (await guardarPrograma('eliminarReemplazo', { id: r.id }, b, 'Reemplazo eliminado')) dialogo.close();
+  });
+  desde.addEventListener('change', () => { if (hasta.value < desde.value) hasta.value = desde.value; });
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!quien.value) { error.textContent = 'Elige quién cubre.'; return; }
+    if (!desde.value || !hasta.value || hasta.value < desde.value) { error.textContent = 'Revisa las fechas.'; return; }
+    const ok = await guardarPrograma('editarReemplazo', { id: r.id, reemplazo: quien.value, desde: desde.value, hasta: hasta.value, motivo: motivo.value, observacion: obs.value.trim() },
+      form.querySelector('.confirmar'), 'Reemplazo actualizado');
+    if (ok) dialogo.close();
+  });
+  dialogo.showModal();
+  quien.focus();
 }
 
 function estadoSegunda(sg) {
