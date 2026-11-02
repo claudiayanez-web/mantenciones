@@ -648,9 +648,11 @@ function leerCertificados(dias) {
   return lista;
 }
 
+// La fecha se guarda a las 12:00 para que caiga en el mismo día aunque la planilla tenga otra zona horaria
+// (la de compensaciones está en hora de Los Ángeles: a medianoche de Chile se veía el día anterior)
 const aFechaHoja = texto => {
   const m = String(texto || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : null;
 };
 const numeroComp = (v, max) => {
   const n = Number(v);
