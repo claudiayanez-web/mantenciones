@@ -877,6 +877,18 @@
     border: 1px solid #ccc;
     border-radius: 8px;
   }
+  .tiempoFechas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; width: 100%; }
+  .tiempoFechas .grupo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--suave); }
+  .tiempoBarra .tiempoFechas input { flex: none; width: auto; max-width: none; padding: 5px 8px; font: inherit; font-size: 13px; color: var(--texto); }
+  .tiempoFechas .quitar { background: none; border: none; color: var(--azul); text-decoration: underline; cursor: pointer; font: inherit; font-size: 13px; padding: 0; }
+  .resumenTiempo { width: 100%; font-size: 13px; color: var(--texto); background: #f3f6fa; border-radius: 8px; padding: 6px 10px; }
+  .resumenTiempo b { color: var(--azul); }
+  .mesTiempo { position: absolute; top: 0; bottom: 0; border-left: 1px dotted #ececec; }
+  .encabezado .mesTiempo span { position: absolute; top: 9px; left: 4px; font-size: 11px; color: var(--suave); white-space: nowrap; }
+  .diaTiempo { position: absolute; top: 0; bottom: 0; border-left: 2px dashed var(--azul); z-index: 1; }
+  .encabezado .diaTiempo span { position: absolute; top: 8px; left: 4px; font-size: 11px; color: var(--azul); font-weight: 700; white-space: nowrap; background: var(--azul-claro); padding: 0 3px; }
+  .filaTiempo.atenuada .barraTiempo, .filaTiempo.atenuada .nombreTiempo strong { opacity: 0.3; }
+  .muestraDia { display: inline-block; width: 0; height: 14px; border-left: 2px dashed var(--azul); }
   .leyendaTiempo { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--suave); }
   .leyendaTiempo span { display: inline-flex; align-items: center; gap: 6px; }
   .muestraTiempo { display: inline-block; width: 18px; height: 10px; border-radius: 3px; }
@@ -1239,7 +1251,20 @@
         <span><i class="muestraTiempo desactivado"></i>Desactivado</span>
         <span><i class="muestraTiempo pendiente"></i>Pendiente</span>
         <span><i class="muestraHoy"></i>Hoy</span>
+        <span><i class="muestraDia"></i>Día marcado</span>
       </div>
+      <div class="tiempoFechas">
+        <div class="chips" id="periodoTiempo" role="group" aria-label="Periodo"></div>
+        <div class="grupo">
+          <span>Desde</span><input type="date" id="tiempoDesde" aria-label="Desde">
+          <span>hasta</span><input type="date" id="tiempoHasta" aria-label="Hasta">
+        </div>
+        <div class="grupo">
+          <span>Marcar día</span><input type="date" id="tiempoDia" aria-label="Marcar un día">
+          <button type="button" class="quitar" id="quitarDiaTiempo" hidden>Quitar</button>
+        </div>
+      </div>
+      <div class="resumenTiempo" id="resumenTiempo" hidden></div>
     </div>
     <div class="tiempoContenedor" id="tiempoContenedor"></div>
   </div>
@@ -4984,6 +5009,50 @@ const FILTROS_TIEMPO = [
 ];
 const CLAVE_FILTRO_TIEMPO = 'mantenciones.tiempo.filtro';
 let filtroTiempo = 'todos';
+// Periodo que se muestra: atajo ('todo', 'mes', 'anio', '12m', un año) o 'rango' con desde–hasta; y un día marcado
+const CLAVE_PERIODO_TIEMPO = 'mantenciones.tiempo.periodo';
+let periodoTiempo = { id: 'todo', desde: '', hasta: '' }, diaTiempo = '';
+try { const g = JSON.parse(localStorage.getItem(CLAVE_PERIODO_TIEMPO) || 'null'); if (g && g.id) periodoTiempo = g; } catch {}
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function rangoPeriodoTiempo() {
+  const hoy = new Date().toISOString().slice(0, 10), anio = +hoy.slice(0, 4);
+  const id = periodoTiempo.id;
+  if (id === 'mes') return { desde: hoy.slice(0, 8) + '01', hasta: new Date(Date.UTC(anio, +hoy.slice(5, 7), 0)).toISOString().slice(0, 10), texto: 'este mes' };
+  if (id === 'anio') return { desde: anio + '-01-01', hasta: anio + '-12-31', texto: String(anio) };
+  if (id === '12m') return { desde: new Date(Date.parse(hoy + 'T00:00:00Z') - 365 * 86400000).toISOString().slice(0, 10), hasta: hoy, texto: 'los últimos 12 meses' };
+  if (/^\d{4}$/.test(id)) return { desde: id + '-01-01', hasta: id + '-12-31', texto: id };
+  if (id === 'rango' && periodoTiempo.desde && periodoTiempo.hasta) return { desde: periodoTiempo.desde, hasta: periodoTiempo.hasta, texto: fechaCortaTiempo(periodoTiempo.desde) + ' al ' + fechaCortaTiempo(periodoTiempo.hasta) };
+  return null;
+}
+const fechaCortaTiempo = iso => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(2, 4) : '';
+
+function elegirPeriodoTiempo(nuevo) {
+  periodoTiempo = nuevo;
+  try { localStorage.setItem(CLAVE_PERIODO_TIEMPO, JSON.stringify(nuevo)); } catch {}
+  tiempoRecienAbierto = true;
+  dibujarLineaTiempo();
+}
+
+function dibujarPeriodoTiempo() {
+  const anio = new Date().getFullYear();
+  const caja = document.getElementById('periodoTiempo');
+  caja.innerHTML = '';
+  [['todo', 'Todo'], ['mes', 'Este mes'], ['anio', 'Este año'], ['12m', 'Últimos 12 meses'], [String(anio - 1), String(anio - 1)], [String(anio - 2), String(anio - 2)]]
+    .forEach(([id, texto]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = texto;
+      b.setAttribute('aria-pressed', periodoTiempo.id === id ? 'true' : 'false');
+      b.addEventListener('click', () => elegirPeriodoTiempo({ id, desde: '', hasta: '' }));
+      caja.appendChild(b);
+    });
+  const r = rangoPeriodoTiempo();
+  document.getElementById('tiempoDesde').value = r ? r.desde : '';
+  document.getElementById('tiempoHasta').value = r ? r.hasta : '';
+  document.getElementById('tiempoDia').value = diaTiempo;
+  document.getElementById('quitarDiaTiempo').hidden = !diaTiempo;
+}
 try { filtroTiempo = localStorage.getItem(CLAVE_FILTRO_TIEMPO) || 'todos'; } catch {}
 
 function dibujarFiltroTiempo(todos) {
@@ -5025,8 +5094,14 @@ function dibujarLineaTiempo() {
   const q = normalizar(document.getElementById('buscarTiempo').value);
   const todos = gruposDeCentros();
   dibujarFiltroTiempo(todos);
+  dibujarPeriodoTiempo();
   const filtro = FILTROS_TIEMPO.find(f => f.id === filtroTiempo) || FILTROS_TIEMPO[0];
-  const delFiltro = todos.filter(filtro.incluye);
+  const hoyIsoT = new Date().toISOString().slice(0, 10);
+  // Fin "efectivo" de un periodo: vigente hasta hoy; desactivado sin fin, solo su inicio
+  const finDe = p => p.fin || (tipoPeriodo(p) === 'desactivado' ? p.inicio : hoyIsoT);
+  const rango = rangoPeriodoTiempo();
+  const enRango = p => p.inicio && (!rango || (p.inicio <= rango.hasta && finDe(p) >= rango.desde));
+  const delFiltro = todos.filter(filtro.incluye).filter(g => !rango || g.periodos.some(enRango));
   const grupos = q
     ? delFiltro.filter(g => normalizar(g.nombre).includes(q) || normalizar(g.empresa).includes(q) || g.periodos.some(p => normalizar(p.centro).includes(q)))
     : delFiltro;
@@ -5034,6 +5109,20 @@ function dibujarLineaTiempo() {
   const nPeriodos = grupos.reduce((s, g) => s + g.periodos.length, 0);
   document.getElementById('conteo').textContent = (q ? grupos.length + ' de ' + delFiltro.length : delFiltro.length) +
     ' centros · ' + nPeriodos + ' periodos';
+
+  // Resumen del periodo y del día marcado
+  const activoEl = (g, dia) => g.periodos.some(p => p.inicio && p.inicio <= dia && finDe(p) >= dia);
+  const resumen = document.getElementById('resumenTiempo');
+  const partes = [];
+  if (rango) {
+    const periodos = grupos.flatMap(g => g.periodos);
+    const iniciaron = periodos.filter(p => p.inicio && p.inicio >= rango.desde && p.inicio <= rango.hasta).length;
+    const terminaron = periodos.filter(p => p.fin && p.fin >= rango.desde && p.fin <= rango.hasta).length;
+    partes.push('En ' + rango.texto + ': <b>' + grupos.length + '</b> centros activos · <b>' + iniciaron + '</b> iniciaron · <b>' + terminaron + '</b> se desactivaron');
+  }
+  if (diaTiempo) partes.push('El ' + fechaCortaTiempo(diaTiempo) + ': <b>' + grupos.filter(g => activoEl(g, diaTiempo)).length + '</b> centros activos');
+  resumen.innerHTML = partes.join(' &nbsp;·&nbsp; ');
+  resumen.hidden = !partes.length;
 
   const scroll = [contenedor.scrollLeft, contenedor.scrollTop];
   contenedor.innerHTML = '';
@@ -5048,12 +5137,23 @@ function dibujarLineaTiempo() {
   const ms = iso => Date.parse(iso + 'T00:00:00Z');
   const hoy = new Date().toISOString().slice(0, 10);
   const fechas = grupos.flatMap(g => g.periodos.flatMap(p => [p.inicio, p.fin])).filter(Boolean).concat(hoy).sort();
-  const anioDesde = +fechas[0].slice(0, 4);
-  const desde = ms(anioDesde + '-01-01');
-  const hasta = Math.max(ms((+fechas[fechas.length - 1].slice(0, 4) + 1) + '-01-01'), ms(hoy) + 150 * 86400000);
+  const anioDesde = rango ? +rango.desde.slice(0, 4) : +fechas[0].slice(0, 4);
+  // Con un periodo elegido, la escala va justo de su inicio a su fin
+  const desde = rango ? ms(rango.desde) : ms(anioDesde + '-01-01');
+  const hasta = rango ? ms(rango.hasta) + 86400000 : Math.max(ms((+fechas[fechas.length - 1].slice(0, 4) + 1) + '-01-01'), ms(hoy) + 150 * 86400000);
   const pos = iso => ((ms(iso) - desde) / (hasta - desde)) * 100;
+  const recortar = v => Math.min(100, Math.max(0, v));
   const anios = [];
-  for (let a = anioDesde; ms(a + '-01-01') < hasta; a++) anios.push(a);
+  for (let a = anioDesde; ms(a + '-01-01') < hasta; a++) if (ms(a + '-01-01') >= desde) anios.push(a);
+  // Periodos cortos (hasta ~14 meses): una marca por mes
+  const meses = [];
+  if (hasta - desde <= 430 * 86400000) {
+    const d = new Date(desde);
+    for (let a = d.getUTCFullYear(), m = d.getUTCMonth(); ms(a + '-' + String(m + 1).padStart(2, '0') + '-01') < hasta; m === 11 ? (a++, m = 0) : m++) {
+      const iso = a + '-' + String(m + 1).padStart(2, '0') + '-01';
+      if (ms(iso) >= desde && m !== 0) meses.push({ iso, texto: MESES_CORTOS[m] });
+    }
+  }
 
   const pista = (conAnios) => {
     const p = document.createElement('div');
@@ -5065,11 +5165,27 @@ function dibujarLineaTiempo() {
       if (conAnios) l.innerHTML = '<span>' + a + '</span>';
       p.appendChild(l);
     });
-    const h = document.createElement('div');
-    h.className = 'hoyTiempo';
-    h.style.left = pos(hoy) + '%';
-    if (conAnios) h.innerHTML = '<span>Hoy</span>';
-    p.appendChild(h);
+    meses.forEach(mm => {
+      const l = document.createElement('div');
+      l.className = 'mesTiempo';
+      l.style.left = pos(mm.iso) + '%';
+      if (conAnios) l.innerHTML = '<span>' + mm.texto + '</span>';
+      p.appendChild(l);
+    });
+    if (pos(hoy) >= 0 && pos(hoy) <= 100) {
+      const h = document.createElement('div');
+      h.className = 'hoyTiempo';
+      h.style.left = pos(hoy) + '%';
+      if (conAnios) h.innerHTML = '<span>Hoy</span>';
+      p.appendChild(h);
+    }
+    if (diaTiempo && pos(diaTiempo) >= 0 && pos(diaTiempo) <= 100) {
+      const d = document.createElement('div');
+      d.className = 'diaTiempo';
+      d.style.left = pos(diaTiempo) + '%';
+      if (conAnios) d.innerHTML = '<span>' + fechaCortaTiempo(diaTiempo) + '</span>';
+      p.appendChild(d);
+    }
     return p;
   };
 
@@ -5083,7 +5199,7 @@ function dibujarLineaTiempo() {
 
   grupos.forEach(g => {
     const fila = document.createElement('div');
-    fila.className = 'filaTiempo';
+    fila.className = 'filaTiempo' + (diaTiempo && !activoEl(g, diaTiempo) ? ' atenuada' : '');
     const nombre = document.createElement('div');
     nombre.className = 'nombreTiempo';
     const sinFecha = g.periodos.filter(p => !p.inicio).length;
@@ -5095,14 +5211,14 @@ function dibujarLineaTiempo() {
     fila.appendChild(nombre);
 
     const p = pista(false);
-    g.periodos.filter(x => x.inicio).forEach(periodo => {
+    g.periodos.filter(enRango).forEach(periodo => {
       const tipo = tipoPeriodo(periodo);
       const fin = periodo.fin || (tipo === 'desactivado' ? periodo.inicio : hoy);
       const barra = document.createElement('button');
       barra.type = 'button';
       barra.className = 'barraTiempo ' + tipo;
-      barra.style.left = pos(periodo.inicio) + '%';
-      barra.style.width = Math.max(0, pos(fin) - pos(periodo.inicio)) + '%';
+      barra.style.left = recortar(pos(periodo.inicio)) + '%';
+      barra.style.width = Math.max(0, recortar(pos(fin)) - recortar(pos(periodo.inicio))) + '%';
       const finTexto = periodo.finTexto || (tipo === 'vigente' ? 'vigente' : 'sin fecha de fin');
       barra.setAttribute('aria-label', periodo.centro + ': ' + periodo.inicioTexto + ' a ' + finTexto + ', ' + (periodo.estado || 'sin estado'));
       barra.addEventListener('mouseenter', e => mostrarTooltipTiempo(e, periodo, tipo, fin));
@@ -5112,7 +5228,7 @@ function dibujarLineaTiempo() {
       barra.addEventListener('blur', ocultarTooltipTiempo);
       barra.addEventListener('click', () => { ocultarTooltipTiempo(); abrirPeriodoDesdeTiempo(periodo); });
       p.appendChild(barra);
-      if (tipo === 'vigente') {
+      if (tipo === 'vigente' && pos(fin) <= 100) {
         const etiqueta = document.createElement('span');
         etiqueta.className = 'etiquetaVigente';
         etiqueta.style.left = pos(fin) + '%';
@@ -5188,6 +5304,17 @@ document.getElementById('buscarSolicitud').addEventListener('input', e => { busq
 document.getElementById('btnRecargarSolicitudes').addEventListener('click', () => cargarSolicitudes());
 document.getElementById('btnNuevoTicket').addEventListener('click', () => abrirDialogoTicket('nuevo'));
 document.getElementById('buscarTiempo').addEventListener('input', dibujarLineaTiempo);
+// Desde–hasta a mano pasa a un periodo personalizado
+// si queda al revés, se ajusta la otra fecha a la que se acaba de elegir
+['tiempoDesde', 'tiempoHasta'].forEach(id => document.getElementById(id).addEventListener('change', () => {
+  let d = document.getElementById('tiempoDesde').value, h = document.getElementById('tiempoHasta').value;
+  if (!d && !h) return;
+  if (!d || (id === 'tiempoHasta' && h < d)) d = h;
+  if (!h || (id === 'tiempoDesde' && h < d)) h = d;
+  elegirPeriodoTiempo({ id: 'rango', desde: d, hasta: h });
+}));
+document.getElementById('tiempoDia').addEventListener('change', e => { diaTiempo = e.target.value; dibujarLineaTiempo(); });
+document.getElementById('quitarDiaTiempo').addEventListener('click', () => { diaTiempo = ''; dibujarLineaTiempo(); });
 
 document.getElementById('btnMapa').addEventListener('click', abrirMapa);
 document.getElementById('buscarMapa').addEventListener('input', dibujarListaBarrios);
