@@ -510,4 +510,95 @@ app.post('/api/programa/:accion', requiereSesion, async (req, res) => {
   }
 });
 
+// ---------- Muestras de los equipos (base de Retina) ----------
+// Solo lectura: la conexión se abre con todas las transacciones en modo lectura.
+// Cuenta todas las muestras tomadas, estén analizadas o no.
+// RETINA_DB_URL=postgres://usuario:clave@host:5432/base (la clave puede ir sin codificar)
+
+function datosConexionRetina(url) {
+  const m = String(url).trim().replace(/^["']|["']$/g, '')
+    .match(/^postgres(?:ql)?:\/\/([^:]+):(.*)@([^@:\/]+)(?::(\d+))?\/([^\/?]+)$/);
+  if (!m) return null;
+  let password = m[2];
+  try { password = decodeURIComponent(m[2]); } catch {}
+  return { user: m[1], password, host: m[3], port: Number(m[4] || 5432), database: m[5] };
+}
+
+let poolRetina = null;
+function conexionRetina() {
+  if (poolRetina) return poolRetina;
+  const datos = process.env.RETINA_DB_URL && datosConexionRetina(process.env.RETINA_DB_URL);
+  if (!datos) return null;
+  const { Pool } = require('pg');
+  poolRetina = new Pool({ ...datos, max: 2, connectionTimeoutMillis: 15000, idleTimeoutMillis: 60000,
+    options: '-c default_transaction_read_only=on' });
+  poolRetina.on('error', err => console.error('Base de Retina', err.message));
+  return poolRetina;
+}
+
+// "Hoy" es el día en Chile, aunque el equipo esté en Noruega
+const SQL_MUESTRAS = `
+  SELECT d.id AS equipo_id, d.code AS equipo, d.is_active AS activo, ce.id AS centro_id, ce.name AS centro, co.name AS empresa,
+         count(s.id)::int AS total,
+         count(s.id) FILTER (WHERE s.collected_at >= date_trunc('day', now() AT TIME ZONE 'America/Santiago') AT TIME ZONE 'America/Santiago')::int AS hoy,
+         count(s.id) FILTER (WHERE s.collected_at >= now() - interval '7 days')::int AS semana,
+         max(s.collected_at) AS ultima
+  FROM devices d
+  LEFT JOIN centers ce ON ce.id = d.center_id
+  LEFT JOIN companies co ON co.id = ce.company_id
+  LEFT JOIN samples s ON s.device_id = d.id AND s.deleted_at IS NULL
+  WHERE d.deleted_at IS NULL
+  GROUP BY d.id, ce.id, co.name`;
+
+// Se guarda un minuto para no consultar la base cada vez que alguien abre la pestaña
+let muestrasCache = null;
+app.get('/api/muestras', requiereSesion, async (req, res) => {
+  const pool = conexionRetina();
+  if (!pool) return res.status(503).json({ ok: false, error: 'Falta configurar RETINA_DB_URL en el servidor.' });
+  if (muestrasCache && Date.now() - muestrasCache.leido < 60000 && req.query.recargar !== '1') {
+    return res.json(muestrasCache.respuesta);
+  }
+  try {
+    const r = await pool.query(SQL_MUESTRAS);
+    const respuesta = { ok: true, leido: new Date().toISOString(), equipos: r.rows };
+    muestrasCache = { leido: Date.now(), respuesta };
+    res.json(respuesta);
+  } catch (err) {
+    console.error('Error al leer muestras', err.code || '', err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo conectar a la base de Retina.' });
+  }
+});
+
+// Fecha y hora (de Chile) de cada muestra que tomó un equipo, entre dos días. Máximo 62 días por consulta.
+const SQL_MUESTRAS_EQUIPO = `
+  SELECT to_char(s.collected_at AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD') AS fecha,
+         to_char(s.collected_at AT TIME ZONE 'America/Santiago', 'HH24:MI:SS') AS hora,
+         dp.name AS profundidad, dp.value_meters AS metros
+  FROM samples s
+  LEFT JOIN depths dp ON dp.id = s.depth_id
+  WHERE s.device_id = $1 AND s.deleted_at IS NULL
+    AND s.collected_at >= ($2::date)::timestamp AT TIME ZONE 'America/Santiago'
+    AND s.collected_at < ($3::date + 1)::timestamp AT TIME ZONE 'America/Santiago'
+  ORDER BY s.collected_at`;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+app.get('/api/muestras/equipo/:id', requiereSesion, async (req, res) => {
+  const { desde, hasta } = req.query;
+  if (!UUID.test(req.params.id) || !fechaValida(desde) || !fechaValida(hasta) || desde > hasta) {
+    return res.status(400).json({ ok: false, error: 'Faltan datos' });
+  }
+  if ((new Date(hasta) - new Date(desde)) / 86400000 > 62) {
+    return res.status(400).json({ ok: false, error: 'Elige un periodo de máximo 2 meses.' });
+  }
+  const pool = conexionRetina();
+  if (!pool) return res.status(503).json({ ok: false, error: 'Falta configurar RETINA_DB_URL en el servidor.' });
+  try {
+    const r = await pool.query(SQL_MUESTRAS_EQUIPO, [req.params.id, desde, hasta]);
+    res.json({ ok: true, muestras: r.rows });
+  } catch (err) {
+    console.error('Error al leer muestras del equipo', err.code || '', err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo conectar a la base de Retina.' });
+  }
+});
+
 app.listen(PORT, () => console.log('Mantenciones escuchando en puerto ' + PORT));

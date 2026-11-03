@@ -874,6 +874,32 @@
     .progBarra { margin: 0 8px 10px; }
     .progContenido { padding: 0 8px 80px; }
   }
+  /* ---------- Muestras de los equipos ---------- */
+  .verInactivos { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--suave); cursor: pointer; }
+  .muestrasResumen { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--suave); }
+  .muestrasResumen b { color: var(--texto); font-variant-numeric: tabular-nums; }
+  .muestrasResumen .alerta b { color: var(--error); }
+  .progTabla td.num, .progTabla th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .progTabla tr.sinMuestras td { background: var(--error-fondo); }
+  .progTabla tr.sinMuestras td.ultima { color: var(--error); font-weight: 600; }
+  .progTabla tr.inactivo td { color: var(--suave); }
+  .vistaMuestras .progBarra[hidden] { display: none; }
+  .progTabla.tablaMuestras tbody tr { cursor: pointer; }
+  .muestrasAyuda { font-size: 12px; color: var(--suave); margin: -6px 0 0; }
+  .detalleMuestras { display: grid; gap: 12px; }
+  .detalleMuestras .cabecera { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .detalleMuestras .cabecera h3 { margin: 0; font-size: 17px; color: var(--azul); }
+  .detalleMuestras .cabecera .sub { font-size: 13px; color: var(--suave); }
+  .detalleMuestras .volver { background: none; border: none; color: var(--azul); cursor: pointer; font: inherit; font-size: 13px; padding: 0; text-decoration: underline; }
+  .detalleMuestras .periodo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 13px; color: var(--suave); }
+  .detalleMuestras .periodo input { padding: 5px 8px; border: 1px solid #ccc; border-radius: 8px; font: inherit; font-size: 13px; color: var(--texto); }
+  .diaMuestras { background: white; border: 1px solid var(--borde); border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; }
+  .diaMuestras h4 { margin: 0; font-size: 14px; color: var(--texto); }
+  .diaMuestras h4 .cuenta { font-weight: 400; color: var(--suave); margin-left: 6px; font-size: 13px; }
+  .horasMuestras { display: flex; flex-wrap: wrap; gap: 6px; }
+  .horaMuestra { display: inline-flex; align-items: baseline; gap: 5px; padding: 3px 9px; border-radius: 999px; background: var(--azul-claro); color: var(--azul); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .horaMuestra .prof { font-size: 11px; color: var(--suave); }
+  .progTabla .pillInactivo { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 11px; background: #eef0f3; color: var(--suave); }
   .vistaTiempo { --t-vigente: #2e8b57; --t-desactivado: #4f79b5; --t-pendiente: #b8860b; }
   .tiempoBarra {
     display: flex;
@@ -1120,6 +1146,10 @@
           <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18M7 8h6M10 12h8M7 16h5"/></svg>
           <span>Línea de tiempo</span>
         </button>
+        <button type="button" id="btnMuestras" aria-selected="false">
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3M7.5 14h9"/></svg>
+          <span>Muestras</span>
+        </button>
       </nav>
     </div>
     <div class="pieMenu">
@@ -1290,6 +1320,22 @@
       <div class="resumenTiempo" id="resumenTiempo" hidden></div>
     </div>
     <div class="tiempoContenedor" id="tiempoContenedor"></div>
+  </div>
+
+  <div class="vista vistaMuestras" id="vistaMuestras" hidden>
+    <div class="progBarra">
+      <label class="buscador">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="buscarMuestras" placeholder="Buscar equipo, centro o empresa" aria-label="Buscar equipo, centro o empresa">
+      </label>
+      <label class="verInactivos"><input type="checkbox" id="inactivosMuestras"> Ver equipos inactivos</label>
+      <span class="espacio"></span>
+      <button class="botonIcono" id="btnRecargarMuestras" type="button" title="Recargar" aria-label="Recargar muestras">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
+      </button>
+    </div>
+    <div class="progBarra chips" id="empresasMuestras" role="group" aria-label="Filtrar por empresa"></div>
+    <div class="progContenido" id="muestrasContenido"></div>
   </div>
   </main>
 </div>
@@ -1490,6 +1536,7 @@ async function iniciar() {
   else if (anterior.vista === 'tiempo') abrirLineaTiempo();
   else if (anterior.vista === 'compensaciones' && (estado.admin || estado.tecnico)) abrirCompensaciones();
   else if (anterior.vista === 'programa') abrirPrograma();
+  else if (anterior.vista === 'muestras') abrirMuestras();
   else abrirSolicitudes();
   if (anterior.vista && anterior.vista !== 'solicitudes') cargarSolicitudes({ silencioso: true });  // para la cantidad del menú
   precargarHojas();
@@ -1589,6 +1636,8 @@ function mostrarVista(vista) {
   document.getElementById('vistaSolicitudes').hidden = vista !== 'solicitudes';
   document.getElementById('vistaComp').hidden = vista !== 'compensaciones';
   document.getElementById('vistaProg').hidden = vista !== 'programa';
+  document.getElementById('vistaMuestras').hidden = vista !== 'muestras';
+  document.getElementById('btnMuestras').setAttribute('aria-selected', vista === 'muestras' ? 'true' : 'false');
   document.getElementById('btnPrograma').setAttribute('aria-selected', vista === 'programa' ? 'true' : 'false');
   document.getElementById('btnCompensaciones').setAttribute('aria-selected', vista === 'compensaciones' ? 'true' : 'false');
   document.getElementById('btnSolicitudes').setAttribute('aria-selected', vista === 'solicitudes' ? 'true' : 'false');
@@ -3688,6 +3737,310 @@ async function abrirLineaTiempo() {
   if (estado.vista === 'tiempo') dibujarLineaTiempo();
 }
 
+// ---------- Muestras de los equipos ----------
+// Se lee de la base de Retina (solo lectura). Cuenta todas las muestras tomadas, analizadas o no.
+// Un equipo activo que lleva más de un día sin tomar muestras queda en rojo.
+
+let muestras = null, empresaMuestras = '', ordenMuestras = { columna: 'ultima', asc: true };
+// Equipo abierto en detalle: { equipo, periodo, desde, hasta, lista } (lista: fecha y hora de cada muestra)
+let detalleMuestras = null;
+const CLAVE_INACTIVOS_MUESTRAS = 'mantenciones.muestras.inactivos';
+const UN_DIA_MS = 24 * 60 * 60 * 1000;
+try { document.getElementById('inactivosMuestras').checked = localStorage.getItem(CLAVE_INACTIVOS_MUESTRAS) === '1'; } catch {}
+
+async function abrirMuestras() {
+  abrirMenu(false);
+  if (!cerrarPanel()) return;
+  mostrarVista('muestras');
+  document.getElementById('tituloHoja').textContent = 'Muestras';
+  if (muestras) dibujarMuestras();
+  await cargarMuestras({ silencioso: !!muestras });
+}
+
+async function cargarMuestras(opciones) {
+  const boton = document.getElementById('btnRecargarMuestras');
+  if (!opciones?.silencioso) {
+    document.getElementById('conteo').textContent = 'Cargando…';
+    document.getElementById('actualizado').textContent = '';
+  }
+  boton.classList.add('cargando');
+  const r = await api('/api/muestras' + (opciones?.recargar ? '?recargar=1' : ''));
+  boton.classList.remove('cargando');
+  if (!r.ok) {
+    if (estado.vista !== 'muestras') return;
+    document.getElementById('conteo').textContent = '';
+    if (!muestras) document.getElementById('muestrasContenido').innerHTML = '<div class="mensajeCentro">' + escaparHtml(r.error) + ' Usa Recargar para intentar de nuevo.</div>';
+    else avisar(r.error, true);
+    return;
+  }
+  muestras = { leido: new Date(r.leido), equipos: r.equipos.map(e => ({ ...e, ultima: e.ultima ? new Date(e.ultima) : null })) };
+  if (detalleMuestras) {
+    detalleMuestras.equipo = muestras.equipos.find(e => e.equipo_id === detalleMuestras.equipo.equipo_id) || detalleMuestras.equipo;
+    if (opciones?.recargar) return cargarDetalleMuestras();
+  }
+  if (estado.vista === 'muestras') dibujarMuestras();
+}
+
+// ---------- Detalle de un equipo: fecha y hora de cada muestra ----------
+
+const isoDe = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const PERIODOS_MUESTRAS = [
+  ['hoy', 'Hoy', 0, 0], ['ayer', 'Ayer', 1, 1], ['7', 'Últimos 7 días', 6, 0], ['30', 'Últimos 30 días', 29, 0]
+];
+function rangoPeriodoMuestras(id) {
+  const p = PERIODOS_MUESTRAS.find(x => x[0] === id);
+  const dia = n => { const d = new Date(); d.setDate(d.getDate() - n); return isoDe(d); };
+  return { desde: dia(p[2]), hasta: dia(p[3]) };
+}
+
+function abrirDetalleMuestras(e) {
+  detalleMuestras = { equipo: e, periodo: '7', ...rangoPeriodoMuestras('7'), lista: null };
+  document.getElementById('muestrasContenido').scrollTop = 0;
+  cargarDetalleMuestras();
+}
+
+async function cargarDetalleMuestras() {
+  const d = detalleMuestras;
+  d.lista = null;
+  d.error = '';
+  dibujarMuestras();
+  const r = await api('/api/muestras/equipo/' + d.equipo.equipo_id + '?desde=' + d.desde + '&hasta=' + d.hasta);
+  if (detalleMuestras !== d) return;  // se cerró o se cambió el periodo mientras cargaba
+  if (r.ok) d.lista = r.muestras;
+  else d.error = r.error;
+  if (estado.vista === 'muestras') dibujarMuestras();
+}
+
+function elegirPeriodoMuestras(periodo, desde, hasta) {
+  detalleMuestras = { ...detalleMuestras, periodo, ...(periodo === 'rango' ? { desde, hasta } : rangoPeriodoMuestras(periodo)) };
+  cargarDetalleMuestras();
+}
+
+const nombreProfundidad = m => m.profundidad ? m.profundidad + (m.metros != null ? ' · ' + m.metros + ' m' : '') : '';
+
+function exportarCsvMuestras() {
+  const { equipo: e, lista, desde, hasta } = detalleMuestras;
+  const celda = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const lineas = [['Centro', 'Equipo', 'Fecha', 'Hora (Chile)', 'Profundidad', 'Metros'].map(celda).join(',')];
+  lista.forEach(m => lineas.push([e.centro, e.equipo, m.fecha, m.hora, m.profundidad, m.metros].map(celda).join(',')));
+  const blob = new Blob(['﻿' + lineas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'muestras_' + String(e.centro || e.equipo).replace(/[^\wÁÉÍÓÚÑáéíóúñ-]+/g, '_') + '_' + desde + '_' + hasta + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function dibujarDetalleMuestras(caja) {
+  const d = detalleMuestras, e = d.equipo;
+  const cont = document.createElement('div');
+  cont.className = 'detalleMuestras';
+
+  const cabecera = document.createElement('div');
+  cabecera.className = 'cabecera';
+  cabecera.innerHTML = '<button type="button" class="volver">← Todos los equipos</button>' +
+    '<h3>' + escaparHtml(e.centro || 'Sin centro') + '</h3>' +
+    '<span class="sub">Equipo ' + escaparHtml(e.equipo || '') + (e.empresa ? ' · ' + escaparHtml(e.empresa) : '') +
+    (e.ultima ? ' · última muestra ' + haceCuanto(e.ultima) : '') + '</span><span class="espacio" style="flex:1"></span>';
+  cabecera.querySelector('.volver').addEventListener('click', () => { detalleMuestras = null; dibujarMuestras(); });
+  if (d.lista?.length) {
+    const csv = document.createElement('button');
+    csv.type = 'button';
+    csv.className = 'botonSecundario';
+    csv.textContent = 'Descargar CSV';
+    csv.addEventListener('click', exportarCsvMuestras);
+    cabecera.appendChild(csv);
+  }
+  cont.appendChild(cabecera);
+
+  const periodo = document.createElement('div');
+  periodo.className = 'periodo';
+  const chips = document.createElement('div');
+  chips.className = 'chips';
+  PERIODOS_MUESTRAS.forEach(([id, texto]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = texto;
+    b.setAttribute('aria-pressed', d.periodo === id ? 'true' : 'false');
+    b.addEventListener('click', () => elegirPeriodoMuestras(id));
+    chips.appendChild(b);
+  });
+  periodo.appendChild(chips);
+  const rango = document.createElement('span');
+  rango.innerHTML = 'Desde <input type="date" aria-label="Desde"> hasta <input type="date" aria-label="Hasta">';
+  const [inDesde, inHasta] = rango.querySelectorAll('input');
+  inDesde.value = d.desde;
+  inHasta.value = d.hasta;
+  inDesde.max = inHasta.max = isoDe(new Date());
+  [inDesde, inHasta].forEach(input => input.addEventListener('change', () => {
+    let desde = inDesde.value, hasta = inHasta.value;
+    if (!desde || !hasta) return;
+    if (hasta < desde) { if (input === inDesde) hasta = desde; else desde = hasta; }
+    elegirPeriodoMuestras('rango', desde, hasta);
+  }));
+  periodo.appendChild(rango);
+  cont.appendChild(periodo);
+
+  if (d.error || !d.lista) {
+    const msg = document.createElement('div');
+    msg.className = 'mensajeCentro';
+    msg.textContent = d.error || 'Cargando…';
+    cont.appendChild(msg);
+    caja.appendChild(cont);
+    return;
+  }
+
+  const resumen = document.createElement('div');
+  resumen.className = 'muestrasResumen';
+  resumen.innerHTML = '<span><b>' + d.lista.length.toLocaleString('es-CL') + '</b> ' + (d.lista.length === 1 ? 'muestra' : 'muestras') + ' en el periodo</span>' +
+    '<span>Horas de Chile</span>';
+  cont.appendChild(resumen);
+
+  // Un bloque por día, del más reciente al más antiguo; los días sin muestras también aparecen
+  const porDia = {};
+  d.lista.forEach(m => (porDia[m.fecha] ||= []).push(m));
+  const dias = [];
+  for (let f = new Date(d.hasta + 'T12:00:00'); isoDe(f) >= d.desde; f.setDate(f.getDate() - 1)) dias.push(isoDe(f));
+  dias.forEach(fecha => {
+    const lista = porDia[fecha] || [];
+    const bloque = document.createElement('div');
+    bloque.className = 'diaMuestras';
+    const nombre = new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    bloque.innerHTML = '<h4>' + escaparHtml(nombre.charAt(0).toUpperCase() + nombre.slice(1)) + '<span class="cuenta">' +
+      (lista.length ? lista.length + (lista.length === 1 ? ' muestra' : ' muestras') : 'sin muestras') + '</span></h4>';
+    if (lista.length) {
+      const horas = document.createElement('div');
+      horas.className = 'horasMuestras';
+      lista.forEach(m => {
+        const chip = document.createElement('span');
+        chip.className = 'horaMuestra';
+        chip.title = m.hora + (m.profundidad ? ' · profundidad ' + nombreProfundidad(m) : '');
+        chip.innerHTML = escaparHtml(m.hora.slice(0, 5)) + (m.profundidad ? '<span class="prof">' + escaparHtml(nombreProfundidad(m)) + '</span>' : '');
+        horas.appendChild(chip);
+      });
+      bloque.appendChild(horas);
+    }
+    cont.appendChild(bloque);
+  });
+  caja.appendChild(cont);
+}
+
+function equipoAtrasado(e) {
+  return e.activo && (!e.ultima || Date.now() - e.ultima > UN_DIA_MS);
+}
+
+function dibujarMuestras() {
+  // Con un equipo abierto se ve su detalle en vez de la tabla
+  document.querySelector('#vistaMuestras .progBarra').hidden = !!detalleMuestras;
+  document.getElementById('empresasMuestras').hidden = !!detalleMuestras;
+  if (detalleMuestras) {
+    document.getElementById('conteo').textContent = detalleMuestras.equipo.centro || '';
+    document.getElementById('actualizado').textContent = '';
+    const caja = document.getElementById('muestrasContenido');
+    caja.innerHTML = '';
+    dibujarDetalleMuestras(caja);
+    return;
+  }
+  const verInactivos = document.getElementById('inactivosMuestras').checked;
+  const busqueda = normalizar(document.getElementById('buscarMuestras').value);
+  const visibles = muestras.equipos.filter(e => verInactivos || e.activo);
+
+  // Chips de empresa, con la cantidad de equipos de cada una
+  const porEmpresa = {};
+  visibles.forEach(e => { const n = e.empresa || 'Sin empresa'; porEmpresa[n] = (porEmpresa[n] || 0) + 1; });
+  if (empresaMuestras && !porEmpresa[empresaMuestras]) empresaMuestras = '';
+  const chips = document.getElementById('empresasMuestras');
+  chips.innerHTML = '';
+  [['', 'Todas', visibles.length], ...Object.keys(porEmpresa).sort((a, b) => a.localeCompare(b, 'es')).map(n => [n, n, porEmpresa[n]])]
+    .forEach(([id, texto, cuenta]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.innerHTML = escaparHtml(texto) + '<span class="cuenta">' + cuenta + '</span>';
+      b.setAttribute('aria-pressed', id === empresaMuestras ? 'true' : 'false');
+      b.addEventListener('click', () => { empresaMuestras = id; dibujarMuestras(); });
+      chips.appendChild(b);
+    });
+
+  const filas = visibles.filter(e =>
+    (!empresaMuestras || (e.empresa || 'Sin empresa') === empresaMuestras) &&
+    (!busqueda || normalizar([e.equipo, e.centro, e.empresa].join(' ')).includes(busqueda)));
+
+  const { columna, asc } = ordenMuestras;
+  const valorOrden = e => columna === 'ultima' ? (e.ultima ? e.ultima.getTime() : -Infinity)
+    : columna === 'equipo' ? Number(e.equipo) || 0
+    : ['hoy', 'semana', 'total'].includes(columna) ? e[columna]
+    : normalizar(e[columna] || '');
+  filas.sort((a, b) => {
+    const x = valorOrden(a), y = valorOrden(b);
+    const c = typeof x === 'string' ? x.localeCompare(y, 'es', { numeric: true }) : x - y;
+    return asc ? c : -c;
+  });
+
+  document.getElementById('conteo').textContent = filas.length + (filas.length === 1 ? ' equipo' : ' equipos');
+  document.getElementById('actualizado').textContent = '· leído ' + horaDe(muestras.leido);
+
+  const caja = document.getElementById('muestrasContenido');
+  caja.innerHTML = '';
+  const atrasados = filas.filter(equipoAtrasado).length;
+  const suma = k => filas.reduce((s, e) => s + e[k], 0).toLocaleString('es-CL');
+  const resumen = document.createElement('div');
+  resumen.className = 'muestrasResumen';
+  resumen.innerHTML = '<span><b>' + suma('hoy') + '</b> muestras hoy</span><span><b>' + suma('semana') + '</b> en los últimos 7 días</span>' +
+    '<span><b>' + suma('total') + '</b> en total</span>' +
+    '<span class="' + (atrasados ? 'alerta' : '') + '"><b>' + atrasados + '</b> ' + (atrasados === 1 ? 'equipo activo' : 'equipos activos') + ' sin muestras hace más de un día</span>';
+  caja.appendChild(resumen);
+  const ayuda = document.createElement('p');
+  ayuda.className = 'muestrasAyuda';
+  ayuda.textContent = 'Toca un equipo para ver la fecha y hora de cada muestra.';
+  caja.appendChild(ayuda);
+
+  if (!filas.length) {
+    const vacia = document.createElement('div');
+    vacia.className = 'mensajeCentro';
+    vacia.textContent = 'No hay equipos con ese filtro.';
+    caja.appendChild(vacia);
+    return;
+  }
+
+  const contenedor = document.createElement('div');
+  contenedor.className = 'progTabla tablaMuestras';
+  const tabla = document.createElement('table');
+  const cabecera = tabla.createTHead().insertRow();
+  [['equipo', 'Equipo'], ['centro', 'Centro'], ['empresa', 'Empresa'], ['hoy', 'Hoy', true], ['semana', 'Últimos 7 días', true],
+    ['total', 'Total', true], ['ultima', 'Última muestra']].forEach(([id, texto, num]) => {
+    const th = document.createElement('th');
+    th.textContent = texto;
+    if (num) th.className = 'num';
+    if (columna === id) th.insertAdjacentHTML('beforeend', '<span class="flecha">' + (asc ? '▲' : '▼') + '</span>');
+    th.addEventListener('click', () => {
+      ordenMuestras = columna === id ? { columna: id, asc: !asc } : { columna: id, asc: !['hoy', 'semana', 'total'].includes(id) };
+      dibujarMuestras();
+    });
+    cabecera.appendChild(th);
+  });
+  const cuerpo = tabla.createTBody();
+  filas.forEach(e => {
+    const tr = cuerpo.insertRow();
+    if (equipoAtrasado(e)) tr.className = 'sinMuestras';
+    else if (!e.activo) tr.className = 'inactivo';
+    tr.tabIndex = 0;
+    tr.addEventListener('click', () => abrirDetalleMuestras(e));
+    tr.addEventListener('keydown', ev => { if (ev.key === 'Enter') abrirDetalleMuestras(e); });
+    const celda = (texto, clase) => { const td = tr.insertCell(); td.textContent = texto; if (clase) td.className = clase; return td; };
+    const td = celda(e.equipo || '');
+    if (!e.activo) td.insertAdjacentHTML('beforeend', '<span class="pillInactivo">Inactivo</span>');
+    celda(e.centro || '');
+    celda(e.empresa || '');
+    celda(e.hoy.toLocaleString('es-CL'), 'num');
+    celda(e.semana.toLocaleString('es-CL'), 'num');
+    celda(e.total.toLocaleString('es-CL'), 'num');
+    const ultima = celda(e.ultima ? haceCuanto(e.ultima) : 'Nunca', 'ultima');
+    if (e.ultima) ultima.title = e.ultima.toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short', hourCycle: 'h23' });
+  });
+  contenedor.appendChild(tabla);
+  caja.appendChild(contenedor);
+}
+
 // ---------- Programa de biólogos ----------
 // Se guarda en la pestaña "Programa (página)" de la planilla "Programa biólogos" (la pestaña Programa no se toca).
 // Aquí se ve y se asigna rápido; solo los administradores editan.
@@ -5388,6 +5741,13 @@ document.getElementById('btnTiempo').addEventListener('click', abrirLineaTiempo)
 document.getElementById('btnSolicitudes').addEventListener('click', abrirSolicitudes);
 document.getElementById('btnCompensaciones').addEventListener('click', abrirCompensaciones);
 document.getElementById('btnPrograma').addEventListener('click', abrirPrograma);
+document.getElementById('btnMuestras').addEventListener('click', abrirMuestras);
+document.getElementById('btnRecargarMuestras').addEventListener('click', () => cargarMuestras({ silencioso: !!muestras, recargar: true }));
+document.getElementById('buscarMuestras').addEventListener('input', () => { if (muestras) dibujarMuestras(); });
+document.getElementById('inactivosMuestras').addEventListener('change', e => {
+  try { localStorage.setItem(CLAVE_INACTIVOS_MUESTRAS, e.target.checked ? '1' : '0'); } catch {}
+  if (muestras) dibujarMuestras();
+});
 document.getElementById('btnRecargarPrograma').addEventListener('click', () => cargarPrograma());
 document.getElementById('btnAgregarCentroProg').addEventListener('click', () => { if (programa) abrirAgregarCentro(); });
 document.getElementById('buscarPrograma').addEventListener('input', e => { busquedaProg = e.target.value; dibujarPrograma(); });
