@@ -539,6 +539,11 @@
   .etiquetaBuque::before { display: none; }
   /* Al tocar un barrio o un centro el navegador dibujaba un recuadro negro de foco alrededor de la figura */
   .leaflet-container path.leaflet-interactive:focus { outline: none; }
+  /* Nombre fijo de los pueblos de referencia en el mapa */
+  .leaflet-tooltip.etiquetaPueblo { background: none; border: none; box-shadow: none; padding: 0;
+    color: #4b5563; font-size: 11px; font-weight: 600; font-style: italic;
+    text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff; }
+  .leaflet-tooltip.etiquetaPueblo::before { display: none; }
   .filtroEmpresas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   .filtroEmpresas .titulo, .filtroCentrosMapa .titulo { font-size: 12px; color: var(--suave); margin-right: 2px; }
   .filtroCentrosMapa { display: grid; gap: 6px; }
@@ -2770,6 +2775,15 @@ function cargarBarrios() {
   return promesaBarrios;
 }
 
+const PUEBLOS_MAPA = [
+  ['Quemchi', -42.1436, -73.4769],
+  ['Quellón', -43.1167, -73.6167],
+  ['Melinka', -43.8975, -73.7456],
+  ['Puerto Cisnes', -44.7275, -72.6828],
+  ['Puerto Aguirre', -45.1633, -73.5250],
+  ['Puerto Chacabuco', -45.4667, -72.8222]
+];
+
 async function iniciarMapa() {
   if (mapa) return;
   await cargarLeaflet();
@@ -2781,7 +2795,11 @@ async function iniciarMapa() {
     { maxZoom: 18, attribution: 'Tiles &copy; Esri' });
   const topografico = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
     { maxZoom: 18, attribution: 'Tiles &copy; Esri' });
-  L.control.layers({ 'Mapa': calles, 'Satélite': satelite, 'Topográfico': topografico }).addTo(mapa);
+  // Pueblos de referencia: punto negro con el nombre siempre visible (se pueden ocultar desde el control de capas)
+  const capaPueblos = L.layerGroup(PUEBLOS_MAPA.map(([nombre, lat, lon]) =>
+    L.circleMarker([lat, lon], { radius: 2.5, color: '#fff', weight: 1, fillColor: '#6b7280', fillOpacity: 1, interactive: false })
+      .bindTooltip(nombre, { permanent: true, direction: 'right', offset: [2, 0], className: 'etiquetaPueblo' }))).addTo(mapa);
+  L.control.layers({ 'Mapa': calles, 'Satélite': satelite, 'Topográfico': topografico }, { 'Pueblos': capaPueblos }).addTo(mapa);
   capaCentros = L.layerGroup().addTo(mapa);
   capaBuques = L.layerGroup().addTo(mapa);
 
