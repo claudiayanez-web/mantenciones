@@ -537,6 +537,17 @@
   .iconoBuque svg { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35)); }
   .etiquetaBuque { background: #0f3a64; color: white; border: none; border-radius: 6px; font-weight: 700; font-size: 11px; padding: 2px 6px; box-shadow: none; }
   .etiquetaBuque::before { display: none; }
+  /* Al tocar un barrio o un centro el navegador dibujaba un recuadro negro de foco alrededor de la figura */
+  .leaflet-container path.leaflet-interactive:focus { outline: none; }
+  .filtroEmpresas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .filtroEmpresas .titulo, .filtroCentrosMapa .titulo { font-size: 12px; color: var(--suave); margin-right: 2px; }
+  .filtroCentrosMapa { display: grid; gap: 6px; }
+  .filtroCentrosMapa .elegidos { display: flex; flex-wrap: wrap; gap: 6px; }
+  .filtroCentrosMapa .elegidos:empty { display: none; }
+  .filtroCentrosMapa .elegidos button { padding: 3px 6px 3px 10px; border: 1px solid var(--azul); border-radius: 999px; background: var(--azul-claro);
+    color: var(--azul); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+  .filtroCentrosMapa .elegidos button span { font-size: 15px; line-height: 1; font-weight: 400; }
+  .limpiarFiltrosMapa { background: none; border: none; color: var(--azul); text-decoration: underline; cursor: pointer; font: inherit; font-size: 12px; padding: 0; justify-self: start; }
   .mapaBotones { display: flex; gap: 8px; }
   .mapaBotones .botonSecundario { flex: 1; }
   .listaBarrios { flex: 1; overflow-y: auto; padding: 4px 0 12px; }
@@ -1174,6 +1185,13 @@
       <div class="mapaHerramientas">
         <div class="chips" id="filtroPais" role="group" aria-label="Filtrar por país"></div>
         <div class="chips filtroBuques" id="filtroBuques" role="group" aria-label="Wellboats" hidden></div>
+        <div class="chips filtroEmpresas" id="filtroEmpresasMapa" role="group" aria-label="Filtrar por empresa"></div>
+        <div class="filtroCentrosMapa">
+          <input type="search" id="agregarCentroMapa" list="listaCentrosMapa" placeholder="Filtrar por centros: escribe y elige uno o varios" aria-label="Agregar un centro al filtro" autocomplete="off" />
+          <datalist id="listaCentrosMapa"></datalist>
+          <div class="elegidos" id="centrosElegidosMapa"></div>
+          <button type="button" class="limpiarFiltrosMapa" id="limpiarFiltrosMapa" hidden>Quitar filtros de empresa y centros</button>
+        </div>
         <input type="search" id="buscarMapa" placeholder="Buscar centro o barrio" aria-label="Buscar centro o barrio" />
         <div class="mapaBotones">
           <button class="botonIcono" id="btnRecargarMapa" type="button" title="Recargar datos" aria-label="Recargar datos">
@@ -2583,6 +2601,66 @@ const PAISES = [
   { id: 'mexico', nombre: 'México', dentro: (lat, lon) => lat > 13 && lat < 33 && lon < -85 }
 ];
 const CLAVE_PAIS = 'mantenciones.mapa.pais';
+// Filtro por empresa (varias) y por centros elegidos uno a uno; vacío = todos
+const CLAVE_FILTRO_MAPA = 'mantenciones.mapa.filtro';
+let empresasMapa = [], centrosElegidosMapa = [];
+try { const g = JSON.parse(localStorage.getItem(CLAVE_FILTRO_MAPA) || '{}'); empresasMapa = g.empresas || []; centrosElegidosMapa = g.centros || []; } catch {}
+const empresaDeCentro = c => String(c.fila.celdas[columnaPorNombres(['empresa'])] || '').trim();
+const pasaFiltroMapa = c => (!empresasMapa.length || empresasMapa.includes(empresaDeCentro(c))) &&
+  (!centrosElegidosMapa.length || centrosElegidosMapa.includes(c.nombre));
+function guardarFiltroMapa(encuadrar) {
+  try { localStorage.setItem(CLAVE_FILTRO_MAPA, JSON.stringify({ empresas: empresasMapa, centros: centrosElegidosMapa })); } catch {}
+  dibujarMapa();
+  // Al filtrar se acerca el mapa a lo que quedó a la vista
+  const visibles = centrosMapa.filter(c => enPaisElegido(c) && pasaFiltroMapa(c));
+  if (encuadrar && visibles.length && (empresasMapa.length || centrosElegidosMapa.length)) {
+    mapa.flyToBounds(L.latLngBounds(visibles.map(c => [c.lat, c.lon])), { padding: [40, 40], maxZoom: 11, duration: 0.6 });
+  }
+}
+
+function dibujarFiltrosMapa() {
+  const enPais = centrosMapa.filter(enPaisElegido);
+  // Empresas: un botón por empresa con cuántos centros tiene (se pueden marcar varias)
+  const cuenta = new Map();
+  enPais.forEach(c => { const e = empresaDeCentro(c) || 'Sin empresa'; cuenta.set(e, (cuenta.get(e) || 0) + 1); });
+  empresasMapa = empresasMapa.filter(e => cuenta.has(e));
+  const caja = document.getElementById('filtroEmpresasMapa');
+  caja.innerHTML = '<span class="titulo">Empresa</span>';
+  const todas = document.createElement('button');
+  todas.type = 'button';
+  todas.textContent = 'Todas';
+  todas.setAttribute('aria-pressed', empresasMapa.length ? 'false' : 'true');
+  todas.addEventListener('click', () => { empresasMapa = []; guardarFiltroMapa(false); });
+  caja.appendChild(todas);
+  [...cuenta.keys()].sort((a, b) => a.localeCompare(b, 'es')).forEach(e => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = '<span></span><span class="cuenta"></span>';
+    b.firstChild.textContent = e;
+    b.lastChild.textContent = cuenta.get(e);
+    b.setAttribute('aria-pressed', empresasMapa.includes(e) ? 'true' : 'false');
+    b.addEventListener('click', () => {
+      empresasMapa = empresasMapa.includes(e) ? empresasMapa.filter(x => x !== e) : [...empresasMapa, e];
+      guardarFiltroMapa(true);
+    });
+    caja.appendChild(b);
+  });
+  // Centros elegidos uno a uno
+  document.getElementById('listaCentrosMapa').innerHTML = enPais.map(c => c.nombre).filter(n => !centrosElegidosMapa.includes(n))
+    .sort((a, b) => String(a).localeCompare(String(b), 'es', { numeric: true })).map(n => '<option value="' + escaparHtml(n) + '">').join('');
+  const elegidos = document.getElementById('centrosElegidosMapa');
+  elegidos.innerHTML = '';
+  centrosElegidosMapa.forEach(n => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.title = 'Quitar ' + n + ' del filtro';
+    b.innerHTML = '<span class="n"></span><span aria-hidden="true">×</span>';
+    b.firstChild.textContent = n;
+    b.addEventListener('click', () => { centrosElegidosMapa = centrosElegidosMapa.filter(x => x !== n); guardarFiltroMapa(true); });
+    elegidos.appendChild(b);
+  });
+  document.getElementById('limpiarFiltrosMapa').hidden = !empresasMapa.length && !centrosElegidosMapa.length;
+}
 let paisMapa = 'chile';
 try { paisMapa = localStorage.getItem(CLAVE_PAIS) || 'chile'; } catch {}
 
@@ -2838,8 +2916,9 @@ function dibujarMapa() {
     if (!isFinite(lat) || !isFinite(lon)) { sinCoordenadas++; return null; }
     return { fila: f, nombre: f.celdas[clave] || 'Fila ' + f.fila, lat, lon, barrio: barrioDe(lon, lat), pais: paisDe(lat, lon) };
   }).filter(Boolean);
-  const visibles = centrosMapa.filter(enPaisElegido);
+  const visibles = centrosMapa.filter(c => enPaisElegido(c) && pasaFiltroMapa(c));
   dibujarFiltroPais();
+  dibujarFiltrosMapa();
 
   capaCentros.clearLayers();
   visibles.forEach(c => {
@@ -2854,7 +2933,7 @@ function dibujarMapa() {
 
   const fuera = visibles.filter(c => !c.barrio && c.pais === 'chile').length;
   const nBarrios = new Set(visibles.filter(c => c.barrio).map(c => c.barrio.nombre)).size;
-  let texto = visibles.length + ' centros';
+  let texto = visibles.length + ' centros' + (empresasMapa.length || centrosElegidosMapa.length ? ' filtrados' : '');
   if (nBarrios) texto += ' en ' + nBarrios + ' barrios';
   if (fuera) texto += ', ' + fuera + ' fuera de barrio';
   if (sinCoordenadas) texto += ', ' + sinCoordenadas + ' sin coordenadas';
@@ -2883,7 +2962,7 @@ function popupCentro(c) {
 function dibujarListaBarrios() {
   const q = normalizar(document.getElementById('buscarMapa').value);
   const grupos = new Map();
-  centrosMapa.filter(enPaisElegido).forEach(c => {
+  centrosMapa.filter(c => enPaisElegido(c) && pasaFiltroMapa(c)).forEach(c => {
     const g = grupoDe(c);
     if (q && !normalizar(c.nombre).includes(q) && !normalizar(g).includes(q)) return;
     if (!grupos.has(g)) grupos.set(g, []);
@@ -2944,7 +3023,8 @@ function exportarCsvMapa() {
   const columnas = estado.datos.columnas.map(c => c.nombre);
   const celda = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
   const lineas = [columnas.concat('Barrio (mapa)').map(celda).join(',')];
-  centrosMapa.filter(enPaisElegido).forEach(c => {
+  // Se exporta lo que se ve: país, empresas y centros elegidos
+  centrosMapa.filter(c => enPaisElegido(c) && pasaFiltroMapa(c)).forEach(c => {
     lineas.push(columnas.map(col => c.fila.celdas[col]).concat(c.barrio?.nombre || '').map(celda).join(','));
   });
   const blob = new Blob(['﻿' + lineas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
@@ -5318,6 +5398,20 @@ document.getElementById('quitarDiaTiempo').addEventListener('click', () => { dia
 
 document.getElementById('btnMapa').addEventListener('click', abrirMapa);
 document.getElementById('buscarMapa').addEventListener('input', dibujarListaBarrios);
+// Al elegir un centro de la lista (o escribir su nombre exacto y Enter) se suma al filtro
+function agregarCentroAlFiltroMapa() {
+  const input = document.getElementById('agregarCentroMapa');
+  const valor = input.value.trim();
+  const centro = centrosMapa.find(c => normalizar(c.nombre) === normalizar(valor));
+  if (!centro) return false;
+  if (!centrosElegidosMapa.includes(centro.nombre)) centrosElegidosMapa = [...centrosElegidosMapa, centro.nombre];
+  input.value = '';
+  guardarFiltroMapa(true);
+  return true;
+}
+document.getElementById('agregarCentroMapa').addEventListener('input', agregarCentroAlFiltroMapa);
+document.getElementById('agregarCentroMapa').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); agregarCentroAlFiltroMapa(); } });
+document.getElementById('limpiarFiltrosMapa').addEventListener('click', () => { empresasMapa = []; centrosElegidosMapa = []; guardarFiltroMapa(false); encuadrarPais(); });
 document.getElementById('btnRecargarMapa').addEventListener('click', () => cargarHoja());
 document.getElementById('btnExportarMapa').addEventListener('click', exportarCsvMapa);
 window.addEventListener('resize', () => { if (mapa) mapa.invalidateSize(); });
