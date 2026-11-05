@@ -874,6 +874,35 @@
     .progBarra { margin: 0 8px 10px; }
     .progContenido { padding: 0 8px 80px; }
   }
+  /* ---------- Checklist de acceso a la plataforma de clientes ---------- */
+  .vistaPlat .progBarra[hidden] { display: none; }
+  .platAvance { display: grid; gap: 6px; margin: 0 20px 12px; }
+  .platAvance .texto { font-size: 14px; color: var(--suave); }
+  .platAvance .texto b { color: var(--texto); font-variant-numeric: tabular-nums; }
+  .platAvance .barra { margin: 0; padding: 0; height: 8px; border-radius: 999px; background: var(--gris-fondo); overflow: hidden; }
+  .platAvance .barra i { display: block; height: 100%; background: var(--ok); border-radius: 999px; transition: width .2s; }
+  .platEmpresa { display: grid; gap: 0; }
+  .platEmpresa h3 { display: flex; justify-content: space-between; margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--suave); }
+  .platEmpresa h3 span { font-weight: 400; font-variant-numeric: tabular-nums; }
+  .platEmpresa.completa h3 { color: var(--ok); }
+  .platFila { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: white; border: 1px solid var(--borde); border-top: none; }
+  .platEmpresa h3 + .platFila { border-top: 1px solid var(--borde); border-radius: 8px 8px 0 0; }
+  .platFila:last-child { border-radius: 0 0 8px 8px; }
+  .platEmpresa h3 + .platFila:last-child { border-radius: 8px; }
+  .platFila label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; font-size: 14px; }
+  .platFila input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--ok); flex: none; cursor: pointer; }
+  .platFila .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .platFila .tipo { font-size: 11px; color: var(--suave); border: 1px solid var(--borde); border-radius: 999px; padding: 0 6px; flex: none; }
+  .platFila.listo .n { text-decoration: line-through; color: var(--suave); }
+  .platFila .meta { font-size: 12px; color: var(--suave); white-space: nowrap; }
+  .platFila .nota { font-size: 12px; color: var(--texto); background: var(--aviso-fondo); border-radius: 4px; padding: 1px 6px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .platFila .botonNota { background: none; border: none; color: var(--azul); cursor: pointer; font: inherit; font-size: 12px; padding: 2px 4px; flex: none; }
+  .platFila.guardando { opacity: .6; }
+  @media (max-width: 700px) {
+    .platAvance { margin: 0 8px 10px; }
+    .platFila { flex-wrap: wrap; }
+    .platFila .meta, .platFila .nota { margin-left: 28px; }
+  }
   /* ---------- Muestras de los equipos ---------- */
   .verInactivos { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--suave); cursor: pointer; }
   .muestrasResumen { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--suave); }
@@ -1133,6 +1162,10 @@
           <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M9 16l2 2 4-4"/></svg>
           <span>Compensaciones</span>
         </button>
+        <button type="button" id="btnPlataforma" aria-selected="false" hidden>
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M9 3h6v3H9zM8 12l2 2 4-4M8 17h8"/></svg>
+          <span>Acceso plataforma</span>
+        </button>
       </nav>
       <div class="tituloMenu" id="tituloMenu">Planillas</div>
       <nav class="pestanas" id="pestanas" role="tablist" aria-labelledby="tituloMenu"></nav>
@@ -1337,6 +1370,26 @@
     <div class="progBarra chips" id="empresasMuestras" role="group" aria-label="Filtrar por empresa"></div>
     <div class="progContenido" id="muestrasContenido"></div>
   </div>
+
+  <div class="vista vistaPlat" id="vistaPlat" hidden>
+    <div class="platAvance" id="platAvance" hidden>
+      <div class="texto" id="platTexto"></div>
+      <div class="barra"><i id="platBarra" style="width:0"></i></div>
+    </div>
+    <div class="progBarra">
+      <div class="chips" id="filtroPlat" role="group" aria-label="Filtrar centros"></div>
+      <div class="chips" id="paisPlat" role="group" aria-label="Filtrar por país"></div>
+      <label class="buscador">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="buscarPlat" placeholder="Buscar centro o empresa" aria-label="Buscar centro o empresa">
+      </label>
+      <span class="espacio"></span>
+      <button class="botonIcono" id="btnRecargarPlat" type="button" title="Recargar" aria-label="Recargar checklist">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
+      </button>
+    </div>
+    <div class="progContenido" id="platContenido"></div>
+  </div>
   </main>
 </div>
 
@@ -1524,6 +1577,7 @@ async function iniciar() {
   document.getElementById('btnCompensaciones').hidden = !estado.admin;
   if (!estado.admin && estado.tecnico) cargarCompensaciones();
   document.getElementById('btnZonasComp').hidden = !estado.admin;
+  document.getElementById('btnPlataforma').hidden = !estado.admin;
   document.getElementById('btnAgregarCentroProg').hidden = !estado.admin;
   // Al recargar se vuelve a la vista en que se estaba (se guarda solo en esta pestaña del navegador);
   // al abrir la página de nuevo, lo primero que se ve es Solicitudes
@@ -1537,6 +1591,7 @@ async function iniciar() {
   else if (anterior.vista === 'compensaciones' && (estado.admin || estado.tecnico)) abrirCompensaciones();
   else if (anterior.vista === 'programa') abrirPrograma();
   else if (anterior.vista === 'muestras') abrirMuestras();
+  else if (anterior.vista === 'plataforma' && estado.admin) abrirPlataforma();
   else abrirSolicitudes();
   if (anterior.vista && anterior.vista !== 'solicitudes') cargarSolicitudes({ silencioso: true });  // para la cantidad del menú
   precargarHojas();
@@ -1637,6 +1692,8 @@ function mostrarVista(vista) {
   document.getElementById('vistaComp').hidden = vista !== 'compensaciones';
   document.getElementById('vistaProg').hidden = vista !== 'programa';
   document.getElementById('vistaMuestras').hidden = vista !== 'muestras';
+  document.getElementById('vistaPlat').hidden = vista !== 'plataforma';
+  document.getElementById('btnPlataforma').setAttribute('aria-selected', vista === 'plataforma' ? 'true' : 'false');
   document.getElementById('btnMuestras').setAttribute('aria-selected', vista === 'muestras' ? 'true' : 'false');
   document.getElementById('btnPrograma').setAttribute('aria-selected', vista === 'programa' ? 'true' : 'false');
   document.getElementById('btnCompensaciones').setAttribute('aria-selected', vista === 'compensaciones' ? 'true' : 'false');
@@ -3781,6 +3838,172 @@ async function cargarMuestras(opciones) {
   if (estado.vista === 'muestras') dibujarMuestras();
 }
 
+// ---------- Acceso a la plataforma de clientes ----------
+// Checklist de los centros activos de SAMS (Chile y México) a los que ya se les dio acceso. Solo administradores.
+
+let plataforma = null;  // [{ centro, empresa, pais, tipo, listo, fecha, por, nota }]
+const CLAVE_FILTRO_PLAT = 'mantenciones.plataforma.filtro';
+let filtroPlat = { estado: 'todos', pais: 'todos' };
+try { filtroPlat = { ...filtroPlat, ...JSON.parse(localStorage.getItem(CLAVE_FILTRO_PLAT) || '{}') }; } catch {}
+
+async function abrirPlataforma() {
+  abrirMenu(false);
+  if (!cerrarPanel()) return;
+  mostrarVista('plataforma');
+  document.getElementById('tituloHoja').textContent = 'Acceso plataforma';
+  document.getElementById('actualizado').textContent = '';
+  if (plataforma) dibujarPlataforma();
+  await cargarPlataforma({ silencioso: !!plataforma });
+}
+
+async function cargarPlataforma(opciones) {
+  const boton = document.getElementById('btnRecargarPlat');
+  if (!opciones?.silencioso && !plataforma) document.getElementById('platContenido').innerHTML = '<div class="mensajeCentro">Cargando…</div>';
+  boton.classList.add('cargando');
+  const r = await api('/api/plataforma');
+  boton.classList.remove('cargando');
+  if (!r.ok) {
+    if (estado.vista !== 'plataforma') return;
+    if (!plataforma) document.getElementById('platContenido').innerHTML = '<div class="mensajeCentro">' + escaparHtml(r.error) + ' Usa Recargar para intentar de nuevo.</div>';
+    else avisar(r.error, true);
+    return;
+  }
+  plataforma = r.centros;
+  if (estado.vista === 'plataforma') dibujarPlataforma();
+}
+
+function chipsPlat(cajaId, opciones, clave) {
+  const caja = document.getElementById(cajaId);
+  caja.innerHTML = '';
+  opciones.forEach(([id, nombre, n]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = '<span></span><span class="cuenta"></span>';
+    b.firstChild.textContent = nombre;
+    b.lastChild.textContent = n;
+    b.setAttribute('aria-pressed', filtroPlat[clave] === id ? 'true' : 'false');
+    b.addEventListener('click', () => {
+      filtroPlat[clave] = id;
+      try { localStorage.setItem(CLAVE_FILTRO_PLAT, JSON.stringify(filtroPlat)); } catch {}
+      dibujarPlataforma();
+    });
+    caja.appendChild(b);
+  });
+}
+
+function dibujarPlataforma() {
+  if (!plataforma) return;
+  const listos = plataforma.filter(c => c.listo).length;
+  const total = plataforma.length;
+  document.getElementById('platAvance').hidden = false;
+  document.getElementById('platTexto').innerHTML = '<b>' + listos + '</b> de <b>' + total + '</b> centros con acceso' +
+    (total && listos === total ? ' · ¡todos listos!' : ' · faltan ' + (total - listos));
+  document.getElementById('platBarra').style.width = (total ? Math.round(listos / total * 100) : 0) + '%';
+  document.getElementById('conteo').textContent = 'Centros activos de SAMS en Chile y México';
+
+  const enPais = plataforma.filter(c => filtroPlat.pais === 'todos' || c.pais === filtroPlat.pais);
+  chipsPlat('filtroPlat', [['todos', 'Todos', enPais.length], ['pendientes', 'Pendientes', enPais.filter(c => !c.listo).length],
+    ['listos', 'Con acceso', enPais.filter(c => c.listo).length]], 'estado');
+  const paises = ['Chile', 'México'].filter(p => plataforma.some(c => c.pais === p));
+  chipsPlat('paisPlat', [['todos', 'Chile y México', plataforma.length]].concat(paises.map(p => [p, p, plataforma.filter(c => c.pais === p).length])), 'pais');
+
+  const q = normalizar(document.getElementById('buscarPlat').value);
+  const visibles = enPais.filter(c => (filtroPlat.estado === 'todos' || (filtroPlat.estado === 'listos') === c.listo) &&
+    (!q || normalizar(c.centro + ' ' + c.empresa).includes(q)));
+  const contenido = document.getElementById('platContenido');
+  contenido.innerHTML = '';
+  if (!visibles.length) {
+    contenido.innerHTML = '<div class="mensajeCentro">' + (filtroPlat.estado === 'pendientes' && !q ? 'No queda ningún centro pendiente.' : 'No hay centros que coincidan.') + '</div>';
+    return;
+  }
+  // Agrupados por empresa (misma empresa aunque venga escrita distinto)
+  const grupos = new Map();
+  visibles.forEach(c => {
+    const k = claveEmpresa(c.empresa || 'Sin empresa');
+    if (!grupos.has(k)) grupos.set(k, { nombre: c.empresa || 'Sin empresa', centros: [] });
+    grupos.get(k).centros.push(c);
+  });
+  [...grupos.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).forEach(g => {
+    const todos = plataforma.filter(c => claveEmpresa(c.empresa || 'Sin empresa') === claveEmpresa(g.nombre));
+    const hechos = todos.filter(c => c.listo).length;
+    const sec = document.createElement('section');
+    sec.className = 'platEmpresa' + (hechos === todos.length ? ' completa' : '');
+    sec.innerHTML = '<h3><span class="e"></span><span></span></h3>';
+    sec.querySelector('.e').textContent = g.nombre;
+    sec.querySelector('h3').lastChild.textContent = hechos + ' / ' + todos.length;
+    g.centros.sort((a, b) => a.centro.localeCompare(b.centro, 'es', { numeric: true })).forEach(c => sec.appendChild(filaPlataforma(c)));
+    contenido.appendChild(sec);
+  });
+}
+
+function filaPlataforma(c) {
+  const fila = document.createElement('div');
+  fila.className = 'platFila' + (c.listo ? ' listo' : '');
+  fila.innerHTML = '<label><input type="checkbox"><span class="n"></span></label>';
+  const check = fila.querySelector('input');
+  check.checked = c.listo;
+  fila.querySelector('.n').textContent = c.centro;
+  if (c.tipo) { const t = document.createElement('span'); t.className = 'tipo'; t.textContent = c.tipo; fila.querySelector('label').appendChild(t); }
+  if (c.nota) { const n = document.createElement('span'); n.className = 'nota'; n.textContent = c.nota; n.title = c.nota; fila.appendChild(n); }
+  if (c.listo && (c.fecha || c.por)) {
+    const m = document.createElement('span');
+    m.className = 'meta';
+    m.textContent = [c.fecha.split(' ')[0], c.por].filter(Boolean).join(' · ');
+    m.title = 'Marcado el ' + c.fecha + (c.por ? ' por ' + c.por : '');
+    fila.appendChild(m);
+  }
+  const botonNota = document.createElement('button');
+  botonNota.type = 'button';
+  botonNota.className = 'botonNota';
+  botonNota.textContent = c.nota ? 'Editar nota' : '+ Nota';
+  botonNota.addEventListener('click', () => editarNotaPlat(c, fila));
+  fila.appendChild(botonNota);
+  check.addEventListener('change', () => guardarPlat(c, { listo: check.checked }, fila));
+  return fila;
+}
+
+function editarNotaPlat(c, fila) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.maxLength = 300;
+  input.value = c.nota || '';
+  input.placeholder = 'Nota corta (Enter para guardar)';
+  input.setAttribute('aria-label', 'Nota de ' + c.centro);
+  input.style.cssText = 'flex: 1 1 200px; font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--azul); border-radius: 6px;';
+  fila.querySelectorAll('.nota, .botonNota').forEach(e => e.remove());
+  fila.appendChild(input);
+  input.focus();
+  let listo = false;
+  const terminar = guardar => {
+    if (listo) return;
+    listo = true;
+    const valor = input.value.trim();
+    if (guardar && valor !== (c.nota || '')) guardarPlat(c, { listo: c.listo, nota: valor }, fila);
+    else dibujarPlataforma();
+  };
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); terminar(true); }
+    if (e.key === 'Escape') { e.preventDefault(); terminar(false); }
+  });
+  input.addEventListener('blur', () => terminar(true));
+}
+
+async function guardarPlat(c, cambios, fila) {
+  const antes = { ...c };
+  Object.assign(c, cambios);
+  fila.classList.add('guardando');
+  fila.classList.toggle('listo', c.listo);
+  const r = await api('/api/plataforma', { method: 'POST', body: JSON.stringify({ centro: c.centro, empresa: c.empresa, ...cambios }) });
+  if (!r.ok) {
+    Object.assign(c, antes);
+    avisar(r.error || 'No se pudo guardar', true);
+  } else {
+    Object.assign(c, r.centro);
+    if (cambios.nota === undefined) avisar(c.listo ? c.centro + ' marcado con acceso' : c.centro + ' desmarcado');
+  }
+  dibujarPlataforma();
+}
+
 // ---------- Detalle de un equipo: fecha y hora de cada muestra ----------
 
 const isoDe = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -5743,6 +5966,9 @@ document.getElementById('btnCompensaciones').addEventListener('click', abrirComp
 document.getElementById('btnPrograma').addEventListener('click', abrirPrograma);
 document.getElementById('btnMuestras').addEventListener('click', abrirMuestras);
 document.getElementById('btnRecargarMuestras').addEventListener('click', () => cargarMuestras({ silencioso: !!muestras, recargar: true }));
+document.getElementById('btnPlataforma').addEventListener('click', abrirPlataforma);
+document.getElementById('btnRecargarPlat').addEventListener('click', () => cargarPlataforma());
+document.getElementById('buscarPlat').addEventListener('input', dibujarPlataforma);
 document.getElementById('buscarMuestras').addEventListener('input', () => { if (muestras) dibujarMuestras(); });
 document.getElementById('inactivosMuestras').addEventListener('change', e => {
   try { localStorage.setItem(CLAVE_INACTIVOS_MUESTRAS, e.target.checked ? '1' : '0'); } catch {}

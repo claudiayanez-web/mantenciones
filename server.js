@@ -440,6 +440,35 @@ app.post('/api/compensaciones/:accion', requiereSesion, async (req, res) => {
   }
 });
 
+// ---------- Acceso a la plataforma de clientes ----------
+// Checklist de centros (SAMS, Chile y México) a los que ya se les dio acceso. Solo administradores.
+app.get('/api/plataforma', requiereSesion, async (req, res) => {
+  if (!esAdmin(req.usuario)) return res.status(403).json({ ok: false, error: 'Solo un administrador puede ver este checklist' });
+  try {
+    const r = await llamarScript({ accion: 'platLeer' });
+    res.status(r.ok ? 200 : 502).json(r);
+  } catch (err) {
+    console.error('Error al leer acceso plataforma', err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo leer el checklist.' });
+  }
+});
+
+app.post('/api/plataforma', requiereSesion, async (req, res) => {
+  if (!esAdmin(req.usuario)) return res.status(403).json({ ok: false, error: 'Solo un administrador puede marcar centros' });
+  const b = req.body || {};
+  const centro = texto(b.centro ?? '', 200);
+  if (!centro || typeof b.listo !== 'boolean') return res.status(400).json({ ok: false, error: 'Faltan datos' });
+  const cuerpo = { accion: 'platMarcar', centro, empresa: texto(b.empresa ?? '', 200) ?? '', listo: b.listo, usuario: req.usuario };
+  if (b.nota !== undefined) cuerpo.nota = texto(b.nota ?? '', 300) ?? '';
+  try {
+    const r = await llamarScript(cuerpo);
+    res.status(r.ok ? 200 : 409).json(r);
+  } catch (err) {
+    console.error('Error al marcar acceso plataforma', err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo guardar. Intenta de nuevo.' });
+  }
+});
+
 // ---------- Wellboats ----------
 // Posición de los buques (pestaña wellboat de SAMS). Todos la ven; nadie la edita desde aquí.
 app.get('/api/wellboats', requiereSesion, async (req, res) => {

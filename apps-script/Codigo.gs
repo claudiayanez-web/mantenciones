@@ -57,6 +57,9 @@ function doPost(e) {
       case 'compDescartar':      return responder(compDescartar(body));
       // Posición de los wellboats (pestaña wellboat de la planilla SAMS, solo lectura)
       case 'wellboatLeer':       return responder(wellboatLeer());
+
+      case 'platLeer':           return responder(platLeer());
+      case 'platMarcar':         return responder(platMarcar(body));
       // Programa de biólogos (planilla Programa biólogos)
       case 'progLeer':           return responder(progLeer());
       case 'progAsignar':        return responder(progAsignar(body));
@@ -801,6 +804,90 @@ function wellboatLeer() {
     lat: numero(f[c.lat]), lon: numero(f[c.lon]), rango: c.rango >= 0 ? String(f[c.rango] || '').trim() : ''
   })).filter(b => b.nombre && isFinite(b.lat) && isFinite(b.lon));
   return { ok: true, buques: buques, leido: ahora(ss, 'HH:mm') };
+}
+
+// ---------- Acceso a la plataforma de clientes ----------
+// Checklist de centros activos de SAMS (Chile y México) a los que ya se les dio acceso.
+// Lo marcado se guarda en la pestaña "Acceso plataforma" de la planilla de log; SAMS solo se lee.
+
+const PLATAFORMA = {
+  pestana: 'Acceso plataforma',
+  columnas: ['Centro', 'Empresa', 'Con acceso', 'Fecha', 'Por', 'Nota']
+};
+
+function hojaPlataforma() {
+  const logId = PropertiesService.getScriptProperties().getProperty('LOG_ID');
+  if (!logId) return null;
+  const log = SpreadsheetApp.openById(logId);
+  let sheet = log.getSheetByName(PLATAFORMA.pestana);
+  if (!sheet) {
+    sheet = log.insertSheet(PLATAFORMA.pestana);
+    sheet.getRange(1, 1, 1, PLATAFORMA.columnas.length).setValues([PLATAFORMA.columnas]).setFontWeight('bold');
+    sheet.getRange('A:F').setNumberFormat('@');  // texto: que la fecha no se convierta ni cambie de zona horaria
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function platLeer() {
+  const v = SpreadsheetApp.openById(HOJAS.sams.archivoId).getSheetByName(HOJAS.sams.pestana).getDataRange().getDisplayValues();
+  const enc = (v[0] || []).map(h => normalizar(h));
+  const col = n => enc.indexOf(n);
+  const c = { estado: col('estado'), empresa: col('empresa'), centro: col('centro'), lat: col('lat'), lon: col('lon'), region: col('region') };
+  const numero = x => parseFloat(String(x || '').trim().replace(',', '.'));
+  const vistos = {};
+  const centros = [];
+  v.slice(1).forEach(f => {
+    const centro = String(f[c.centro] || '').trim();
+    const empresa = String(f[c.empresa] || '').trim();
+    if (!centro || !/^activ/i.test(String(f[c.estado] || '').trim())) return;
+    const lat = numero(f[c.lat]), lon = numero(f[c.lon]);
+    // Noruega no entra: por la empresa ("Mowi Noruega") o por coordenadas
+    if (/noruega/i.test(empresa) || (lat > 55 && lon > 0)) return;
+    const clave = normalizar(centro);
+    if (vistos[clave]) return;
+    vistos[clave] = true;
+    const mexico = (lat > 13 && lat < 33 && lon < -85);
+    const tipo = /wellboat/i.test(String(f[c.region] || '')) ? 'Wellboat' : '';
+    centros.push({ centro: centro, empresa: empresa, pais: mexico ? 'México' : 'Chile', tipo: tipo, listo: false, fecha: '', por: '', nota: '' });
+  });
+  const sheet = hojaPlataforma();
+  if (sheet && sheet.getLastRow() > 1) {
+    const marcas = {};
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, PLATAFORMA.columnas.length).getDisplayValues().forEach(f => {
+      marcas[normalizar(f[0])] = { listo: /^s/i.test(String(f[2]).trim()), fecha: f[3], por: f[4], nota: f[5] };
+    });
+    centros.forEach(x => { const m = marcas[normalizar(x.centro)]; if (m) Object.assign(x, m); });
+  }
+  return { ok: true, centros: centros };
+}
+
+function platMarcar(body) {
+  const centro = String(body.centro || '').trim();
+  if (!centro) return { ok: false, error: 'Falta el centro' };
+  const sheet = hojaPlataforma();
+  if (!sheet) return { ok: false, error: 'No hay planilla de log donde guardar' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const n = Math.max(sheet.getLastRow() - 1, 0);
+    const nombres = n ? sheet.getRange(2, 1, n, 1).getDisplayValues().map(f => normalizar(f[0])) : [];
+    const i = nombres.indexOf(normalizar(centro));
+    const fila = i >= 0 ? i + 2 : sheet.getLastRow() + 1;
+    const antes = i >= 0 ? sheet.getRange(fila, 1, 1, PLATAFORMA.columnas.length).getDisplayValues()[0] : ['', '', '', '', '', ''];
+    const fecha = Utilities.formatDate(new Date(), 'America/Santiago', 'dd/MM/yyyy HH:mm');
+    const nota = body.nota !== undefined ? comoTexto(body.nota) : antes[5];
+    const cambioMarca = (/^s/i.test(antes[2]) ? true : false) !== !!body.listo;
+    const nueva = [comoTexto(centro), comoTexto(body.empresa || antes[1]), body.listo ? 'Sí' : '',
+      cambioMarca ? (body.listo ? fecha : '') : antes[3], cambioMarca ? (body.listo ? String(body.usuario || '') : '') : antes[4], nota];
+    sheet.getRange(fila, 1, 1, nueva.length).setNumberFormat('@').setValues([nueva]);
+    SpreadsheetApp.flush();
+    if (cambioMarca) registrar([new Date(), body.usuario || '', 'Acceso plataforma', fila, centro, 'Con acceso', antes[2], nueva[2]]);
+    if (nota !== antes[5]) registrar([new Date(), body.usuario || '', 'Acceso plataforma', fila, centro, 'Nota', antes[5], nota]);
+    return { ok: true, centro: { centro: centro, listo: !!body.listo, fecha: nueva[3], por: nueva[4], nota: nota } };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ---------- Programa de biólogos ----------
