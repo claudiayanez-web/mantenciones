@@ -934,12 +934,23 @@
   .opDetalle .datos { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--suave); }
   .opDetalle .datos b { color: var(--texto); font-weight: 600; }
   .opDetalle .obs { font-size: 13px; background: var(--aviso-fondo); border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; }
-  .opBitacora { font-size: 14px; line-height: 1.55; display: grid; gap: 4px; max-height: 50vh; overflow-y: auto; border-top: 1px solid var(--borde); padding-top: 10px; }
+  .opBitacora { font-size: 14px; line-height: 1.55; display: grid; gap: 4px; max-height: 40vh; overflow-y: auto; border-top: 1px solid var(--borde); padding-top: 10px; }
   .opBitacora h4 { margin: 8px 0 2px; font-size: 14px; color: var(--azul); }
   .opBitacora ul { margin: 0; padding-left: 20px; }
   .opBitacora p { margin: 0; }
   .opBitacora img { max-width: 100%; max-height: 260px; border-radius: 8px; display: block; }
   .opBitacora a { color: var(--azul); }
+  .opComentarios { border-top: 1px solid var(--borde); padding-top: 10px; display: grid; gap: 8px; }
+  .opComentarios h3 { margin: 0; font-size: 14px; color: var(--azul); }
+  .opComentarios .lista { display: grid; gap: 8px; max-height: 32vh; overflow-y: auto; }
+  .opComentarios .vacio { font-size: 13px; color: var(--suave); }
+  .opComentarios .comentario { background: var(--gris-fondo); border-radius: 8px; padding: 7px 10px; font-size: 13px; }
+  .opComentarios .quien { display: flex; gap: 8px; align-items: baseline; font-size: 12px; color: var(--suave); margin-bottom: 2px; }
+  .opComentarios .quien b { color: var(--texto); font-weight: 600; }
+  .opComentarios .texto { white-space: pre-wrap; }
+  .opComentarios .nuevo { display: flex; gap: 8px; align-items: end; }
+  .opComentarios .nuevo textarea { flex: 1; min-height: 44px; }
+  .opComentarios .nuevo .boton { width: auto; margin: 0; padding: 9px 14px; }
   .opAbrirNotion { color: var(--azul); font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
   /* ---------- Checklists de instalación y desinstalación ---------- */
   .checkTarjeta { background: white; border: 1px solid var(--borde); border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; }
@@ -4250,7 +4261,10 @@ async function abrirDetalleOp(c) {
     '<div class="cabeceraDialogo"><div><h2 id="dialogoTitulo"></h2><div class="sub"></div></div>' +
     '<div style="display:flex;gap:10px;align-items:center"><a class="opAbrirNotion" target="_blank" rel="noopener">Abrir en Notion ↗</a>' +
     '<button type="button" class="cerrarDialogo" aria-label="Cerrar">&times;</button></div></div>' +
-    '<div class="datos"></div><div class="opBitacora"><div class="mensajeCentro" style="padding:16px">Cargando bitácora…</div></div></form>';
+    '<div class="datos"></div><div class="opBitacora"><div class="mensajeCentro" style="padding:16px">Cargando bitácora…</div></div>' +
+    '<section class="opComentarios"><h3>Comentarios</h3><div class="lista"><div class="vacio">Cargando…</div></div>' +
+    '<div class="nuevo"><textarea maxlength="1800" placeholder="Escribe un comentario (queda en la tarjeta de Notion con tu nombre)" aria-label="Nuevo comentario"></textarea>' +
+    '<button type="button" class="boton">Comentar</button></div></section></form>';
   dialogo.querySelector('h2').textContent = c.nombre;
   dialogo.querySelector('.sub').textContent = [c.empresa, c.zonas.join(', ')].filter(Boolean).join(' · ');
   dialogo.querySelector('.opAbrirNotion').href = c.url;
@@ -4281,6 +4295,23 @@ async function abrirDetalleOp(c) {
   dialogo.querySelector('.cerrarDialogo').addEventListener('click', () => dialogo.close());
   dialogo.addEventListener('close', () => dialogo.classList.remove('ancho'), { once: true });
   dialogo.showModal();
+  const comentarios = dialogo.querySelector('.opComentarios');
+  const enviar = comentarios.querySelector('.nuevo button');
+  const area = comentarios.querySelector('textarea');
+  enviar.addEventListener('click', async () => {
+    const texto = area.value.trim();
+    if (!texto) { area.focus(); return; }
+    enviar.disabled = true;
+    enviar.textContent = 'Guardando…';
+    const r = await api('/api/operaciones/' + c.id + '/comentarios', { method: 'POST', body: JSON.stringify({ texto }) });
+    enviar.disabled = false;
+    enviar.textContent = 'Comentar';
+    if (!r.ok) { avisar(r.error || 'No se pudo guardar el comentario', true); return; }
+    area.value = '';
+    avisar('Comentario guardado en Notion');
+    cargarComentariosOp(c, comentarios);
+  });
+  cargarComentariosOp(c, comentarios);
   const r = await api('/api/operaciones/' + c.id + '/bitacora');
   const caja = dialogo.querySelector('.opBitacora');
   if (!caja || !dialogo.open) return;
@@ -4288,6 +4319,27 @@ async function abrirDetalleOp(c) {
   caja.innerHTML = '';
   if (!r.bloques.some(b => b.texto.length || b.imagen)) { caja.innerHTML = '<div class="mensajeCentro" style="padding:16px">La tarjeta no tiene bitácora todavía.</div>'; return; }
   dibujarBloquesNotion(r.bloques, caja);
+}
+
+async function cargarComentariosOp(c, seccion) {
+  const lista = seccion.querySelector('.lista');
+  const r = await api('/api/operaciones/' + c.id + '/comentarios');
+  if (!seccion.isConnected) return;
+  lista.innerHTML = '';
+  if (!r.ok) { lista.innerHTML = '<div class="vacio"></div>'; lista.firstChild.textContent = r.error; return; }
+  if (!r.comentarios.length) { lista.innerHTML = '<div class="vacio">Sin comentarios todavía.</div>'; return; }
+  r.comentarios.forEach(x => {
+    const d = document.createElement('div');
+    d.className = 'comentario';
+    d.innerHTML = '<div class="quien"><b></b><span></span></div><div class="texto"></div>';
+    // Los escritos desde la página ya traen el nombre al inicio; arriba se muestra solo la fecha
+    d.querySelector('b').textContent = x.esPagina ? 'Desde la página' : (x.autor || 'Notion');
+    const f = new Date(x.fecha);
+    d.querySelector('span').textContent = isNaN(f) ? '' : f.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + f.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+    textoNotion(x.texto, d.querySelector('.texto'));
+    lista.appendChild(d);
+  });
+  lista.scrollTop = lista.scrollHeight;
 }
 
 // Arma la bitácora con elementos y textContent: nada del texto de Notion se interpreta como HTML

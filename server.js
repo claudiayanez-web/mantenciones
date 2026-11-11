@@ -591,6 +591,63 @@ app.get('/api/operaciones/:id/bitacora', requiereSesion, async (req, res) => {
   } catch (err) { errorNotion(res, err, 'la bitácora'); }
 });
 
+// Comentarios de la tarjeta (los de la página, no los que van pegados a una línea de la bitácora).
+// Desde la página se comenta con la integración, así que el nombre de quien escribe va al inicio del comentario.
+const nombresNotion = new Map();
+async function autorComentario(c) {
+  if (c.display_name?.resolved_name) return c.display_name.resolved_name;
+  const id = c.created_by?.id;
+  if (!id) return '';
+  if (!nombresNotion.has(id)) {
+    try { nombresNotion.set(id, (await notion('/v1/users/' + id)).name || ''); } catch { nombresNotion.set(id, ''); }
+  }
+  return nombresNotion.get(id);
+}
+const nombreVisible = u => tecnicos[u] || u.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+
+async function paginaDeOperaciones(id) {
+  const pagina = await notion('/v1/pages/' + id);
+  return String(pagina.parent?.data_source_id || '').replace(/-/g, '') === NOTION.operaciones.replace(/-/g, '');
+}
+
+app.get('/api/operaciones/:id/comentarios', requiereSesion, async (req, res) => {
+  if (!UUID.test(req.params.id)) return res.status(400).json({ ok: false, error: 'Centro no válido' });
+  try {
+    const lista = [];
+    let cursor;
+    do {
+      const r = await notion('/v1/comments?block_id=' + req.params.id + '&page_size=100' + (cursor ? '&start_cursor=' + encodeURIComponent(cursor) : ''));
+      lista.push(...r.results);
+      cursor = r.has_more ? r.next_cursor : undefined;
+    } while (cursor);
+    const comentarios = [];
+    for (const c of lista) {
+      comentarios.push({ id: c.id, fecha: c.created_time, autor: await autorComentario(c), esPagina: c.created_by?.type === 'bot',
+        texto: (c.rich_text || []).map(t => ({ t: t.plain_text, b: !!t.annotations?.bold, i: !!t.annotations?.italic, u: !!t.annotations?.underline,
+          link: t.href && /^https?:/.test(t.href) ? t.href : '' })) });
+    }
+    res.json({ ok: true, comentarios });
+  } catch (err) {
+    if (err.estado === 403) return res.status(502).json({ ok: false, error: 'Falta activar "Leer comentarios" en la integración de Notion.' });
+    errorNotion(res, err, 'los comentarios');
+  }
+});
+
+app.post('/api/operaciones/:id/comentarios', requiereSesion, async (req, res) => {
+  const comentario = texto(req.body?.texto ?? '', 1800);
+  if (!UUID.test(req.params.id) || !comentario) return res.status(400).json({ ok: false, error: 'Escribe el comentario' });
+  try {
+    if (!await paginaDeOperaciones(req.params.id)) return res.status(400).json({ ok: false, error: 'La tarjeta no es de Operaciones' });
+    await notion('/v1/comments', { method: 'POST', body: JSON.stringify({ parent: { page_id: req.params.id },
+      rich_text: [{ type: 'text', text: { content: nombreVisible(req.usuario) + ': ' }, annotations: { bold: true } }, { type: 'text', text: { content: comentario } }] }) });
+    console.log('Comentario en Operaciones', req.params.id, 'por', req.usuario);
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.estado === 403) return res.status(502).json({ ok: false, error: 'Falta activar "Insertar comentarios" en la integración de Notion.' });
+    errorNotion(res, err, 'los comentarios');
+  }
+});
+
 app.get('/api/checklists', requiereSesion, async (req, res) => {
   if (!esAdmin(req.usuario)) return res.status(403).json({ ok: false, error: 'Solo un administrador puede ver los checklists' });
   try {
