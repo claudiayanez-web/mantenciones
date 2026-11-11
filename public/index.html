@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Mantenciones - Retina Lab</title>
+<title>Operaciones - Retina Lab</title>
 <link rel="icon" type="image/jpeg" href="logo-retina.jpg" />
 <link rel="apple-touch-icon" href="logo-retina.jpg" />
 <style>
@@ -1222,7 +1222,7 @@
 <!-- Encabezado solo para la pantalla de ingreso -->
 <header id="encabezadoLogin">
   <div>
-    <h1>Mantenciones</h1>
+    <h1>Operaciones</h1>
     <p>Operaciones Retina Lab</p>
   </div>
 </header>
@@ -1249,36 +1249,21 @@
       <img class="logo" src="logo-retina.jpg" alt="" />
       <div>
         <h1>Retina</h1>
-        <div class="subtitulo">Mantenciones</div>
+        <div class="subtitulo">Operaciones</div>
       </div>
     </div>
     <div class="menuNavegacion">
-      <div class="tituloMenu" id="tituloOperacion">Operación</div>
+      <!-- Lo del día a día de los técnicos en terreno -->
+      <div class="tituloMenu" id="tituloOperacion">Operación técnicos</div>
       <nav class="pestanas" aria-labelledby="tituloOperacion">
         <button type="button" id="btnSolicitudes" aria-selected="false">
           <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4z"/><path d="M14 5v14" stroke-dasharray="2 2"/></svg>
           <span>Solicitudes</span>
           <span class="insignia" id="insigniaSolicitudes" title="Tickets por aceptar" hidden></span>
         </button>
-        <button type="button" id="btnPrograma" aria-selected="false">
-          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M16 4.5a3 3 0 0 1 0 6M21 20a6 6 0 0 0-4-5.6"/></svg>
-          <span>Programa biólogos</span>
-        </button>
         <button type="button" id="btnOperaciones" aria-selected="false">
           <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="10" rx="1.5"/><rect x="17" y="4" width="4" height="13" rx="1.5"/></svg>
           <span>Operaciones</span>
-        </button>
-        <button type="button" id="btnCompensaciones" aria-selected="false" hidden>
-          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M9 16l2 2 4-4"/></svg>
-          <span>Compensaciones</span>
-        </button>
-        <button type="button" id="btnPlataforma" aria-selected="false" hidden>
-          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M9 3h6v3H9zM8 12l2 2 4-4M8 17h8"/></svg>
-          <span>Acceso plataforma</span>
-        </button>
-        <button type="button" id="btnChecklists" aria-selected="false" hidden>
-          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l2 2 3-3M4 13l2 2 3-3M4 20l2 2 3-3M12 7h8M12 14h8M12 21h8"/></svg>
-          <span>Checklists</span>
         </button>
       </nav>
       <div class="tituloMenu" id="tituloMenu">Planillas</div>
@@ -1296,6 +1281,26 @@
         <button type="button" id="btnMuestras" aria-selected="false">
           <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3M7.5 14h9"/></svg>
           <span>Muestras</span>
+        </button>
+      </nav>
+      <!-- Lo administrativo: para los técnicos el título dice "Equipo" (ven el programa y sus compensaciones) -->
+      <div class="tituloMenu" id="tituloAdmin">Administración</div>
+      <nav class="pestanas" aria-labelledby="tituloAdmin">
+        <button type="button" id="btnPrograma" aria-selected="false">
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M16 4.5a3 3 0 0 1 0 6M21 20a6 6 0 0 0-4-5.6"/></svg>
+          <span>Programa biólogos</span>
+        </button>
+        <button type="button" id="btnCompensaciones" aria-selected="false" hidden>
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M9 16l2 2 4-4"/></svg>
+          <span>Compensaciones</span>
+        </button>
+        <button type="button" id="btnPlataforma" aria-selected="false" hidden>
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M9 3h6v3H9zM8 12l2 2 4-4M8 17h8"/></svg>
+          <span>Acceso plataforma</span>
+        </button>
+        <button type="button" id="btnChecklists" aria-selected="false" hidden>
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l2 2 3-3M4 13l2 2 3-3M4 20l2 2 3-3M12 7h8M12 14h8M12 21h8"/></svg>
+          <span>Checklists</span>
         </button>
       </nav>
     </div>
@@ -1731,6 +1736,7 @@ async function iniciar() {
   document.getElementById('btnZonasComp').hidden = !estado.admin;
   document.getElementById('btnPlataforma').hidden = !estado.admin;
   document.getElementById('btnChecklists').hidden = !estado.admin;
+  document.getElementById('tituloAdmin').textContent = estado.admin ? 'Administración' : 'Equipo';
   document.getElementById('btnAgregarCentroProg').hidden = !estado.admin;
   // Al recargar se vuelve a la vista en que se estaba (se guarda solo en esta pestaña del navegador);
   // al abrir la página de nuevo, lo primero que se ve es Solicitudes
