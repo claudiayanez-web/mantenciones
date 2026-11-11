@@ -561,20 +561,74 @@ app.get('/api/operaciones', requiereSesion, async (req, res) => {
 });
 
 // ---------- Fotos de Notion achicadas ----------
-// Las fotos que suben desde el celular pesan varios MB. El servidor las baja una vez, las achica
-// (miniatura para la ficha, mediana para el visor) y las guarda en memoria; la próxima vez salen al instante.
+// Las fotos que suben desde el celular pesan varios MB (y las de iPhone vienen en HEIC). El servidor las baja
+// una vez, las achica (miniatura para la ficha, mediana para el visor) y las guarda en disco; además, en
+// segundo plano recorre los comentarios de todos los centros y deja listas las fotos antes de que alguien las abra.
 // Solo se aceptan fotos guardadas en Notion, para que esto no sirva para bajar cualquier cosa de internet.
 const sharp = require('sharp');
+const fs = require('fs');
+const os = require('os');
 const HOST_FOTOS = /^(prod-files-secure\.s3\.[a-z0-9-]+\.amazonaws\.com|s3\.[a-z0-9-]+\.amazonaws\.com|file\.notion\.so|img\.notionusercontent\.com)$/i;
-const TAMANOS_FOTO = { chica: { lado: 320, calidad: 70 }, grande: { lado: 1600, calidad: 82 } };
-const cacheFotos = new Map();   // clave -> Buffer (el más antiguo primero)
-let bytesCacheFotos = 0;
+const TAMANOS_FOTO = { chica: { lado: 320, calidad: 70 }, grande: { lado: 1600, calidad: 80 } };
 const fotosEnCamino = new Map(); // misma foto pedida varias veces a la vez: se procesa una sola
-const LIMITE_CACHE_FOTOS = 80 * 1024 * 1024;
+
+// Copias achicadas en disco (se borran las más antiguas sobre el tope) y las más usadas también en memoria
+const DIR_FOTOS = process.env.CACHE_FOTOS_DIR || path.join(os.tmpdir(), 'fotos-notion');
+const LIMITE_DISCO_FOTOS = Number(process.env.CACHE_FOTOS_MB || 700) * 1024 * 1024;
+const LIMITE_RAM_FOTOS = 40 * 1024 * 1024;
+try { fs.mkdirSync(DIR_FOTOS, { recursive: true }); } catch (err) { console.error('No se pudo crear la carpeta de fotos', err.message); }
+const ramFotos = new Map();
+let bytesRamFotos = 0;
+let escriturasDesdeLimpieza = 0;
+const archivoFoto = clave => path.join(DIR_FOTOS, crypto.createHash('sha1').update(clave).digest('hex') + '.jpg');
+
+function guardarEnRam(clave, b) {
+  if (ramFotos.has(clave)) return;
+  ramFotos.set(clave, b);
+  bytesRamFotos += b.length;
+  for (const [k, v] of ramFotos) {
+    if (bytesRamFotos <= LIMITE_RAM_FOTOS) break;
+    ramFotos.delete(k); bytesRamFotos -= v.length;
+  }
+}
+async function fotoGuardada(clave) {
+  if (ramFotos.has(clave)) {
+    const b = ramFotos.get(clave);
+    ramFotos.delete(clave); ramFotos.set(clave, b);  // queda como la más reciente
+    return b;
+  }
+  try {
+    const b = await fs.promises.readFile(archivoFoto(clave));
+    guardarEnRam(clave, b);
+    return b;
+  } catch { return null; }
+}
+const hayFotoGuardada = clave => ramFotos.has(clave) || fs.existsSync(archivoFoto(clave));
+async function guardarFoto(clave, b) {
+  guardarEnRam(clave, b);
+  try {
+    await fs.promises.writeFile(archivoFoto(clave), b);
+    if (++escriturasDesdeLimpieza >= 100) { escriturasDesdeLimpieza = 0; limpiarDiscoFotos(); }
+  } catch (err) { console.error('No se pudo guardar foto en disco', err.message); }
+}
+async function limpiarDiscoFotos() {
+  try {
+    const archivos = await Promise.all((await fs.promises.readdir(DIR_FOTOS)).map(async n => {
+      const s = await fs.promises.stat(path.join(DIR_FOTOS, n)); return { n, t: s.mtimeMs, b: s.size };
+    }));
+    let total = archivos.reduce((a, x) => a + x.b, 0);
+    for (const x of archivos.sort((a, b) => a.t - b.t)) {
+      if (total <= LIMITE_DISCO_FOTOS) break;
+      await fs.promises.unlink(path.join(DIR_FOTOS, x.n)).catch(() => {});
+      total -= x.b;
+    }
+  } catch (err) { console.error('No se pudo limpiar la carpeta de fotos', err.message); }
+}
 
 function esFotoNotion(url) {
   try { const u = new URL(url); return u.protocol === 'https:' && HOST_FOTOS.test(u.hostname); } catch { return false; }
 }
+const claveFoto = (url, tamano) => { const u = new URL(url); return tamano + '|' + u.hostname + u.pathname; };  // sin la firma, que cambia cada vez
 // Enlaces que usa la página: miniatura, mediana y la original (por si se quiere descargar)
 const hostsAvisados = new Set();
 function enlacesFoto(url) {
@@ -586,27 +640,21 @@ function enlacesFoto(url) {
   const p = t => '/api/foto?t=' + t + '&u=' + encodeURIComponent(url);
   return { chica: p('chica'), grande: p('grande'), original: url };
 }
-function guardarFotoEnCache(clave, b) {
-  if (cacheFotos.has(clave)) return;
-  cacheFotos.set(clave, b);
-  bytesCacheFotos += b.length;
-  for (const [k, v] of cacheFotos) {
-    if (bytesCacheFotos <= LIMITE_CACHE_FOTOS) break;
-    cacheFotos.delete(k); bytesCacheFotos -= v.length;
-  }
-}
+
 // Las fotos de iPhone vienen en HEIC: ni los navegadores ni sharp las leen, así que se decodifican aparte
 const decodificarHeic = require('heic-decode');
 const esHeic = b => b.length > 12 && b.toString('latin1', 4, 8) === 'ftyp' && /^(heic|heix|hevc|hevx|heim|heis|mif1|msf1)$/.test(b.toString('latin1', 8, 12));
-// Como mucho dos fotos procesándose a la vez: una foto de celular descomprimida ocupa unos 50 MB
+// Como mucho dos fotos procesándose a la vez (una foto de celular descomprimida ocupa unos 50 MB).
+// Lo que pide alguien con la ficha abierta pasa antes que lo que se prepara en segundo plano.
 let fotosProcesando = 0;
-const esperandoTurno = [];
-async function conTurno(trabajo) {
-  if (fotosProcesando >= 2) await new Promise(r => esperandoTurno.push(r));
+const esperandoTurno = { alta: [], baja: [] };
+async function conTurno(trabajo, prioridad) {
+  const maximo = prioridad === 'baja' ? 1 : 2;  // el segundo plano deja siempre un lugar libre
+  if (fotosProcesando >= maximo) await new Promise(r => esperandoTurno[prioridad === 'baja' ? 'baja' : 'alta'].push(r));
   fotosProcesando++;
   try { return await trabajo(); } finally {
     fotosProcesando--;
-    const siguiente = esperandoTurno.shift();
+    const siguiente = esperandoTurno.alta.shift() || (fotosProcesando === 0 ? esperandoTurno.baja.shift() : null);
     if (siguiente) siguiente();
   }
 }
@@ -622,40 +670,40 @@ const achicar = (foto, tamano) => {
   return (foto.girar ? s.rotate() : s)
     .resize({ width: lado, height: lado, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: calidad, mozjpeg: true }).toBuffer();
 };
-// Se baja la foto de Notion una sola vez: se prepara el tamaño pedido y, sin esperar, también el otro,
-// para que al abrir el visor la grande ya esté lista
-async function fotoAchicada(url, tamano) {
-  const u = new URL(url);
-  const base = u.hostname + u.pathname;  // sin la firma, que cambia cada vez que se lee Notion
-  const clave = tamano + '|' + base;
-  if (cacheFotos.has(clave)) {
-    const b = cacheFotos.get(clave);
-    cacheFotos.delete(clave); cacheFotos.set(clave, b);  // queda como la más reciente
-    return b;
+// Se baja la foto de Notion una sola vez y se preparan los dos tamaños: primero el pedido (se entrega apenas está)
+async function fotoAchicada(url, tamano, prioridad = 'alta') {
+  const clave = claveFoto(url, tamano);
+  const lista = await fotoGuardada(clave);
+  if (lista) return lista;
+  if (fotosEnCamino.has(clave)) {
+    const t = fotosEnCamino.get(clave);
+    // Si estaba en la fila del segundo plano y ahora alguien la está mirando, sube a la fila de adelante
+    if (prioridad === 'alta' && t.subir) t.subir();
+    return t;
   }
-  if (fotosEnCamino.has(clave)) return fotosEnCamino.get(clave);
-  const claveOtro = (tamano === 'chica' ? 'grande' : 'chica') + '|' + base;
-  const hacerOtro = !cacheFotos.has(claveOtro) && !fotosEnCamino.has(claveOtro);
+  const otroTamano = tamano === 'chica' ? 'grande' : 'chica';
+  const claveOtro = claveFoto(url, otroTamano);
+  const hacerOtro = !hayFotoGuardada(claveOtro) && !fotosEnCamino.has(claveOtro);
   let entregar, fallar, entregarOtro, fallarOtro;
   const trabajo = new Promise((ok, mal) => { entregar = ok; fallar = mal; });
   fotosEnCamino.set(clave, trabajo);
+  let otro;
   if (hacerOtro) {
-    const otro = new Promise((ok, mal) => { entregarOtro = ok; fallarOtro = mal; });
+    otro = new Promise((ok, mal) => { entregarOtro = ok; fallarOtro = mal; });
     otro.catch(() => {});
     fotosEnCamino.set(claveOtro, otro);
   }
-  // Todo dentro de un mismo turno: bajar, leer, achicar al tamaño pedido (se entrega apenas está) y luego al otro
-  conTurno(async () => {
+  const hacer = async () => {
     try {
       const r = await fetch(url, { redirect: 'error' });
       if (!r.ok) throw Object.assign(new Error('Notion respondió ' + r.status), { estado: r.status });
       if (Number(r.headers.get('content-length') || 0) > 40 * 1024 * 1024) throw new Error('Foto demasiado grande');
       const foto = await prepararFoto(Buffer.from(await r.arrayBuffer()));
       const b = await achicar(foto, tamano);
-      guardarFotoEnCache(clave, b);
+      await guardarFoto(clave, b);
       entregar(b);
       if (hacerOtro) {
-        try { const b2 = await achicar(foto, claveOtro.split('|')[0]); guardarFotoEnCache(claveOtro, b2); entregarOtro(b2); }
+        try { const b2 = await achicar(foto, otroTamano); await guardarFoto(claveOtro, b2); entregarOtro(b2); }
         catch (e) { fallarOtro(e); }
       }
     } catch (e) {
@@ -665,7 +713,17 @@ async function fotoAchicada(url, tamano) {
       fotosEnCamino.delete(clave);
       if (hacerOtro) fotosEnCamino.delete(claveOtro);
     }
-  });
+  };
+  if (prioridad === 'baja') {
+    // En segundo plano: espera su turno, salvo que alguien abra esa ficha antes (entonces se adelanta)
+    let empezado = false;
+    const empezar = () => { if (!empezado) { empezado = true; conTurno(hacer, 'alta'); } };
+    trabajo.subir = empezar;
+    if (otro) otro.subir = empezar;
+    conTurno(async () => { if (!empezado) { empezado = true; await hacer(); } }, 'baja');
+  } else {
+    conTurno(hacer, 'alta');
+  }
   return trabajo;
 }
 app.get('/api/foto', requiereSesion, async (req, res) => {
@@ -674,13 +732,52 @@ app.get('/api/foto', requiereSesion, async (req, res) => {
   if (!esFotoNotion(url)) return res.status(400).json({ ok: false, error: 'Foto no válida' });
   try {
     const b = await fotoAchicada(url, tamano);
-    res.set('Content-Type', 'image/jpeg').set('Cache-Control', 'private, max-age=3000').send(b);
+    res.set('Content-Type', 'image/jpeg').set('Cache-Control', 'private, max-age=86400').send(b);
   } catch (err) {
     console.error('Error al achicar foto', err.estado || '', err.message);
     // Si el enlace venció (duran una hora) o no se pudo achicar, la página reintenta con la original
     res.status(err.estado === 403 ? 410 : 502).json({ ok: false, error: 'No se pudo cargar la foto' });
   }
 });
+
+// Segundo plano: recorre los comentarios de los centros (no terminados) y deja listas sus fotos.
+// Va de a una foto y con pausas, para no cargar el servidor ni pasarse del límite de consultas de Notion.
+// Corre al arrancar y luego cada 3 horas; las fotos ya preparadas se saltan.
+let preparandoFotos = false;
+const pausa = ms => new Promise(r => setTimeout(r, ms));
+async function prepararFotosDeNotion() {
+  if (preparandoFotos || !process.env.NOTION_TOKEN) return;
+  preparandoFotos = true;
+  const inicio = Date.now();
+  let nuevas = 0, centros = 0;
+  try {
+    const paginas = (await leerFuente(NOTION.operaciones)).filter(p => !/terminad/i.test(valorNotion(p.properties.Estado) || ''));
+    for (const p of paginas) {
+      centros++;
+      let cursor;
+      do {
+        const r = await notion('/v1/comments?block_id=' + p.id + '&page_size=100' + (cursor ? '&start_cursor=' + encodeURIComponent(cursor) : ''));
+        // Se toman al tiro: los enlaces de Notion vencen en una hora
+        const urls = r.results.flatMap(c => (c.attachments || []).filter(a => a.category === 'image' || /^image\//.test(a.content_type || ''))
+          .map(a => a.file?.url || a.url)).filter(u => typeof u === 'string' && esFotoNotion(u));
+        for (const url of urls) {
+          if (hayFotoGuardada(claveFoto(url, 'chica')) && hayFotoGuardada(claveFoto(url, 'grande'))) continue;
+          try { await fotoAchicada(url, 'chica', 'baja'); nuevas++; } catch (err) { console.error('Foto en segundo plano', err.message); }
+          await pausa(300);
+        }
+        cursor = r.has_more ? r.next_cursor : undefined;
+        await pausa(400);
+      } while (cursor);
+    }
+    console.log('Fotos de Notion preparadas:', nuevas, 'nuevas en', centros, 'centros,', Math.round((Date.now() - inicio) / 1000), 's');
+  } catch (err) {
+    console.error('No se pudieron preparar las fotos de Notion', err.estado || '', err.message);
+  } finally {
+    preparandoFotos = false;
+  }
+}
+setTimeout(prepararFotosDeNotion, Number(process.env.FOTOS_INICIO_MS || 60 * 1000)).unref();
+setInterval(prepararFotosDeNotion, 3 * 60 * 60 * 1000).unref();
 
 // Contenido de la tarjeta (bitácora técnica): párrafos, títulos, listas y fotos, un nivel de sub-listas
 function bloqueSimple(b) {
