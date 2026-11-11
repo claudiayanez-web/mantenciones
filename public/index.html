@@ -4356,12 +4356,49 @@ async function abrirDetalleOp(c) {
 
 // ---------- Visor de fotos ----------
 // Muestra las fotos de un comentario (o de la bitácora) en grande, con flechas, teclado y deslizar en el celular
+// Cada foto llega como { chica, grande, original }: la ficha muestra la chica (liviana), el visor la grande
+// y "Abrir original" la de Notion. Si la achicada falla, se usa la original.
+function imagenConRespaldo(img, url, original) {
+  img.onerror = () => { if (original && img.getAttribute('src') !== original) img.src = original; };
+  img.src = url;
+}
+function enlaceFoto(f, alt, tamano) {
+  const a = document.createElement('a');
+  a.href = f.original;
+  a.className = 'fotoVisor';
+  a.title = 'Ver foto en grande';
+  a.dataset.grande = f.grande;
+  const img = document.createElement('img');
+  img.alt = alt;
+  img.loading = 'lazy';
+  img.decoding = 'async';
+  imagenConRespaldo(img, f[tamano], f.original);
+  a.appendChild(img);
+  return a;
+}
 const visor = { fotos: [], i: 0 };
+const precargadas = new Set();
+function precargarVisor(i) {
+  const f = visor.fotos[(i + visor.fotos.length) % visor.fotos.length];
+  if (!f || precargadas.has(f.grande)) return;
+  precargadas.add(f.grande);
+  new Image().src = f.grande;
+}
 function mostrarFotoVisor() {
-  const url = visor.fotos[visor.i];
-  document.getElementById('imagenVisor').src = url;
-  document.getElementById('imagenVisor').alt = 'Foto ' + (visor.i + 1) + ' de ' + visor.fotos.length;
-  document.getElementById('originalVisor').href = url;
+  const f = visor.fotos[visor.i];
+  const img = document.getElementById('imagenVisor');
+  // Mientras llega la grande se ve la miniatura (que ya está cargada), así nunca queda en negro
+  img.onerror = null;
+  img.src = f.chica;
+  const grande = new Image();
+  const cambiar = url => { if (visor.fotos[visor.i] === f) img.src = url; };
+  grande.onload = () => cambiar(grande.src);
+  grande.onerror = () => { if (grande.src !== f.original && f.original) grande.src = f.original; };
+  grande.src = f.grande;
+  img.alt = 'Foto ' + (visor.i + 1) + ' de ' + visor.fotos.length;
+  document.getElementById('originalVisor').href = f.original;
+  precargarVisor(visor.i + 1);
+  precargarVisor(visor.i - 1);
   document.getElementById('cuentaVisor').textContent = visor.fotos.length > 1 ? (visor.i + 1) + ' de ' + visor.fotos.length : '';
   document.getElementById('anteriorVisor').hidden = visor.fotos.length < 2;
   document.getElementById('siguienteVisor').hidden = visor.fotos.length < 2;
@@ -4401,7 +4438,7 @@ document.getElementById('dialogoTicket').addEventListener('click', e => {
   e.preventDefault();
   const grupo = enlace.closest('.fotos') || enlace.closest('.opBitacora');
   const enlaces = [...grupo.querySelectorAll('a.fotoVisor')];
-  abrirVisor(enlaces.map(a => a.href), enlaces.indexOf(enlace));
+  abrirVisor(enlaces.map(a => ({ chica: a.querySelector('img').currentSrc || a.querySelector('img').src, grande: a.dataset.grande, original: a.href })), enlaces.indexOf(enlace));
 });
 
 async function cargarComentariosOp(c, seccion) {
@@ -4423,14 +4460,7 @@ async function cargarComentariosOp(c, seccion) {
     if (x.fotos?.length) {
       const g = document.createElement('div');
       g.className = 'fotos';
-      x.fotos.forEach((url, i) => {
-        const a = document.createElement('a');
-        a.href = url; a.className = 'fotoVisor'; a.title = 'Ver foto en grande';
-        const img = document.createElement('img');
-        img.src = url; img.alt = 'Foto ' + (i + 1) + ' del comentario'; img.loading = 'lazy';
-        a.appendChild(img);
-        g.appendChild(a);
-      });
+      x.fotos.forEach((f, i) => g.appendChild(enlaceFoto(f, 'Foto ' + (i + 1) + ' del comentario', 'chica')));
       d.appendChild(g);
     }
     lista.appendChild(d);
@@ -4460,10 +4490,8 @@ function dibujarBloquesNotion(bloques, destino) {
       return;
     }
     lista = null;
-    if (b.tipo === 'image' && b.imagen && /^https:/.test(b.imagen)) {
-      const a = document.createElement('a'); a.href = b.imagen; a.className = 'fotoVisor'; a.title = 'Ver foto en grande';
-      const img = document.createElement('img'); img.src = b.imagen; img.alt = b.texto.map(t => t.t).join('') || 'Foto'; img.loading = 'lazy';
-      a.appendChild(img); destino.appendChild(a);
+    if (b.tipo === 'image' && b.foto && /^https:/.test(b.foto.original)) {
+      destino.appendChild(enlaceFoto(b.foto, b.texto.map(t => t.t).join('') || 'Foto', 'grande'));
       return;
     }
     if (!b.texto.length) return;

@@ -560,6 +560,89 @@ app.get('/api/operaciones', requiereSesion, async (req, res) => {
   } catch (err) { errorNotion(res, err, 'Operaciones'); }
 });
 
+// ---------- Fotos de Notion achicadas ----------
+// Las fotos que suben desde el celular pesan varios MB. El servidor las baja una vez, las achica
+// (miniatura para la ficha, mediana para el visor) y las guarda en memoria; la próxima vez salen al instante.
+// Solo se aceptan fotos guardadas en Notion, para que esto no sirva para bajar cualquier cosa de internet.
+const sharp = require('sharp');
+const HOST_FOTOS = /^(prod-files-secure\.s3\.[a-z0-9-]+\.amazonaws\.com|s3\.[a-z0-9-]+\.amazonaws\.com|file\.notion\.so|img\.notionusercontent\.com)$/i;
+const TAMANOS_FOTO = { chica: { lado: 320, calidad: 70 }, grande: { lado: 1600, calidad: 82 } };
+const cacheFotos = new Map();   // clave -> Buffer (el más antiguo primero)
+let bytesCacheFotos = 0;
+const fotosEnCamino = new Map(); // misma foto pedida varias veces a la vez: se procesa una sola
+const LIMITE_CACHE_FOTOS = 80 * 1024 * 1024;
+
+function esFotoNotion(url) {
+  try { const u = new URL(url); return u.protocol === 'https:' && HOST_FOTOS.test(u.hostname); } catch { return false; }
+}
+// Enlaces que usa la página: miniatura, mediana y la original (por si se quiere descargar)
+const hostsAvisados = new Set();
+function enlacesFoto(url) {
+  if (!esFotoNotion(url)) {
+    let host = ''; try { host = new URL(url).hostname; } catch {}
+    if (host && !hostsAvisados.has(host)) { hostsAvisados.add(host); console.log('Foto de un sitio no reconocido, se muestra sin achicar:', host); }
+    return { chica: url, grande: url, original: url };
+  }
+  const p = t => '/api/foto?t=' + t + '&u=' + encodeURIComponent(url);
+  return { chica: p('chica'), grande: p('grande'), original: url };
+}
+function guardarFotoEnCache(clave, b) {
+  if (cacheFotos.has(clave)) return;
+  cacheFotos.set(clave, b);
+  bytesCacheFotos += b.length;
+  for (const [k, v] of cacheFotos) {
+    if (bytesCacheFotos <= LIMITE_CACHE_FOTOS) break;
+    cacheFotos.delete(k); bytesCacheFotos -= v.length;
+  }
+}
+const achicar = (original, tamano) => {
+  const { lado, calidad } = TAMANOS_FOTO[tamano];
+  return sharp(original, { failOn: 'none' }).rotate()
+    .resize({ width: lado, height: lado, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: calidad, mozjpeg: true }).toBuffer();
+};
+// Se baja la foto de Notion una sola vez: se prepara el tamaño pedido y, sin esperar, también el otro,
+// para que al abrir el visor la grande ya esté lista
+async function fotoAchicada(url, tamano) {
+  const u = new URL(url);
+  const base = u.hostname + u.pathname;  // sin la firma, que cambia cada vez que se lee Notion
+  const clave = tamano + '|' + base;
+  if (cacheFotos.has(clave)) {
+    const b = cacheFotos.get(clave);
+    cacheFotos.delete(clave); cacheFotos.set(clave, b);  // queda como la más reciente
+    return b;
+  }
+  if (fotosEnCamino.has(clave)) return fotosEnCamino.get(clave);
+  const otro = tamano === 'chica' ? 'grande' : 'chica';
+  let listoOtro;
+  const descarga = (async () => {
+    const r = await fetch(url, { redirect: 'error' });
+    if (!r.ok) throw Object.assign(new Error('Notion respondió ' + r.status), { estado: r.status });
+    if (Number(r.headers.get('content-length') || 0) > 40 * 1024 * 1024) throw new Error('Foto demasiado grande');
+    return Buffer.from(await r.arrayBuffer());
+  })();
+  const trabajo = descarga.then(o => achicar(o, tamano)).then(b => { guardarFotoEnCache(clave, b); return b; });
+  fotosEnCamino.set(clave, trabajo);
+  if (!cacheFotos.has(otro + '|' + base) && !fotosEnCamino.has(otro + '|' + base)) {
+    listoOtro = trabajo.then(() => descarga).then(o => achicar(o, otro)).then(b => { guardarFotoEnCache(otro + '|' + base, b); return b; });
+    fotosEnCamino.set(otro + '|' + base, listoOtro);
+    listoOtro.catch(() => {}).finally(() => fotosEnCamino.delete(otro + '|' + base));
+  }
+  try { return await trabajo; } finally { fotosEnCamino.delete(clave); }
+}
+app.get('/api/foto', requiereSesion, async (req, res) => {
+  const url = String(req.query.u || '');
+  const tamano = TAMANOS_FOTO[req.query.t] ? req.query.t : 'chica';
+  if (!esFotoNotion(url)) return res.status(400).json({ ok: false, error: 'Foto no válida' });
+  try {
+    const b = await fotoAchicada(url, tamano);
+    res.set('Content-Type', 'image/jpeg').set('Cache-Control', 'private, max-age=3000').send(b);
+  } catch (err) {
+    console.error('Error al achicar foto', err.estado || '', err.message);
+    // Si el enlace venció (duran una hora) o no se pudo achicar, la página reintenta con la original
+    res.status(err.estado === 403 ? 410 : 502).json({ ok: false, error: 'No se pudo cargar la foto' });
+  }
+});
+
 // Contenido de la tarjeta (bitácora técnica): párrafos, títulos, listas y fotos, un nivel de sub-listas
 function bloqueSimple(b) {
   const d = b[b.type] || {};
@@ -567,7 +650,10 @@ function bloqueSimple(b) {
     u: !!t.annotations?.underline, link: t.href && /^https?:/.test(t.href) ? t.href : '' }));
   const base = { tipo: b.type, texto, hijos: b.has_children };
   if (b.type === 'to_do') base.hecho = !!d.checked;
-  if (b.type === 'image') base.imagen = d.type === 'external' ? d.external?.url : d.file?.url;
+  if (b.type === 'image') {
+    base.imagen = d.type === 'external' ? d.external?.url : d.file?.url;
+    if (base.imagen) base.foto = enlacesFoto(base.imagen);
+  }
   if (b.type === 'image') base.texto = (d.caption || []).map(t => ({ t: t.plain_text }));
   return base;
 }
@@ -624,7 +710,7 @@ app.get('/api/operaciones/:id/comentarios', requiereSesion, async (req, res) => 
     for (const c of lista) {
       // Fotos adjuntas al comentario (enlaces de Notion que vencen en una hora; se piden de nuevo al abrir la ficha)
       const fotos = (c.attachments || []).filter(a => a.category === 'image' || /^image\//.test(a.content_type || ''))
-        .map(a => a.file?.url || a.url).filter(u => typeof u === 'string' && /^https:/.test(u));
+        .map(a => a.file?.url || a.url).filter(u => typeof u === 'string' && /^https:/.test(u)).map(enlacesFoto);
       comentarios.push({ id: c.id, fecha: c.created_time, autor: await autorComentario(c), esPagina: c.created_by?.type === 'bot', fotos,
         texto: (c.rich_text || []).map(t => ({ t: t.plain_text, b: !!t.annotations?.bold, i: !!t.annotations?.italic, u: !!t.annotations?.underline,
           link: t.href && /^https?:/.test(t.href) ? t.href : '' })) });
