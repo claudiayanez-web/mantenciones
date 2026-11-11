@@ -469,6 +469,169 @@ app.post('/api/plataforma', requiereSesion, async (req, res) => {
   }
 });
 
+// ---------- Notion: Operaciones y checklists ----------
+// Se lee y se marca directo en Notion (integración "Página operaciones"); Notion sigue siendo el original.
+// Operaciones la ven todos; los checklists de instalación y desinstalación, solo administradores.
+
+const NOTION_API = process.env.NOTION_API || 'https://api.notion.com';
+const NOTION = {
+  operaciones: process.env.NOTION_OPERACIONES || 'afe5b2f5-6dff-83b5-9d1b-8728bc5baf8f',
+  instalacion: process.env.NOTION_INSTALACION || '2b05b2f5-6dff-81d9-b59d-000b70ede3f5',
+  desinstalacion: process.env.NOTION_DESINSTALACION || '35f5b2f5-6dff-8176-af0c-000bd4ac4fd9'
+};
+// Pasos en el mismo orden que se ven en la tarjeta de Notion; si aparece una casilla nueva, se agrega al final
+const PASOS = {
+  instalacion: { titulo: 'ID Mantención', estado: '¿Instalado?', pasos: ['Contacto Centro', 'Enviar info a Centro', 'Disponibilidad',
+    'coordinar hora, fecha y lugar', 'Acreditación/permiso  técnico', 'Asignar biólogo', 'Equipo operativo', 'Materiales preparados (checklist)',
+    'Instalación OK', 'Agregar certificado de servicio', 'Certificado de servicio enviado', 'Agregar SAMS', 'Avisar nuevo centro grupo PASPA',
+    'Enviar programa actualizado PASPA', 'QUICKSIGHT: agregar centro panel global y empresa', 'GTR: activación GTR',
+    'QUICK O GTR: Enviar correo utilización', 'Agregar RindeGastos', 'Agregar Agente', 'Dispositivo funcionando correctamente',
+    'Muestras subiendo a Quicksight'] },
+  desinstalacion: { titulo: 'ID Mantención', estado: '¿Desinstalado?', pasos: ['Quitar asignación biólogo APP', 'Coordinar retiro con centro',
+    'Avisar en PASPA termino ciclo', 'Enviar correo con fecha desinstalación', 'Confirmar acreditación técnico', 'Quitar de agente',
+    'Quitar de certificado servicio', 'Parar servicio', 'Quitar de Quicksight', 'Quitar de SAMS', 'Desactivar dispositivo y centro de la APP'] }
+};
+
+async function notion(ruta, opciones = {}) {
+  if (!process.env.NOTION_TOKEN) throw Object.assign(new Error('Falta NOTION_TOKEN'), { sinToken: true });
+  const r = await fetch(NOTION_API + ruta, {
+    ...opciones,
+    headers: { Authorization: 'Bearer ' + process.env.NOTION_TOKEN, 'Notion-Version': '2025-09-03', 'Content-Type': 'application/json' }
+  });
+  const datos = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(datos.message || 'Notion respondió ' + r.status), { estado: r.status, codigo: datos.code });
+  return datos;
+}
+
+async function leerFuente(id) {
+  const paginas = [];
+  let cursor;
+  do {
+    const r = await notion('/v1/data_sources/' + id + '/query', { method: 'POST', body: JSON.stringify({ page_size: 100, start_cursor: cursor }) });
+    paginas.push(...r.results.filter(p => !p.archived && !p.in_trash));
+    cursor = r.has_more ? r.next_cursor : undefined;
+  } while (cursor);
+  return paginas;
+}
+
+// Valor simple de una propiedad de Notion
+function valorNotion(p) {
+  if (!p) return null;
+  switch (p.type) {
+    case 'title': case 'rich_text': return p[p.type].map(t => t.plain_text).join('');
+    case 'select': case 'status': return p[p.type]?.name || '';
+    case 'multi_select': return p.multi_select.map(o => o.name);
+    case 'date': return p.date ? { desde: p.date.start, hasta: p.date.end } : null;
+    case 'checkbox': return p.checkbox;
+    case 'url': return p.url || '';
+    case 'last_edited_time': return p.last_edited_time;
+    default: return null;
+  }
+}
+
+function errorNotion(res, err, que) {
+  if (err.sinToken) return res.status(503).json({ ok: false, error: 'Falta conectar Notion: agrega NOTION_TOKEN en Easypanel.' });
+  console.error('Error con Notion', que, err.estado || '', err.message);
+  const sinPermiso = err.estado === 404 || err.estado === 403 || err.codigo === 'object_not_found';
+  res.status(502).json({ ok: false, error: sinPermiso
+    ? 'Notion no deja ver ' + que + '. Revisa que la integración "Página operaciones" esté agregada en Conexiones.'
+    : 'No se pudo leer ' + que + ' desde Notion. Intenta de nuevo.' });
+}
+
+// Se guarda un minuto en memoria para no consultar Notion en cada vuelta
+const cacheNotion = {};
+async function leerConCache(clave, leer, recargar) {
+  const c = cacheNotion[clave];
+  if (!recargar && c && Date.now() - c.en < 60000) return c.datos;
+  const datos = await leer();
+  cacheNotion[clave] = { en: Date.now(), datos };
+  return datos;
+}
+
+app.get('/api/operaciones', requiereSesion, async (req, res) => {
+  try {
+    const centros = await leerConCache('operaciones', async () => (await leerFuente(NOTION.operaciones)).map(p => {
+      const v = n => valorNotion(p.properties[n]);
+      return { id: p.id, url: p.url, nombre: v('Nombre') || '', empresa: v('Empresa') || '', estado: v('Estado') || '', zonas: v('Etiqueta') || [],
+        ultimaVisita: v('Última visita')?.desde || '', proxima: v('Próxima mantención')?.desde || '', rango: v('Rango actual'),
+        observaciones: v('Observaciones') || '', editado: p.last_edited_time };
+    }).filter(c => c.nombre), req.query.recargar === '1');
+    res.json({ ok: true, centros });
+  } catch (err) { errorNotion(res, err, 'Operaciones'); }
+});
+
+// Contenido de la tarjeta (bitácora técnica): párrafos, títulos, listas y fotos, un nivel de sub-listas
+function bloqueSimple(b) {
+  const d = b[b.type] || {};
+  const texto = (d.rich_text || []).map(t => ({ t: t.plain_text, b: !!t.annotations?.bold, i: !!t.annotations?.italic,
+    u: !!t.annotations?.underline, link: t.href && /^https?:/.test(t.href) ? t.href : '' }));
+  const base = { tipo: b.type, texto, hijos: b.has_children };
+  if (b.type === 'to_do') base.hecho = !!d.checked;
+  if (b.type === 'image') base.imagen = d.type === 'external' ? d.external?.url : d.file?.url;
+  if (b.type === 'image') base.texto = (d.caption || []).map(t => ({ t: t.plain_text }));
+  return base;
+}
+async function leerBloques(id) {
+  const r = await notion('/v1/blocks/' + id + '/children?page_size=100');
+  return r.results.map(bloqueSimple);
+}
+app.get('/api/operaciones/:id/bitacora', requiereSesion, async (req, res) => {
+  if (!UUID.test(req.params.id)) return res.status(400).json({ ok: false, error: 'Centro no válido' });
+  try {
+    const r = await notion('/v1/blocks/' + req.params.id + '/children?page_size=100');
+    const bloques = [];
+    for (const b of r.results) {
+      const s = bloqueSimple(b);
+      // Sub-listas (por ejemplo "Automático: N° 9" dentro de "Alimentación eléctrica")
+      if (b.has_children && /list_item|to_do|toggle/.test(b.type)) s.hijos = await leerBloques(b.id);
+      else s.hijos = [];
+      bloques.push(s);
+    }
+    res.json({ ok: true, bloques });
+  } catch (err) { errorNotion(res, err, 'la bitácora'); }
+});
+
+app.get('/api/checklists', requiereSesion, async (req, res) => {
+  if (!esAdmin(req.usuario)) return res.status(403).json({ ok: false, error: 'Solo un administrador puede ver los checklists' });
+  try {
+    const leerTipo = async tipo => (await leerFuente(NOTION[tipo])).map(p => {
+      const conf = PASOS[tipo];
+      const casillas = Object.entries(p.properties).filter(([, x]) => x.type === 'checkbox').map(([n]) => n);
+      const orden = conf.pasos.filter(n => casillas.includes(n)).concat(casillas.filter(n => !conf.pasos.includes(n)));
+      const selects = Object.entries(p.properties).filter(([, x]) => x.type === 'select').map(([n, x]) => ({ nombre: n, valor: x.select?.name || '' }));
+      return { id: p.id, url: p.url, tipo, centro: valorNotion(p.properties[conf.titulo]) || '(sin nombre)', estado: valorNotion(p.properties[conf.estado]) || 'Sin empezar',
+        fecha: valorNotion(p.properties.Fecha)?.desde || '', pasos: orden.map(n => ({ nombre: n, hecho: p.properties[n].checkbox })), selects,
+        creado: p.created_time, editado: p.last_edited_time };
+    });
+    const datos = await leerConCache('checklists', async () => ({ instalacion: await leerTipo('instalacion'), desinstalacion: await leerTipo('desinstalacion') }), req.query.recargar === '1');
+    res.json({ ok: true, ...datos });
+  } catch (err) { errorNotion(res, err, 'los checklists'); }
+});
+
+// Marcar un paso, el estado general o una selección (por ejemplo "GTR O QUICKSIGHT") de un checklist
+app.post('/api/checklists/:id', requiereSesion, async (req, res) => {
+  if (!esAdmin(req.usuario)) return res.status(403).json({ ok: false, error: 'Solo un administrador puede marcar los checklists' });
+  const b = req.body || {};
+  const tipo = PASOS[b.tipo] ? b.tipo : null;
+  const nombre = texto(b.propiedad ?? '', 120);
+  if (!UUID.test(req.params.id) || !tipo || !nombre) return res.status(400).json({ ok: false, error: 'Faltan datos' });
+  let propiedad;
+  if (b.clase === 'paso' && typeof b.valor === 'boolean') propiedad = { checkbox: b.valor };
+  else if (b.clase === 'estado' && nombre === PASOS[tipo].estado && ['Sin empezar', 'En progreso', 'Listo'].includes(b.valor)) propiedad = { status: { name: b.valor } };
+  else if (b.clase === 'select' && texto(b.valor ?? '', 100) !== null) propiedad = { select: b.valor ? { name: b.valor } : null };
+  else return res.status(400).json({ ok: false, error: 'Faltan datos' });
+  try {
+    // Se confirma que la tarjeta es de ese checklist antes de cambiarla
+    const pagina = await notion('/v1/pages/' + req.params.id);
+    if (String(pagina.parent?.data_source_id || '').replace(/-/g, '') !== NOTION[tipo].replace(/-/g, '')) return res.status(400).json({ ok: false, error: 'La tarjeta no es de este checklist' });
+    if (!pagina.properties[nombre]) return res.status(400).json({ ok: false, error: 'Ese paso ya no existe en Notion. Recarga.' });
+    await notion('/v1/pages/' + req.params.id, { method: 'PATCH', body: JSON.stringify({ properties: { [nombre]: propiedad } }) });
+    delete cacheNotion.checklists;
+    console.log('Checklist', tipo, req.params.id, nombre, JSON.stringify(b.valor), 'por', req.usuario);
+    res.json({ ok: true });
+  } catch (err) { errorNotion(res, err, 'el checklist'); }
+});
+
 // ---------- Wellboats ----------
 // Posición de los buques (pestaña wellboat de SAMS). Todos la ven; nadie la edita desde aquí.
 app.get('/api/wellboats', requiereSesion, async (req, res) => {

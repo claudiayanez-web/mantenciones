@@ -903,6 +903,64 @@
     .platFila { flex-wrap: wrap; }
     .platFila .meta, .platFila .nota { margin-left: 28px; }
   }
+  /* ---------- Operaciones (tarjetas de Notion) ---------- */
+  .vistaOp .progBarra[hidden], .vistaCheck .progBarra[hidden] { display: none; }
+  .opContenido { flex: 1; min-height: 0; overflow: auto; padding: 0 20px 24px; }
+  .opTablero { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 12px; align-items: start; }
+  .opColumna { background: var(--gris-fondo); border-radius: 12px; padding: 10px; display: grid; gap: 8px; }
+  .opColumna h3 { display: flex; justify-content: space-between; align-items: center; margin: 0 2px 2px; font-size: 13px; }
+  .opColumna h3 .cuenta { color: var(--suave); font-weight: 400; }
+  .opZona h3 { margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: var(--suave); display: flex; gap: 8px; }
+  .opZona:first-child h3 { margin-top: 0; }
+  .opZona h3 span { font-weight: 400; }
+  .opRejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .opTarjeta { background: white; border: 1px solid var(--borde); border-radius: 10px; padding: 10px 12px; display: grid; gap: 5px;
+    text-align: left; font: inherit; color: inherit; cursor: pointer; width: 100%; }
+  .opTarjeta:hover { border-color: var(--azul); }
+  .opTarjeta .nombre { display: flex; justify-content: space-between; align-items: start; gap: 8px; font-size: 14px; font-weight: 600; }
+  .opTarjeta .empresa { font-size: 12px; color: var(--suave); }
+  .opTarjeta .pie { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--suave); }
+  .opTarjeta .obs { font-size: 12px; color: var(--texto); background: var(--aviso-fondo); border-radius: 6px; padding: 3px 7px;
+    overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .opZonaChip { font-size: 11px; border: 1px solid var(--borde); border-radius: 999px; padding: 0 7px; color: var(--suave); white-space: nowrap; }
+  .opEstado { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 1px 8px; white-space: nowrap; background: var(--gris-fondo); color: var(--suave); }
+  .opEstado.activo { background: var(--ok-fondo); color: var(--ok); }
+  .opEstado.seguimiento { background: var(--aviso-fondo); color: #7a5a00; }
+  .opEstado.mantencion { background: var(--error-fondo); color: var(--error); }
+  .opEstado.instalar { background: var(--azul-claro); color: var(--azul); }
+  .opProxima.pronto { color: #7a5a00; font-weight: 600; }
+  .opProxima.vencida { color: var(--error); font-weight: 600; }
+  .dialogoTicket.ancho { width: min(680px, calc(100vw - 24px)); }
+  .opDetalle .datos { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--suave); }
+  .opDetalle .datos b { color: var(--texto); font-weight: 600; }
+  .opDetalle .obs { font-size: 13px; background: var(--aviso-fondo); border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; }
+  .opBitacora { font-size: 14px; line-height: 1.55; display: grid; gap: 4px; max-height: 50vh; overflow-y: auto; border-top: 1px solid var(--borde); padding-top: 10px; }
+  .opBitacora h4 { margin: 8px 0 2px; font-size: 14px; color: var(--azul); }
+  .opBitacora ul { margin: 0; padding-left: 20px; }
+  .opBitacora p { margin: 0; }
+  .opBitacora img { max-width: 100%; max-height: 260px; border-radius: 8px; display: block; }
+  .opBitacora a { color: var(--azul); }
+  .opAbrirNotion { color: var(--azul); font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+  /* ---------- Checklists de instalación y desinstalación ---------- */
+  .checkTarjeta { background: white; border: 1px solid var(--borde); border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; }
+  .checkTarjeta .cabeza { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .checkTarjeta .cabeza .nombre { font-size: 16px; font-weight: 600; color: var(--azul); }
+  .checkTarjeta .cabeza .avance { font-size: 13px; color: var(--suave); font-variant-numeric: tabular-nums; }
+  .checkTarjeta .cabeza select { font: inherit; font-size: 13px; padding: 3px 6px; border: 1px solid var(--borde); border-radius: 6px; background: white; }
+  .checkTarjeta .barraAvance { height: 6px; border-radius: 999px; background: var(--gris-fondo); overflow: hidden; }
+  .checkTarjeta .barraAvance i { display: block; height: 100%; background: var(--ok); border-radius: 999px; transition: width .2s; }
+  .checkTarjeta .pasos { columns: 2 260px; column-gap: 24px; }
+  .checkTarjeta .paso { display: flex; gap: 8px; align-items: start; font-size: 13px; padding: 3px 0; break-inside: avoid; cursor: pointer; }
+  .checkTarjeta .paso input { width: 16px; height: 16px; margin: 1px 0 0; accent-color: var(--ok); flex: none; cursor: pointer; }
+  .checkTarjeta .paso.hecho span { text-decoration: line-through; color: var(--suave); }
+  .checkTarjeta .extra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--suave); }
+  .checkTarjeta.guardando { opacity: .7; }
+  .checkTarjeta.plegada .pasos, .checkTarjeta.plegada .extra { display: none; }
+  .checkTarjeta .plegar { background: none; border: none; color: var(--azul); cursor: pointer; font: inherit; font-size: 13px; padding: 0; }
+  @media (max-width: 700px) {
+    .opContenido { padding: 0 8px 80px; }
+    .opTablero { grid-auto-flow: row; grid-auto-columns: auto; }
+  }
   /* ---------- Muestras de los equipos ---------- */
   .verInactivos { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--suave); cursor: pointer; }
   .muestrasResumen { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--suave); }
@@ -1158,6 +1216,10 @@
           <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M16 4.5a3 3 0 0 1 0 6M21 20a6 6 0 0 0-4-5.6"/></svg>
           <span>Programa biólogos</span>
         </button>
+        <button type="button" id="btnOperaciones" aria-selected="false">
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="10" rx="1.5"/><rect x="17" y="4" width="4" height="13" rx="1.5"/></svg>
+          <span>Operaciones</span>
+        </button>
         <button type="button" id="btnCompensaciones" aria-selected="false" hidden>
           <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M9 16l2 2 4-4"/></svg>
           <span>Compensaciones</span>
@@ -1165,6 +1227,10 @@
         <button type="button" id="btnPlataforma" aria-selected="false" hidden>
           <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M9 3h6v3H9zM8 12l2 2 4-4M8 17h8"/></svg>
           <span>Acceso plataforma</span>
+        </button>
+        <button type="button" id="btnChecklists" aria-selected="false" hidden>
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l2 2 3-3M4 13l2 2 3-3M4 20l2 2 3-3M12 7h8M12 14h8M12 21h8"/></svg>
+          <span>Checklists</span>
         </button>
       </nav>
       <div class="tituloMenu" id="tituloMenu">Planillas</div>
@@ -1390,6 +1456,34 @@
     </div>
     <div class="progContenido" id="platContenido"></div>
   </div>
+
+  <div class="vista vistaOp" id="vistaOp" hidden>
+    <div class="progBarra">
+      <div class="chips" id="modoOp" role="group" aria-label="Forma de ver"></div>
+      <label class="buscador">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="buscarOp" placeholder="Buscar centro, empresa o zona" aria-label="Buscar centro, empresa o zona">
+      </label>
+      <label class="verInactivos"><input type="checkbox" id="terminadosOp"> Ver terminados</label>
+      <span class="espacio"></span>
+      <button class="botonIcono" id="btnRecargarOp" type="button" title="Recargar" aria-label="Recargar operaciones">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
+      </button>
+    </div>
+    <div class="opContenido" id="opContenido"></div>
+  </div>
+
+  <div class="vista vistaCheck" id="vistaCheck" hidden>
+    <div class="progBarra">
+      <div class="chips" id="tipoCheck" role="group" aria-label="Tipo de checklist"></div>
+      <label class="verInactivos"><input type="checkbox" id="listosCheck"> Ver terminados</label>
+      <span class="espacio"></span>
+      <button class="botonIcono" id="btnRecargarCheck" type="button" title="Recargar" aria-label="Recargar checklists">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
+      </button>
+    </div>
+    <div class="progContenido" id="checkContenido"></div>
+  </div>
   </main>
 </div>
 
@@ -1578,6 +1672,7 @@ async function iniciar() {
   if (!estado.admin && estado.tecnico) cargarCompensaciones();
   document.getElementById('btnZonasComp').hidden = !estado.admin;
   document.getElementById('btnPlataforma').hidden = !estado.admin;
+  document.getElementById('btnChecklists').hidden = !estado.admin;
   document.getElementById('btnAgregarCentroProg').hidden = !estado.admin;
   // Al recargar se vuelve a la vista en que se estaba (se guarda solo en esta pestaña del navegador);
   // al abrir la página de nuevo, lo primero que se ve es Solicitudes
@@ -1592,6 +1687,8 @@ async function iniciar() {
   else if (anterior.vista === 'programa') abrirPrograma();
   else if (anterior.vista === 'muestras') abrirMuestras();
   else if (anterior.vista === 'plataforma' && estado.admin) abrirPlataforma();
+  else if (anterior.vista === 'operaciones') abrirOperaciones();
+  else if (anterior.vista === 'checklists' && estado.admin) abrirChecklists();
   else abrirSolicitudes();
   if (anterior.vista && anterior.vista !== 'solicitudes') cargarSolicitudes({ silencioso: true });  // para la cantidad del menú
   precargarHojas();
@@ -1693,6 +1790,10 @@ function mostrarVista(vista) {
   document.getElementById('vistaProg').hidden = vista !== 'programa';
   document.getElementById('vistaMuestras').hidden = vista !== 'muestras';
   document.getElementById('vistaPlat').hidden = vista !== 'plataforma';
+  document.getElementById('vistaOp').hidden = vista !== 'operaciones';
+  document.getElementById('vistaCheck').hidden = vista !== 'checklists';
+  document.getElementById('btnOperaciones').setAttribute('aria-selected', vista === 'operaciones' ? 'true' : 'false');
+  document.getElementById('btnChecklists').setAttribute('aria-selected', vista === 'checklists' ? 'true' : 'false');
   document.getElementById('btnPlataforma').setAttribute('aria-selected', vista === 'plataforma' ? 'true' : 'false');
   document.getElementById('btnMuestras').setAttribute('aria-selected', vista === 'muestras' ? 'true' : 'false');
   document.getElementById('btnPrograma').setAttribute('aria-selected', vista === 'programa' ? 'true' : 'false');
@@ -4004,6 +4105,350 @@ async function guardarPlat(c, cambios, fila) {
   dibujarPlataforma();
 }
 
+// ---------- Operaciones (tarjetas de Notion) ----------
+// Se leen de Notion a través del servidor; Notion sigue siendo el original. Todos las ven.
+
+let operaciones = null;
+const CLAVE_MODO_OP = 'mantenciones.operaciones.modo';
+let modoOp = 'estado';
+try { modoOp = localStorage.getItem(CLAVE_MODO_OP) === 'zona' ? 'zona' : 'estado'; } catch {}
+const ORDEN_ESTADOS_OP = ['En mantención', 'En seguimiento', 'Por instalar', 'Instalar', 'Activo/Funcionando', 'Terminados'];
+const claseEstadoOp = e => { const n = normalizar(e); return /activo/.test(n) ? 'activo' : /seguim/.test(n) ? 'seguimiento' : /mantenc/.test(n) ? 'mantencion' : /instalar/.test(n) ? 'instalar' : ''; };
+function diasHasta(iso) {
+  if (!iso) return null;
+  const [a, m, d] = iso.slice(0, 10).split('-').map(Number);
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  return Math.round((new Date(a, m - 1, d) - hoy) / 86400000);
+}
+function textoProxima(iso) {
+  const d = diasHasta(iso);
+  if (d === null) return { texto: 'Sin próxima mantención', clase: '' };
+  if (d < 0) return { texto: 'Mantención vencida hace ' + -d + (d === -1 ? ' día' : ' días'), clase: 'vencida' };
+  if (d === 0) return { texto: 'Mantención hoy', clase: 'pronto' };
+  if (d <= 14) return { texto: 'Mantención en ' + d + (d === 1 ? ' día' : ' días') + ' (' + fechaCorta(iso).slice(0, 5) + ')', clase: 'pronto' };
+  return { texto: 'Próxima ' + fechaCorta(iso), clase: '' };
+}
+
+async function abrirOperaciones() {
+  abrirMenu(false);
+  if (!cerrarPanel()) return;
+  mostrarVista('operaciones');
+  document.getElementById('tituloHoja').textContent = 'Operaciones';
+  document.getElementById('actualizado').textContent = '';
+  if (operaciones) dibujarOperaciones();
+  await cargarOperaciones({ silencioso: !!operaciones });
+}
+
+async function cargarOperaciones(opciones) {
+  const boton = document.getElementById('btnRecargarOp');
+  if (!operaciones) document.getElementById('opContenido').innerHTML = '<div class="mensajeCentro">Cargando desde Notion…</div>';
+  boton.classList.add('cargando');
+  const r = await api('/api/operaciones' + (opciones?.recargar ? '?recargar=1' : ''));
+  boton.classList.remove('cargando');
+  if (!r.ok) {
+    if (estado.vista !== 'operaciones') return;
+    if (!operaciones) document.getElementById('opContenido').innerHTML = '<div class="mensajeCentro">' + escaparHtml(r.error) + '</div>';
+    else avisar(r.error, true);
+    return;
+  }
+  operaciones = r.centros;
+  if (estado.vista === 'operaciones') dibujarOperaciones();
+}
+
+function tarjetaOp(c, conEstado) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'opTarjeta';
+  const prox = textoProxima(c.proxima);
+  b.innerHTML = '<span class="nombre"><span class="n"></span></span><span class="empresa"></span><span class="pie"></span>';
+  b.querySelector('.n').textContent = c.nombre;
+  if (conEstado && c.estado) {
+    const e = document.createElement('span');
+    e.className = 'opEstado ' + claseEstadoOp(c.estado);
+    e.textContent = c.estado.replace('/Funcionando', '');
+    b.querySelector('.nombre').appendChild(e);
+  }
+  b.querySelector('.empresa').textContent = c.empresa || 'Sin empresa';
+  const pie = b.querySelector('.pie');
+  c.zonas.forEach(z => { const s = document.createElement('span'); s.className = 'opZonaChip'; s.textContent = z; pie.appendChild(s); });
+  if (!/terminad/i.test(c.estado)) {
+    const p = document.createElement('span');
+    p.className = 'opProxima ' + prox.clase;
+    p.textContent = prox.texto;
+    pie.appendChild(p);
+  }
+  if (c.observaciones) {
+    const o = document.createElement('span');
+    o.className = 'obs';
+    o.textContent = c.observaciones;
+    b.appendChild(o);
+  }
+  b.addEventListener('click', () => abrirDetalleOp(c));
+  return b;
+}
+
+function dibujarOperaciones() {
+  if (!operaciones) return;
+  const caja = document.getElementById('modoOp');
+  caja.innerHTML = '';
+  [['estado', 'Tablero por estado'], ['zona', 'Tarjetas por zona']].forEach(([id, nombre]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = nombre;
+    b.setAttribute('aria-pressed', modoOp === id ? 'true' : 'false');
+    b.addEventListener('click', () => { modoOp = id; try { localStorage.setItem(CLAVE_MODO_OP, id); } catch {} dibujarOperaciones(); });
+    caja.appendChild(b);
+  });
+  const terminados = document.getElementById('terminadosOp').checked;
+  const q = normalizar(document.getElementById('buscarOp').value);
+  const visibles = operaciones.filter(c => (terminados || !/terminad/i.test(c.estado)) &&
+    (!q || normalizar([c.nombre, c.empresa, c.estado, ...c.zonas].join(' ')).includes(q)));
+  const activos = operaciones.filter(c => /activo/i.test(c.estado)).length;
+  const pronto = operaciones.filter(c => !/terminad/i.test(c.estado) && diasHasta(c.proxima) !== null && diasHasta(c.proxima) <= 14).length;
+  document.getElementById('conteo').textContent = activos + ' activos' + (pronto ? ' · ' + pronto + ' con mantención en 2 semanas o vencida' : '');
+  const cont = document.getElementById('opContenido');
+  cont.innerHTML = '';
+  if (!visibles.length) { cont.innerHTML = '<div class="mensajeCentro">No hay centros que coincidan.</div>'; return; }
+  const porProxima = (a, b) => (a.proxima || '9999').localeCompare(b.proxima || '9999') || a.nombre.localeCompare(b.nombre, 'es', { numeric: true });
+  if (modoOp === 'estado') {
+    const estados = [...new Set(visibles.map(c => c.estado || 'Sin estado'))]
+      .sort((a, b) => ((ORDEN_ESTADOS_OP.indexOf(a) + 1) || 99) - ((ORDEN_ESTADOS_OP.indexOf(b) + 1) || 99));
+    const tablero = document.createElement('div');
+    tablero.className = 'opTablero';
+    estados.forEach(e => {
+      const col = document.createElement('section');
+      col.className = 'opColumna';
+      const lista = visibles.filter(c => (c.estado || 'Sin estado') === e).sort(porProxima);
+      col.innerHTML = '<h3><span class="opEstado ' + claseEstadoOp(e) + '"></span><span class="cuenta"></span></h3>';
+      col.querySelector('.opEstado').textContent = e;
+      col.querySelector('.cuenta').textContent = lista.length;
+      lista.forEach(c => col.appendChild(tarjetaOp(c, false)));
+      tablero.appendChild(col);
+    });
+    cont.appendChild(tablero);
+  } else {
+    const zonaDe = c => c.zonas[0] || 'Sin zona';
+    const zonas = [...new Set(visibles.map(zonaDe))].sort((a, b) => (a === 'Internacional') - (b === 'Internacional') || (a === 'Sin zona') - (b === 'Sin zona') || a.localeCompare(b, 'es'));
+    zonas.forEach(z => {
+      const sec = document.createElement('section');
+      sec.className = 'opZona';
+      const lista = visibles.filter(c => zonaDe(c) === z).sort(porProxima);
+      sec.innerHTML = '<h3><span class="z"></span><span></span></h3><div class="opRejilla"></div>';
+      sec.querySelector('.z').textContent = z;
+      sec.querySelector('h3').lastChild.textContent = lista.length + (lista.length === 1 ? ' centro' : ' centros');
+      lista.forEach(c => sec.querySelector('.opRejilla').appendChild(tarjetaOp(c, true)));
+      cont.appendChild(sec);
+    });
+  }
+}
+
+// Ficha de un centro: datos de la tarjeta y su bitácora técnica (el contenido de la página en Notion)
+async function abrirDetalleOp(c) {
+  const dialogo = document.getElementById('dialogoTicket');
+  dialogo.classList.add('ancho');
+  dialogo.innerHTML = '<form method="dialog" class="opDetalle" novalidate>' +
+    '<div class="cabeceraDialogo"><div><h2 id="dialogoTitulo"></h2><div class="sub"></div></div>' +
+    '<div style="display:flex;gap:10px;align-items:center"><a class="opAbrirNotion" target="_blank" rel="noopener">Abrir en Notion ↗</a>' +
+    '<button type="button" class="cerrarDialogo" aria-label="Cerrar">&times;</button></div></div>' +
+    '<div class="datos"></div><div class="opBitacora"><div class="mensajeCentro" style="padding:16px">Cargando bitácora…</div></div></form>';
+  dialogo.querySelector('h2').textContent = c.nombre;
+  dialogo.querySelector('.sub').textContent = [c.empresa, c.zonas.join(', ')].filter(Boolean).join(' · ');
+  dialogo.querySelector('.opAbrirNotion').href = c.url;
+  const datos = dialogo.querySelector('.datos');
+  const dato = (titulo, valor, clase) => {
+    if (!valor) return;
+    const s = document.createElement('span');
+    s.innerHTML = '<span></span> <b></b>';
+    s.firstChild.textContent = titulo;
+    s.lastChild.textContent = valor;
+    if (clase) s.lastChild.className = 'opProxima ' + clase;
+    datos.appendChild(s);
+  };
+  const est = document.createElement('span');
+  est.className = 'opEstado ' + claseEstadoOp(c.estado);
+  est.textContent = c.estado || 'Sin estado';
+  datos.appendChild(est);
+  dato('Última visita', fechaCorta(c.ultimaVisita));
+  const prox = textoProxima(c.proxima);
+  if (c.proxima && !/terminad/i.test(c.estado)) dato('Próxima mantención', fechaCorta(c.proxima) + (prox.clase ? ' · ' + prox.texto.replace(/ \(.*\)$/, '') : ''), prox.clase);
+  if (c.rango?.desde) dato('Rango', fechaCorta(c.rango.desde) + (c.rango.hasta ? ' al ' + fechaCorta(c.rango.hasta) : ''));
+  if (c.observaciones) {
+    const o = document.createElement('div');
+    o.className = 'obs';
+    o.textContent = c.observaciones;
+    datos.after(o);
+  }
+  dialogo.querySelector('.cerrarDialogo').addEventListener('click', () => dialogo.close());
+  dialogo.addEventListener('close', () => dialogo.classList.remove('ancho'), { once: true });
+  dialogo.showModal();
+  const r = await api('/api/operaciones/' + c.id + '/bitacora');
+  const caja = dialogo.querySelector('.opBitacora');
+  if (!caja || !dialogo.open) return;
+  if (!r.ok) { caja.innerHTML = '<div class="mensajeCentro" style="padding:16px">' + escaparHtml(r.error) + '</div>'; return; }
+  caja.innerHTML = '';
+  if (!r.bloques.some(b => b.texto.length || b.imagen)) { caja.innerHTML = '<div class="mensajeCentro" style="padding:16px">La tarjeta no tiene bitácora todavía.</div>'; return; }
+  dibujarBloquesNotion(r.bloques, caja);
+}
+
+// Arma la bitácora con elementos y textContent: nada del texto de Notion se interpreta como HTML
+function textoNotion(partes, destino) {
+  partes.forEach(p => {
+    let nodo = document.createTextNode(p.t);
+    if (p.link) { const a = document.createElement('a'); a.href = p.link; a.target = '_blank'; a.rel = 'noopener'; a.appendChild(nodo); nodo = a; }
+    ['b', 'i', 'u'].forEach(etq => { if (p[etq]) { const e = document.createElement(etq); e.appendChild(nodo); nodo = e; } });
+    destino.appendChild(nodo);
+  });
+}
+function dibujarBloquesNotion(bloques, destino) {
+  let lista = null;
+  bloques.forEach(b => {
+    if (/list_item|to_do/.test(b.tipo)) {
+      if (!lista) { lista = document.createElement('ul'); destino.appendChild(lista); }
+      const li = document.createElement('li');
+      if (b.tipo === 'to_do') li.appendChild(document.createTextNode(b.hecho ? '☑ ' : '☐ '));
+      textoNotion(b.texto, li);
+      if (b.hijos?.length) dibujarBloquesNotion(b.hijos, li);
+      lista.appendChild(li);
+      return;
+    }
+    lista = null;
+    if (b.tipo === 'image' && b.imagen && /^https:/.test(b.imagen)) {
+      const a = document.createElement('a'); a.href = b.imagen; a.target = '_blank'; a.rel = 'noopener';
+      const img = document.createElement('img'); img.src = b.imagen; img.alt = b.texto.map(t => t.t).join('') || 'Foto'; img.loading = 'lazy';
+      a.appendChild(img); destino.appendChild(a);
+      return;
+    }
+    if (!b.texto.length) return;
+    const e = document.createElement(/heading/.test(b.tipo) ? 'h4' : 'p');
+    textoNotion(b.texto, e);
+    destino.appendChild(e);
+  });
+}
+
+// ---------- Checklists de instalación y desinstalación (Notion, solo administradores) ----------
+
+let checklists = null;
+const CLAVE_TIPO_CHECK = 'mantenciones.checklists.tipo';
+let tipoCheck = 'instalacion';
+try { tipoCheck = localStorage.getItem(CLAVE_TIPO_CHECK) === 'desinstalacion' ? 'desinstalacion' : 'instalacion'; } catch {}
+const ESTADO_CHECK = { instalacion: '¿Instalado?', desinstalacion: '¿Desinstalado?' };
+const plegadosCheck = new Set();
+
+async function abrirChecklists() {
+  abrirMenu(false);
+  if (!cerrarPanel()) return;
+  mostrarVista('checklists');
+  document.getElementById('tituloHoja').textContent = 'Checklists';
+  document.getElementById('actualizado').textContent = '';
+  if (checklists) dibujarChecklists();
+  await cargarChecklists();
+}
+
+async function cargarChecklists(opciones) {
+  const boton = document.getElementById('btnRecargarCheck');
+  if (!checklists) document.getElementById('checkContenido').innerHTML = '<div class="mensajeCentro">Cargando desde Notion…</div>';
+  boton.classList.add('cargando');
+  const r = await api('/api/checklists' + (opciones?.recargar ? '?recargar=1' : ''));
+  boton.classList.remove('cargando');
+  if (!r.ok) {
+    if (estado.vista !== 'checklists') return;
+    if (!checklists) document.getElementById('checkContenido').innerHTML = '<div class="mensajeCentro">' + escaparHtml(r.error) + '</div>';
+    else avisar(r.error, true);
+    return;
+  }
+  checklists = { instalacion: r.instalacion, desinstalacion: r.desinstalacion };
+  if (estado.vista === 'checklists') dibujarChecklists();
+}
+
+function dibujarChecklists() {
+  if (!checklists) return;
+  const verListos = document.getElementById('listosCheck').checked;
+  const enCurso = t => checklists[t].filter(c => c.estado !== 'Listo');
+  const caja = document.getElementById('tipoCheck');
+  caja.innerHTML = '';
+  [['instalacion', 'Instalación'], ['desinstalacion', 'Desinstalación']].forEach(([id, nombre]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = '<span></span><span class="cuenta"></span>';
+    b.firstChild.textContent = nombre;
+    b.lastChild.textContent = enCurso(id).length;
+    b.title = enCurso(id).length + ' en curso';
+    b.setAttribute('aria-pressed', tipoCheck === id ? 'true' : 'false');
+    b.addEventListener('click', () => { tipoCheck = id; try { localStorage.setItem(CLAVE_TIPO_CHECK, id); } catch {} dibujarChecklists(); });
+    caja.appendChild(b);
+  });
+  const lista = checklists[tipoCheck].filter(c => verListos || c.estado !== 'Listo')
+    .sort((a, b) => (a.estado === 'Listo') - (b.estado === 'Listo') || b.creado.localeCompare(a.creado));
+  const listos = checklists[tipoCheck].length - enCurso(tipoCheck).length;
+  document.getElementById('conteo').textContent = enCurso(tipoCheck).length + ' en curso · ' + listos + ' terminados';
+  const cont = document.getElementById('checkContenido');
+  cont.innerHTML = '';
+  if (!lista.length) { cont.innerHTML = '<div class="mensajeCentro">No hay checklists en curso. Los nuevos se crean en Notion y aparecen aquí.</div>'; return; }
+  lista.forEach(c => cont.appendChild(tarjetaCheck(c)));
+}
+
+function tarjetaCheck(c) {
+  const t = document.createElement('article');
+  const hechos = c.pasos.filter(p => p.hecho).length;
+  const plegada = c.estado === 'Listo' ? !plegadosCheck.has('abierta:' + c.id) : plegadosCheck.has(c.id);
+  t.className = 'checkTarjeta' + (plegada ? ' plegada' : '');
+  t.innerHTML = '<div class="cabeza"><span class="nombre"></span><span class="avance"></span><select aria-label="Estado"></select>' +
+    '<span class="espacio" style="flex:1"></span><button type="button" class="plegar"></button><a class="opAbrirNotion" target="_blank" rel="noopener">Notion ↗</a></div>' +
+    '<div class="barraAvance"><i></i></div><div class="pasos"></div><div class="extra"></div>';
+  t.querySelector('.nombre').textContent = c.centro;
+  t.querySelector('.avance').textContent = hechos + ' de ' + c.pasos.length + ' pasos' + (c.fecha ? ' · ' + fechaCorta(c.fecha) : '');
+  t.querySelector('.barraAvance i').style.width = (c.pasos.length ? Math.round(hechos / c.pasos.length * 100) : 0) + '%';
+  t.querySelector('a').href = c.url;
+  const sel = t.querySelector('select');
+  ['Sin empezar', 'En progreso', 'Listo'].forEach(o => sel.add(new Option(o, o, false, c.estado === o)));
+  sel.addEventListener('change', () => guardarCheck(c, 'estado', ESTADO_CHECK[c.tipo], sel.value, t));
+  const plegar = t.querySelector('.plegar');
+  plegar.textContent = plegada ? 'Ver pasos' : 'Ocultar pasos';
+  plegar.addEventListener('click', () => {
+    if (c.estado === 'Listo') plegadosCheck[plegada ? 'add' : 'delete']('abierta:' + c.id);
+    else plegadosCheck[plegada ? 'delete' : 'add'](c.id);
+    dibujarChecklists();
+  });
+  const pasos = t.querySelector('.pasos');
+  c.pasos.forEach(p => {
+    const l = document.createElement('label');
+    l.className = 'paso' + (p.hecho ? ' hecho' : '');
+    l.innerHTML = '<input type="checkbox"><span></span>';
+    l.querySelector('input').checked = p.hecho;
+    l.querySelector('span').textContent = p.nombre.replace(/\s+/g, ' ');
+    l.querySelector('input').addEventListener('change', e => guardarCheck(c, 'paso', p.nombre, e.target.checked, t));
+    pasos.appendChild(l);
+  });
+  const extra = t.querySelector('.extra');
+  c.selects.forEach(s => {
+    const etiqueta = document.createElement('label');
+    etiqueta.style.cssText = 'display:inline-flex;gap:6px;align-items:center';
+    etiqueta.textContent = s.nombre;
+    const sl = document.createElement('select');
+    const opciones = ['', 'QUICKSIGHT', 'GTR', 'NADA'].concat(s.valor && !['QUICKSIGHT', 'GTR', 'NADA'].includes(s.valor) ? [s.valor] : []);
+    opciones.forEach(o => sl.add(new Option(o || '—', o, false, s.valor === o)));
+    sl.style.cssText = 'font:inherit;font-size:13px;padding:3px 6px;border:1px solid var(--borde);border-radius:6px;background:white';
+    sl.addEventListener('change', () => guardarCheck(c, 'select', s.nombre, sl.value, t));
+    etiqueta.appendChild(sl);
+    extra.appendChild(etiqueta);
+  });
+  return t;
+}
+
+async function guardarCheck(c, clase, propiedad, valor, tarjeta) {
+  tarjeta.classList.add('guardando');
+  const r = await api('/api/checklists/' + c.id, { method: 'POST', body: JSON.stringify({ tipo: c.tipo, clase, propiedad, valor }) });
+  tarjeta.classList.remove('guardando');
+  if (!r.ok) { avisar(r.error || 'No se pudo guardar en Notion', true); dibujarChecklists(); return; }
+  if (clase === 'paso') c.pasos.find(p => p.nombre === propiedad).hecho = valor;
+  else if (clase === 'estado') c.estado = valor;
+  else c.selects.find(s => s.nombre === propiedad).valor = valor;
+  // Al marcar el último paso se ofrece dejarlo como Listo
+  if (clase === 'paso' && valor && c.estado !== 'Listo' && c.pasos.every(p => p.hecho)) avisar('Todos los pasos listos: cambia el estado a "Listo" para cerrarlo');
+  else if (clase === 'estado') avisar(c.centro + ': ' + valor);
+  dibujarChecklists();
+}
+
 // ---------- Detalle de un equipo: fecha y hora de cada muestra ----------
 
 const isoDe = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -5965,11 +6410,18 @@ document.getElementById('btnSolicitudes').addEventListener('click', abrirSolicit
 document.getElementById('btnCompensaciones').addEventListener('click', abrirCompensaciones);
 document.getElementById('btnPrograma').addEventListener('click', abrirPrograma);
 document.getElementById('btnMuestras').addEventListener('click', abrirMuestras);
-document.getElementById('btnRecargarMuestras').addEventListener('click', () => cargarMuestras({ silencioso: !!muestras, recargar: true }));
 document.getElementById('btnPlataforma').addEventListener('click', abrirPlataforma);
 document.getElementById('btnRecargarPlat').addEventListener('click', () => cargarPlataforma());
+document.getElementById('btnOperaciones').addEventListener('click', abrirOperaciones);
+document.getElementById('btnRecargarOp').addEventListener('click', () => cargarOperaciones({ recargar: true }));
+document.getElementById('buscarOp').addEventListener('input', dibujarOperaciones);
+document.getElementById('terminadosOp').addEventListener('change', dibujarOperaciones);
+document.getElementById('btnChecklists').addEventListener('click', abrirChecklists);
+document.getElementById('btnRecargarCheck').addEventListener('click', () => cargarChecklists({ recargar: true }));
+document.getElementById('listosCheck').addEventListener('change', dibujarChecklists);
 document.getElementById('buscarPlat').addEventListener('input', dibujarPlataforma);
 document.getElementById('buscarMuestras').addEventListener('input', () => { if (muestras) dibujarMuestras(); });
+document.getElementById('btnRecargarMuestras').addEventListener('click', () => cargarMuestras({ silencioso: !!muestras, recargar: true }));
 document.getElementById('inactivosMuestras').addEventListener('change', e => {
   try { localStorage.setItem(CLAVE_INACTIVOS_MUESTRAS, e.target.checked ? '1' : '0'); } catch {}
   if (muestras) dibujarMuestras();
