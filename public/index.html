@@ -4363,7 +4363,8 @@ async function abrirDetalleOp(c) {
   caja.innerHTML = '';
   // El recordatorio "En cada mantención…" ya va fijo junto a los comentarios; si la tarjeta lo trae escrito, no se repite
   r.bloques = r.bloques.filter(b => !/^en cada mantencion, instalacion o desinstalacion/.test(normalizar(b.texto.map(t => t.t).join(''))));
-  if (!r.bloques.some(b => b.texto.length || b.imagen)) { caja.innerHTML = '<div class="mensajeCentro" style="padding:16px">La tarjeta no tiene bitácora todavía.</div>'; return; }
+  // Sin bitácora no se muestra nada: los comentarios suben y no queda espacio vacío
+  if (!r.bloques.some(b => b.texto.length || b.imagen)) { caja.remove(); return; }
   dibujarBloquesNotion(r.bloques, caja);
 }
 
