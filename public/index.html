@@ -973,6 +973,7 @@
   .opComentarios .fotos .fotoFallida, .opBitacora .fotoFallida { display: flex; align-items: center; justify-content: center; aspect-ratio: 1; padding: 8px;
     border: 1px dashed var(--borde); border-radius: 6px; background: white; color: var(--suave); font-size: 11px; text-align: center; }
   .opComentarios .fotos img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; display: block; background: white; }
+  .opRecordatorio { margin: 0; font-size: 13px; line-height: 1.45; color: var(--azul); background: var(--azul-claro); border-radius: 8px; padding: 8px 10px; }
   .opComentarios .nuevo { display: flex; gap: 8px; align-items: end; }
   .opComentarios .nuevo textarea { flex: 1; min-height: 44px; }
   .opComentarios .nuevo .boton { width: auto; margin: 0; padding: 9px 14px; }
@@ -4158,7 +4159,7 @@ let operaciones = null;
 const CLAVE_MODO_OP = 'mantenciones.operaciones.modo';
 let modoOp = 'estado';
 try { modoOp = localStorage.getItem(CLAVE_MODO_OP) === 'zona' ? 'zona' : 'estado'; } catch {}
-const ORDEN_ESTADOS_OP = ['En mantención', 'En seguimiento', 'Por instalar', 'Instalar', 'Activo/Funcionando', 'Terminados'];
+const ORDEN_ESTADOS_OP = ['Activo/Funcionando', 'En mantención', 'En seguimiento', 'Por instalar', 'Instalar', 'Terminados'];
 const claseEstadoOp = e => { const n = normalizar(e); return /activo/.test(n) ? 'activo' : /seguim/.test(n) ? 'seguimiento' : /mantenc/.test(n) ? 'mantencion' : /instalar/.test(n) ? 'instalar' : ''; };
 function diasHasta(iso) {
   if (!iso) return null;
@@ -4298,6 +4299,8 @@ async function abrirDetalleOp(c) {
     '<button type="button" class="cerrarDialogo" aria-label="Cerrar">&times;</button></div></div>' +
     '<div class="datos"></div><div class="opBitacora"><div class="mensajeCentro" style="padding:16px">Cargando bitácora…</div></div>' +
     '<section class="opComentarios"><h3>Comentarios</h3><div class="lista"><div class="vacio">Cargando…</div></div>' +
+    '<p class="opRecordatorio">En cada <u>mantención, instalación o desinstalación</u>, se debe agregar un detalle de lo realizado, ' +
+    'incluyendo información técnica y fotografías del dispositivo completo.</p>' +
     '<div class="nuevo"><textarea maxlength="1800" placeholder="Escribe un comentario (queda en la tarjeta de Notion con tu nombre)" aria-label="Nuevo comentario"></textarea>' +
     '<button type="button" class="boton">Comentar</button></div></section></form>';
   dialogo.querySelector('h2').textContent = c.nombre;
@@ -4352,6 +4355,8 @@ async function abrirDetalleOp(c) {
   if (!caja || !dialogo.open) return;
   if (!r.ok) { caja.innerHTML = '<div class="mensajeCentro" style="padding:16px">' + escaparHtml(r.error) + '</div>'; return; }
   caja.innerHTML = '';
+  // El recordatorio "En cada mantención…" ya va fijo junto a los comentarios; si la tarjeta lo trae escrito, no se repite
+  r.bloques = r.bloques.filter(b => !/^en cada mantencion, instalacion o desinstalacion/.test(normalizar(b.texto.map(t => t.t).join(''))));
   if (!r.bloques.some(b => b.texto.length || b.imagen)) { caja.innerHTML = '<div class="mensajeCentro" style="padding:16px">La tarjeta no tiene bitácora todavía.</div>'; return; }
   dibujarBloquesNotion(r.bloques, caja);
 }
