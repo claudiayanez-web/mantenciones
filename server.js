@@ -622,7 +622,10 @@ app.get('/api/operaciones/:id/comentarios', requiereSesion, async (req, res) => 
     } while (cursor);
     const comentarios = [];
     for (const c of lista) {
-      comentarios.push({ id: c.id, fecha: c.created_time, autor: await autorComentario(c), esPagina: c.created_by?.type === 'bot',
+      // Fotos adjuntas al comentario (enlaces de Notion que vencen en una hora; se piden de nuevo al abrir la ficha)
+      const fotos = (c.attachments || []).filter(a => a.category === 'image' || /^image\//.test(a.content_type || ''))
+        .map(a => a.file?.url || a.url).filter(u => typeof u === 'string' && /^https:/.test(u));
+      comentarios.push({ id: c.id, fecha: c.created_time, autor: await autorComentario(c), esPagina: c.created_by?.type === 'bot', fotos,
         texto: (c.rich_text || []).map(t => ({ t: t.plain_text, b: !!t.annotations?.bold, i: !!t.annotations?.italic, u: !!t.annotations?.underline,
           link: t.href && /^https?:/.test(t.href) ? t.href : '' })) });
     }

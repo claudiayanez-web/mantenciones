@@ -948,6 +948,8 @@
   .opComentarios .quien { display: flex; gap: 8px; align-items: baseline; font-size: 12px; color: var(--suave); margin-bottom: 2px; }
   .opComentarios .quien b { color: var(--texto); font-weight: 600; }
   .opComentarios .texto { white-space: pre-wrap; }
+  .opComentarios .fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-top: 6px; }
+  .opComentarios .fotos img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; display: block; background: white; }
   .opComentarios .nuevo { display: flex; gap: 8px; align-items: end; }
   .opComentarios .nuevo textarea { flex: 1; min-height: 44px; }
   .opComentarios .nuevo .boton { width: auto; margin: 0; padding: 9px 14px; }
@@ -4337,6 +4339,19 @@ async function cargarComentariosOp(c, seccion) {
     const f = new Date(x.fecha);
     d.querySelector('span').textContent = isNaN(f) ? '' : f.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' + f.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
     textoNotion(x.texto, d.querySelector('.texto'));
+    if (x.fotos?.length) {
+      const g = document.createElement('div');
+      g.className = 'fotos';
+      x.fotos.forEach((url, i) => {
+        const a = document.createElement('a');
+        a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.title = 'Ver foto en grande';
+        const img = document.createElement('img');
+        img.src = url; img.alt = 'Foto ' + (i + 1) + ' del comentario'; img.loading = 'lazy';
+        a.appendChild(img);
+        g.appendChild(a);
+      });
+      d.appendChild(g);
+    }
     lista.appendChild(d);
   });
   lista.scrollTop = lista.scrollHeight;
