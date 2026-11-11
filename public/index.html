@@ -909,6 +909,12 @@
   .opTablero { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 12px; align-items: start; }
   .opColumna { background: var(--gris-fondo); border-radius: 12px; padding: 10px; display: grid; gap: 8px; }
   .opColumna h3 { display: flex; justify-content: space-between; align-items: center; margin: 0 2px 2px; font-size: 13px; }
+  /* Cada columna con el color de su estado: verde activos, amarillo seguimiento, rojo mantención */
+  .opColumna.activo { background: #e6f4ea; border-top: 4px solid var(--ok); }
+  .opColumna.seguimiento { background: #fdf5d8; border-top: 4px solid #d4a514; }
+  .opColumna.mantencion { background: #fbe7e5; border-top: 4px solid var(--error); }
+  .opColumna.instalar { background: var(--azul-claro); border-top: 4px solid var(--azul); }
+  .opColumna.activo .opEstado, .opColumna.seguimiento .opEstado, .opColumna.mantencion .opEstado, .opColumna.instalar .opEstado { font-size: 12px; background: white; }
   .opColumna h3 .cuenta { color: var(--suave); font-weight: 400; }
   .opZona h3 { margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: var(--suave); display: flex; gap: 8px; }
   .opZona:first-child h3 { margin-top: 0; }
@@ -4264,7 +4270,7 @@ function dibujarOperaciones() {
     tablero.className = 'opTablero';
     estados.forEach(e => {
       const col = document.createElement('section');
-      col.className = 'opColumna';
+      col.className = 'opColumna ' + claseEstadoOp(e);
       const lista = visibles.filter(c => (c.estado || 'Sin estado') === e).sort(porProxima);
       col.innerHTML = '<h3><span class="opEstado ' + claseEstadoOp(e) + '"></span><span class="cuenta"></span></h3>';
       col.querySelector('.opEstado').textContent = e;
