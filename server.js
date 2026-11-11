@@ -595,9 +595,31 @@ function guardarFotoEnCache(clave, b) {
     cacheFotos.delete(k); bytesCacheFotos -= v.length;
   }
 }
-const achicar = (original, tamano) => {
+// Las fotos de iPhone vienen en HEIC: ni los navegadores ni sharp las leen, así que se decodifican aparte
+const decodificarHeic = require('heic-decode');
+const esHeic = b => b.length > 12 && b.toString('latin1', 4, 8) === 'ftyp' && /^(heic|heix|hevc|hevx|heim|heis|mif1|msf1)$/.test(b.toString('latin1', 8, 12));
+// Como mucho dos fotos procesándose a la vez: una foto de celular descomprimida ocupa unos 50 MB
+let fotosProcesando = 0;
+const esperandoTurno = [];
+async function conTurno(trabajo) {
+  if (fotosProcesando >= 2) await new Promise(r => esperandoTurno.push(r));
+  fotosProcesando++;
+  try { return await trabajo(); } finally {
+    fotosProcesando--;
+    const siguiente = esperandoTurno.shift();
+    if (siguiente) siguiente();
+  }
+}
+async function prepararFoto(original) {
+  if (!esHeic(original)) return { entrada: original, opciones: { failOn: 'none' }, girar: true };
+  const { width, height, data } = await decodificarHeic({ buffer: original });
+  // libheif ya entrega la foto derecha, no hay que girarla
+  return { entrada: Buffer.from(data.buffer, data.byteOffset, data.byteLength), opciones: { raw: { width, height, channels: 4 } }, girar: false };
+}
+const achicar = (foto, tamano) => {
   const { lado, calidad } = TAMANOS_FOTO[tamano];
-  return sharp(original, { failOn: 'none' }).rotate()
+  const s = sharp(foto.entrada, foto.opciones);
+  return (foto.girar ? s.rotate() : s)
     .resize({ width: lado, height: lado, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: calidad, mozjpeg: true }).toBuffer();
 };
 // Se baja la foto de Notion una sola vez: se prepara el tamaño pedido y, sin esperar, también el otro,
@@ -612,22 +634,39 @@ async function fotoAchicada(url, tamano) {
     return b;
   }
   if (fotosEnCamino.has(clave)) return fotosEnCamino.get(clave);
-  const otro = tamano === 'chica' ? 'grande' : 'chica';
-  let listoOtro;
-  const descarga = (async () => {
-    const r = await fetch(url, { redirect: 'error' });
-    if (!r.ok) throw Object.assign(new Error('Notion respondió ' + r.status), { estado: r.status });
-    if (Number(r.headers.get('content-length') || 0) > 40 * 1024 * 1024) throw new Error('Foto demasiado grande');
-    return Buffer.from(await r.arrayBuffer());
-  })();
-  const trabajo = descarga.then(o => achicar(o, tamano)).then(b => { guardarFotoEnCache(clave, b); return b; });
+  const claveOtro = (tamano === 'chica' ? 'grande' : 'chica') + '|' + base;
+  const hacerOtro = !cacheFotos.has(claveOtro) && !fotosEnCamino.has(claveOtro);
+  let entregar, fallar, entregarOtro, fallarOtro;
+  const trabajo = new Promise((ok, mal) => { entregar = ok; fallar = mal; });
   fotosEnCamino.set(clave, trabajo);
-  if (!cacheFotos.has(otro + '|' + base) && !fotosEnCamino.has(otro + '|' + base)) {
-    listoOtro = trabajo.then(() => descarga).then(o => achicar(o, otro)).then(b => { guardarFotoEnCache(otro + '|' + base, b); return b; });
-    fotosEnCamino.set(otro + '|' + base, listoOtro);
-    listoOtro.catch(() => {}).finally(() => fotosEnCamino.delete(otro + '|' + base));
+  if (hacerOtro) {
+    const otro = new Promise((ok, mal) => { entregarOtro = ok; fallarOtro = mal; });
+    otro.catch(() => {});
+    fotosEnCamino.set(claveOtro, otro);
   }
-  try { return await trabajo; } finally { fotosEnCamino.delete(clave); }
+  // Todo dentro de un mismo turno: bajar, leer, achicar al tamaño pedido (se entrega apenas está) y luego al otro
+  conTurno(async () => {
+    try {
+      const r = await fetch(url, { redirect: 'error' });
+      if (!r.ok) throw Object.assign(new Error('Notion respondió ' + r.status), { estado: r.status });
+      if (Number(r.headers.get('content-length') || 0) > 40 * 1024 * 1024) throw new Error('Foto demasiado grande');
+      const foto = await prepararFoto(Buffer.from(await r.arrayBuffer()));
+      const b = await achicar(foto, tamano);
+      guardarFotoEnCache(clave, b);
+      entregar(b);
+      if (hacerOtro) {
+        try { const b2 = await achicar(foto, claveOtro.split('|')[0]); guardarFotoEnCache(claveOtro, b2); entregarOtro(b2); }
+        catch (e) { fallarOtro(e); }
+      }
+    } catch (e) {
+      fallar(e);
+      if (hacerOtro) fallarOtro(e);
+    } finally {
+      fotosEnCamino.delete(clave);
+      if (hacerOtro) fotosEnCamino.delete(claveOtro);
+    }
+  });
+  return trabajo;
 }
 app.get('/api/foto', requiereSesion, async (req, res) => {
   const url = String(req.query.u || '');

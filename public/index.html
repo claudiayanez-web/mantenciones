@@ -970,6 +970,8 @@
     .visorFotos .siguiente { right: 4px; }
   }
   .opComentarios .fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-top: 6px; }
+  .opComentarios .fotos .fotoFallida, .opBitacora .fotoFallida { display: flex; align-items: center; justify-content: center; aspect-ratio: 1; padding: 8px;
+    border: 1px dashed var(--borde); border-radius: 6px; background: white; color: var(--suave); font-size: 11px; text-align: center; }
   .opComentarios .fotos img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; display: block; background: white; }
   .opComentarios .nuevo { display: flex; gap: 8px; align-items: end; }
   .opComentarios .nuevo textarea { flex: 1; min-height: 44px; }
@@ -4359,7 +4361,17 @@ async function abrirDetalleOp(c) {
 // Cada foto llega como { chica, grande, original }: la ficha muestra la chica (liviana), el visor la grande
 // y "Abrir original" la de Notion. Si la achicada falla, se usa la original.
 function imagenConRespaldo(img, url, original) {
-  img.onerror = () => { if (original && img.getAttribute('src') !== original) img.src = original; };
+  img.onerror = () => {
+    if (original && img.getAttribute('src') !== original) { img.src = original; return; }
+    // Ni achicada ni original: en vez del ícono roto se deja un aviso; tocarlo abre la foto en Notion
+    img.onerror = null;
+    const enlace = img.closest('a');
+    const aviso = document.createElement('span');
+    aviso.className = 'fotoFallida';
+    aviso.textContent = 'No se pudo mostrar · abrir original';
+    img.replaceWith(aviso);
+    if (enlace) { enlace.classList.remove('fotoVisor'); enlace.target = '_blank'; enlace.rel = 'noopener'; }
+  };
   img.src = url;
 }
 function enlaceFoto(f, alt, tamano) {
