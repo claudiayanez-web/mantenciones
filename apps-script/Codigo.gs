@@ -70,6 +70,7 @@ function doPost(e) {
       case 'progEliminarSegunda': return responder(progEliminarSegunda(body));
       case 'progReemplazo':      return responder(progReemplazo(body));
       case 'progAgregarBiologo': return responder(progAgregarBiologo(body));
+      case 'progSincronizarOriginal': return responder(progSincronizarOriginal(body));
       case 'progEditarReemplazo': return responder(progEditarReemplazo(body));
       case 'progEliminarReemplazo': return responder(progEliminarReemplazo(body));
     }
@@ -1127,6 +1128,142 @@ function historialPrograma(ss, usuario, centro, cambio, antes, despues) {
   sheet.appendRow([new Date(), usuario || '', comoTexto(centro), cambio, comoTexto(antes), comoTexto(despues)]);
 }
 
+// ---------- Copia de los cambios a la pestaña "Programa" original ----------
+// La página trabaja en "Programa (página)"; cada cambio se repite en la pestaña "Programa" (la de colores),
+// buscando el centro por su nombre. Si algo no calza (por ejemplo el centro no está ahí), el cambio de la
+// página igual queda guardado y se anota en el historial que no se pudo copiar.
+// Columnas de "Programa": A ID, B Empresa, C Centro, D-H lunes a viernes, I-J sábado y domingo, K Ubicación, L Barrio
+const ORIG = { empresa: 2, centro: 3, semana: 4, finde: 9, ubicacion: 11, barrio: 12, ancho: 12 };
+
+// Filas de centros: desde la 2 hasta antes de "TOTAL CENTROS"
+function filasOriginal(orig) {
+  const ultima = orig.getLastRow();
+  if (ultima < 2) return { v: [], fin: 1 };
+  const v = orig.getRange(2, 1, ultima - 1, ORIG.ancho).getDisplayValues();
+  const t = v.findIndex(f => /^total centros/i.test(String(f[ORIG.empresa - 1]).trim()));
+  return { v: t === -1 ? v : v.slice(0, t), fin: (t === -1 ? v.length : t) + 1 };  // fin: última fila de centros
+}
+function filaOriginal(orig, centro) {
+  const { v } = filasOriginal(orig);
+  const i = v.findIndex(f => normalizar(partirCentro(f[ORIG.centro - 1]).actual) === normalizar(centro));
+  return i === -1 ? 0 : i + 2;
+}
+function reflejarEnOriginal(ss, usuario, centro, hacer) {
+  try {
+    const orig = ss.getSheetByName(PROGRAMA.original);
+    if (!orig) throw new Error('no existe la pestaña ' + PROGRAMA.original);
+    hacer(orig);
+    SpreadsheetApp.flush();
+    return '';
+  } catch (err) {
+    historialPrograma(ss, usuario, centro, 'No se copió a la pestaña Programa', '', String(err.message || err));
+    return 'Se guardó en la página, pero no se pudo copiar a la pestaña Programa: ' + (err.message || err);
+  }
+}
+function origAsignar(orig, centro, tramo, sigla) {
+  const fila = filaOriginal(orig, centro);
+  if (!fila) throw new Error(centro + ' no está en la pestaña Programa');
+  const n = tramo === 'semana' ? 5 : 2;
+  orig.getRange(fila, tramo === 'semana' ? ORIG.semana : ORIG.finde, 1, n).setValues([Array(n).fill(comoTexto(sigla))]);
+}
+function origNombre(orig, centro, texto) {
+  const fila = filaOriginal(orig, centro);
+  if (!fila) throw new Error(centro + ' no está en la pestaña Programa');
+  orig.getRange(fila, ORIG.centro).setValue(comoTexto(texto));
+}
+// Centro nuevo: al final del bloque de su empresa (o al final de la lista, con la empresa escrita)
+function origAgregar(orig, c) {
+  if (filaOriginal(orig, c.centro)) throw new Error(c.centro + ' ya está en la pestaña Programa');
+  const { v, fin } = filasOriginal(orig);
+  const clave = x => normalizar(x).replace(/[^a-z0-9]/g, '');
+  let inicio = -1, final = -1;
+  v.forEach((f, k) => {
+    const e = String(f[ORIG.empresa - 1]).trim();
+    if (e) { if (inicio !== -1 && final === -1 && k > inicio) final = k - 1; if (clave(e) === clave(c.empresa) && inicio === -1) inicio = k; }
+  });
+  if (inicio !== -1 && final === -1) final = v.length - 1;
+  // Se salta filas vacías al final del bloque, para quedar justo después del último centro
+  if (inicio !== -1) while (final > inicio && !String(v[final][ORIG.centro - 1]).trim()) final--;
+  const despuesDe = inicio === -1 ? fin : final + 2;
+  orig.insertRowAfter(despuesDe);  // copia el formato de la fila de arriba
+  const fila = despuesDe + 1;
+  const semana = Array(5).fill(comoTexto(c.semana)), finde = Array(2).fill(comoTexto(c.finde));
+  orig.getRange(fila, 1, 1, ORIG.ancho).setValues([['', inicio === -1 ? comoTexto(c.empresa) : '', comoTexto(c.centro)].concat(semana, finde, [comoTexto(c.ubicacion), comoTexto(c.barrio)])]);
+  // La celda de la empresa (combinada) se alarga para incluir la fila nueva
+  if (inicio !== -1) {
+    const arriba = orig.getRange(inicio + 2, ORIG.empresa);
+    const combinada = arriba.getMergedRanges()[0];
+    if (combinada) combinada.breakApart();
+    orig.getRange(inicio + 2, ORIG.empresa, fila - (inicio + 2) + 1, 1).merge();
+  }
+}
+function origQuitar(orig, centro) {
+  const fila = filaOriginal(orig, centro);
+  if (!fila) throw new Error(centro + ' no está en la pestaña Programa');
+  // Si la fila tiene el nombre de la empresa (celda combinada), el nombre pasa a la fila de abajo
+  const celda = orig.getRange(fila, ORIG.empresa);
+  const empresa = celda.getDisplayValue().trim();
+  const combinada = celda.getMergedRanges()[0];
+  if (empresa && combinada && combinada.getRow() === fila && combinada.getLastRow() > fila) {
+    const ultima = combinada.getLastRow();
+    combinada.breakApart();
+    orig.getRange(fila + 1, ORIG.empresa).setValue(comoTexto(empresa));
+    if (ultima > fila + 1) orig.getRange(fila + 1, ORIG.empresa, ultima - fila, 1).merge();
+  }
+  orig.deleteRow(fila);
+}
+
+// Deja la pestaña "Programa" igual a la página. Con aplicar = false solo devuelve la lista de cambios (para revisarla antes).
+function progSincronizarOriginal(body) {
+  const ss = SpreadsheetApp.openById(PROGRAMA.archivoId);
+  const orig = ss.getSheetByName(PROGRAMA.original);
+  if (!orig) return { ok: false, error: 'No existe la pestaña ' + PROGRAMA.original };
+  const { centros } = progLeer();
+  const textoCentro = c => c.nuevo ? c.centro + ' ---> ' + c.nuevo + (c.fecha ? ' (' + c.fecha + ')' : '') : c.centro;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const cambios = [];
+    const { v } = filasOriginal(orig);
+    const enOriginal = v.map(f => normalizar(partirCentro(f[ORIG.centro - 1]).actual));
+    // Centros de la página: se actualizan si ya están, o se agregan
+    for (const c of centros) {
+      const i = enOriginal.indexOf(normalizar(c.centro));
+      if (i === -1) { cambios.push({ tipo: 'agregar', centro: c.centro, detalle: c.empresa + ' · ' + (c.semana || 'sin asignar') + ' / ' + (c.finde || 'sin asignar') }); continue; }
+      const f = v[i];
+      const quiere = [textoCentro(c)].concat(Array(5).fill(c.semana), Array(2).fill(c.finde), [c.ubicacion, c.barrio]);
+      const tiene = f.slice(ORIG.centro - 1, ORIG.ancho).map(x => String(x).trim());
+      const nombres = ['Centro', 'L', 'M', 'M', 'J', 'V', 'S', 'D', 'Ubicación', 'Barrio'];
+      const dif = quiere.map((q, k) => q !== tiene[k] ? nombres[k] + ': ' + (tiene[k] || '(vacío)') + ' → ' + (q || '(vacío)') : '').filter(Boolean);
+      // L-V y S-D se muestran una vez cada uno
+      const porColumna = new Map();
+      dif.map(d => d.replace(/^(L|M|J|V): /, 'L-V: ').replace(/^(S|D): /, 'S-D: ')).forEach(d => { const k = d.split(':')[0]; if (!porColumna.has(k)) porColumna.set(k, d); });
+      const resumen = [...porColumna.values()];
+      if (resumen.length) cambios.push({ tipo: 'actualizar', centro: c.centro, detalle: resumen.join(' · ') });
+    }
+    // Centros que están en la hoja pero ya no en la página: se quitan
+    const enPagina = centros.map(c => normalizar(c.centro));
+    v.forEach(f => {
+      const nombre = partirCentro(f[ORIG.centro - 1]).actual;
+      if (nombre && !enPagina.includes(normalizar(nombre))) cambios.push({ tipo: 'quitar', centro: nombre, detalle: String(f[ORIG.centro - 1]).trim() });
+    });
+    if (!body.aplicar) return { ok: true, cambios: cambios };
+
+    for (const ch of cambios.filter(x => x.tipo === 'quitar')) origQuitar(orig, ch.centro);
+    for (const c of centros) {
+      const fila = filaOriginal(orig, c.centro);
+      if (!fila) { origAgregar(orig, c); continue; }
+      orig.getRange(fila, ORIG.centro, 1, ORIG.ancho - ORIG.centro + 1).setValues([[comoTexto(textoCentro(c))].concat(
+        Array(5).fill(comoTexto(c.semana)), Array(2).fill(comoTexto(c.finde)), [comoTexto(c.ubicacion), comoTexto(c.barrio)])]);
+    }
+    SpreadsheetApp.flush();
+    historialPrograma(ss, body.usuario, '', 'Pestaña Programa igualada a la página', '', cambios.length + ' cambios');
+    return { ok: true, cambios: cambios, aplicado: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 // Ubica el centro por su ID y confirma que sigue siendo el mismo antes de escribir
 function conCentro(body, accion) {
   const lock = LockService.getScriptLock();
@@ -1152,8 +1289,9 @@ const marcarActualizado = (sheet, fila, usuario) => sheet.getRange(fila, PCOL.po
 // Biólogo de lunes a viernes o de sábado y domingo
 function progAsignar(body) {
   const tramo = body.tramo === 'finde' ? 'finde' : body.tramo === 'semana' ? 'semana' : '';
+  // Sigla vacía: el centro queda sin asignar en ese tramo
   const sigla = String(body.sigla || '').trim();
-  if (!tramo || !sigla) return { ok: false, error: 'Faltan datos' };
+  if (!tramo) return { ok: false, error: 'Faltan datos' };
   return conCentro(body, (ss, sheet, fila, centro) => {
     const celda = sheet.getRange(fila, PCOL[tramo]);
     const antes = celda.getDisplayValue().trim();
@@ -1161,8 +1299,8 @@ function progAsignar(body) {
     celda.setValue(comoTexto(sigla));
     marcarActualizado(sheet, fila, body.usuario);
     SpreadsheetApp.flush();
-    historialPrograma(ss, body.usuario, centro, tramo === 'semana' ? 'Biólogo lunes a viernes' : 'Biólogo sábado y domingo', antes, sigla);
-    return { ok: true };
+    historialPrograma(ss, body.usuario, centro, tramo === 'semana' ? 'Biólogo lunes a viernes' : 'Biólogo sábado y domingo', antes || 'Sin asignar', sigla || 'Sin asignar');
+    return { ok: true, aviso: reflejarEnOriginal(ss, body.usuario, centro, o => origAsignar(o, centro, tramo, sigla)) };
   });
 }
 
@@ -1188,7 +1326,10 @@ function progCambioCentro(body) {
     marcarActualizado(sheet, fila, body.usuario);
     SpreadsheetApp.flush();
     historialPrograma(ss, body.usuario, centro, cambio, antes, despues);
-    return { ok: true };
+    // En la pestaña Programa el cambio se escribe como siempre: "Rada Achao ---> Lincay (15/nov)"
+    const nuevoTexto = body.modo === 'completar' ? nuevoActual : body.modo === 'quitar' ? centro
+      : centro + ' ---> ' + String(body.nuevo || '').trim() + (String(body.fecha || '').trim() ? ' (' + String(body.fecha).trim() + ')' : '');
+    return { ok: true, aviso: reflejarEnOriginal(ss, body.usuario, centro, o => origNombre(o, centro, nuevoTexto)) };
   });
 }
 
@@ -1214,7 +1355,9 @@ function progAgregarCentro(body) {
       comoTexto(body.ubicacion), comoTexto(body.barrio), body.usuario || '', new Date()]]);
     SpreadsheetApp.flush();
     historialPrograma(ss, body.usuario, centro, 'Centro agregado', '', [empresaFinal, body.semana, body.finde].filter(Boolean).join(' · '));
-    return { ok: true, id: id };
+    const aviso = reflejarEnOriginal(ss, body.usuario, centro, o => origAgregar(o, { empresa: empresaFinal, centro: centro,
+      semana: String(body.semana || ''), finde: String(body.finde || ''), ubicacion: String(body.ubicacion || ''), barrio: String(body.barrio || '') }));
+    return { ok: true, id: id, aviso: aviso };
   } finally {
     lock.releaseLock();
   }
@@ -1226,7 +1369,7 @@ function progQuitarCentro(body) {
     sheet.deleteRow(fila);
     SpreadsheetApp.flush();
     historialPrograma(ss, body.usuario, centro, 'Centro quitado del programa', antes, '');
-    return { ok: true };
+    return { ok: true, aviso: reflejarEnOriginal(ss, body.usuario, centro, o => origQuitar(o, centro)) };
   });
 }
 

@@ -940,8 +940,9 @@ app.get('/api/programa', requiereSesion, async (req, res) => {
 
 const idYCentro = b => /^[0-9]+$/.test(String(b.id ?? '')) && texto(b.centro, 150);
 const ACCIONES_PROGRAMA = {
-  asignar: b => idYCentro(b) && ['semana', 'finde'].includes(b.tramo) && texto(b.sigla, 10) &&
-    { accion: 'progAsignar', id: String(b.id), centro: b.centro, tramo: b.tramo, sigla: b.sigla.trim() },
+  // sigla vacía = dejar el centro sin asignar en ese tramo
+  asignar: b => idYCentro(b) && ['semana', 'finde'].includes(b.tramo) && texto(b.sigla ?? '', 10) !== null &&
+    { accion: 'progAsignar', id: String(b.id), centro: b.centro, tramo: b.tramo, sigla: (b.sigla ?? '').trim() },
   cambio: b => idYCentro(b) && ['programar', 'completar', 'quitar'].includes(b.modo) &&
     { accion: 'progCambioCentro', id: String(b.id), centro: b.centro, modo: b.modo, nuevo: texto(b.nuevo ?? '', 150) ?? '', fecha: texto(b.fecha ?? '', 40) ?? '' },
   agregar: b => texto(b.empresa, 100) && texto(b.centro, 150) &&
@@ -966,7 +967,9 @@ const ACCIONES_PROGRAMA = {
       motivo: texto(b.motivo ?? '', 60) ?? '', observacion: texto(b.observacion ?? '', 500) ?? '' },
   eliminarReemplazo: b => /^[0-9]+$/.test(String(b.id ?? '')) && { accion: 'progEliminarReemplazo', id: String(b.id) },
   agregarBiologo: b => texto(b.nombre, 60) && /^[A-Za-zÁÉÍÓÚÑáéíóúñ]{1,4}$/.test(String(b.sigla ?? '').trim()) && ['semana', 'finde', 'reemplazo'].includes(b.equipo) &&
-    { accion: 'progAgregarBiologo', nombre: b.nombre.trim(), sigla: b.sigla.trim(), equipo: b.equipo }
+    { accion: 'progAgregarBiologo', nombre: b.nombre.trim(), sigla: b.sigla.trim(), equipo: b.equipo },
+  // Igualar la pestaña "Programa" a la página: primero sin aplicar (para revisar) y luego aplicando
+  sincronizar: b => ({ accion: 'progSincronizarOriginal', aplicar: b.aplicar === true })
 };
 
 app.post('/api/programa/:accion', requiereSesion, async (req, res) => {

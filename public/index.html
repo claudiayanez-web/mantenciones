@@ -809,6 +809,9 @@
   .bioNombre { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 13px; color: var(--texto); background: none; border: 1px solid transparent;
     border-radius: 999px; padding: 2px 10px 2px 2px; }
   button.bioNombre { cursor: pointer; }
+  /* Centro todavía sin biólogo: se marca para que no pase inadvertido */
+  .bioNombre.sinAsignar { background: var(--aviso-fondo); border: 1px dashed #d4a514; color: #7a5a00; font-weight: 600; }
+  button.bioNombre.sinAsignar:hover { background: #fdeeb8; border-color: #b8890a; }
   button.bioNombre:hover { border-color: var(--borde); background: #f6f8fb; }
   .progVistas .derecha { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .progFecha { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--suave); }
@@ -1427,6 +1430,7 @@
         <input type="search" id="buscarPrograma" placeholder="Buscar centro, empresa o zona" aria-label="Buscar en el programa">
       </label>
       <span class="espacio"></span>
+      <button class="botonSecundario" id="btnIgualarProg" type="button" hidden title="Deja la pestaña Programa de la planilla igual a la página">Igualar hoja Programa</button>
       <button class="botonSecundario" id="btnAgregarBiologoProg" type="button" hidden>+ Agregar biólogo</button>
       <button class="botonPrimario" id="btnAgregarCentroProg" type="button" hidden>+ Agregar centro</button>
       <button class="botonIcono" id="btnRecargarPrograma" type="button" title="Recargar" aria-label="Recargar programa">
@@ -1740,6 +1744,7 @@ async function iniciar() {
   document.getElementById('tituloAdmin').textContent = estado.admin ? 'Administración' : 'Equipo';
   document.getElementById('btnAgregarCentroProg').hidden = !estado.admin;
   document.getElementById('btnAgregarBiologoProg').hidden = !estado.admin;
+  document.getElementById('btnIgualarProg').hidden = !estado.admin;
   // Al recargar se vuelve a la vista en que se estaba (se guarda solo en esta pestaña del navegador);
   // al abrir la página de nuevo, lo primero que se ve es Solicitudes
   let anterior = {};
@@ -4967,7 +4972,7 @@ function nombreBio(sigla, boton) {
   if (PLANCTON[sigla]) { const p = document.createElement('span'); p.className = 'chipPlancton'; p.textContent = PLANCTON[sigla]; return p; }
   const el = document.createElement(boton ? 'button' : 'span');
   if (boton) { el.type = 'button'; el.title = 'Cambiar biólogo'; }
-  el.className = 'bioNombre';
+  el.className = 'bioNombre' + (sigla ? '' : ' sinAsignar');
   el.style.setProperty('--color', colorBio(sigla));
   const bio = bioDe(sigla);
   el.innerHTML = '<span class="avatarBio"></span><span></span>';
@@ -5068,7 +5073,10 @@ function dibujarPrograma() {
   const scroll = caja.scrollTop;
   caja.innerHTML = '';
   const conBiologo = programa.centros.filter(c => !PLANCTON[c.semana]);
-  document.getElementById('conteo').textContent = programa.centros.length + ' centros · ' + conBiologo.length + ' con biólogo';
+  const sinAsignar = conBiologo.filter(c => !c.semana || !c.finde).length;
+  const plancton = programa.centros.length - conBiologo.length;
+  document.getElementById('conteo').textContent = programa.centros.length + ' centros' + (plancton ? ' · ' + plancton + ' de Plancton Andino' : '') +
+    (sinAsignar ? ' · ' + sinAsignar + (sinAsignar === 1 ? ' centro sin asignar' : ' centros sin asignar') : '');
   document.getElementById('actualizado').textContent = '· Actualizado ' + horaDe(new Date(programaEn));
   const sams = centrosSams();
 
@@ -5468,6 +5476,39 @@ function abrirNuevoReemplazo() {
 }
 
 // Biólogo nuevo: de semana, de fin de semana o solo para reemplazos
+// Igualar la pestaña "Programa" de la planilla a la página: primero se ve qué cambiaría y después se aplica
+async function abrirIgualarProg() {
+  const { dialogo, form, error, campos } = dialogoComp('Igualar hoja Programa',
+    'La pestaña Programa de la planilla queda igual a lo que ves en la página. Revisa los cambios antes de aplicar.', 'Aplicar a la hoja');
+  const lista = document.createElement('div');
+  lista.className = 'ancho';
+  lista.style.cssText = 'display:grid;gap:10px;max-height:50vh;overflow-y:auto;font-size:13px';
+  lista.textContent = 'Revisando la hoja…';
+  campos.appendChild(lista);
+  const confirmar = form.querySelector('.confirmar');
+  confirmar.disabled = true;
+  dialogo.showModal();
+  const r = await api('/api/programa/sincronizar', { method: 'POST', body: JSON.stringify({ aplicar: false }) });
+  if (!r.ok) { lista.textContent = ''; error.textContent = r.error || 'No se pudo revisar la hoja.'; return; }
+  lista.textContent = '';
+  if (!r.cambios.length) { lista.textContent = 'La hoja Programa ya está igual a la página. No hay nada que cambiar.'; confirmar.hidden = true; return; }
+  [['agregar', 'Se agregan a la hoja'], ['actualizar', 'Se actualizan'], ['quitar', 'Se quitan de la hoja (no están en la página)']].forEach(([tipo, titulo]) => {
+    const items = r.cambios.filter(c => c.tipo === tipo);
+    if (!items.length) return;
+    const g = document.createElement('div');
+    g.innerHTML = '<b></b><ul style="margin:4px 0 0;padding-left:18px"></ul>';
+    g.firstChild.textContent = titulo + ' (' + items.length + ')';
+    items.forEach(c => { const li = document.createElement('li'); li.innerHTML = '<b></b> <span style="color:var(--suave)"></span>'; li.firstChild.textContent = c.centro; li.lastChild.textContent = c.detalle; g.lastChild.appendChild(li); });
+    lista.appendChild(g);
+  });
+  confirmar.disabled = false;
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const ok = await guardarPrograma('sincronizar', { aplicar: true }, confirmar, 'Hoja Programa igualada a la página (' + r.cambios.length + ' cambios)');
+    if (ok) dialogo.close();
+  });
+}
+
 function abrirAgregarBiologo() {
   const { dialogo, form, error, campo, campos } = dialogoComp('Agregar biólogo', 'Queda en la pestaña "Biólogos (página)" de la planilla', 'Agregar');
   const nombre = campo('Nombre', '<input id="bioNombre" autocomplete="off" placeholder="Ej.: Mauricio">', true);
@@ -5597,7 +5638,8 @@ async function guardarPrograma(ruta, datos, boton, listo) {
   boton.disabled = false;
   boton.textContent = texto;
   if (!r.ok) { avisar(r.error || 'No se pudo guardar.', true); if (r.conflicto) cargarPrograma(); return false; }
-  avisar(listo);
+  // aviso: se guardó en la página pero no se pudo copiar a la pestaña Programa de la planilla
+  if (r.aviso) avisar(r.aviso, true, 8000); else avisar(listo);
   await cargarPrograma();
   return true;
 }
@@ -5631,6 +5673,19 @@ function abrirAsignarBio(c, tramo) {
   });
   campos.appendChild(opciones);
   form.addEventListener('submit', e => { e.preventDefault(); dialogo.close(); });
+  // Quitar el biólogo: el centro queda pendiente ("Sin asignar") hasta que se elija a alguien
+  if (actual && !PLANCTON[actual]) {
+    const quitar = document.createElement('button');
+    quitar.type = 'button';
+    quitar.className = 'botonSecundario ancho';
+    quitar.textContent = 'Dejar sin asignar';
+    quitar.addEventListener('click', async () => {
+      const ok = await guardarPrograma('asignar', { id: c.id, centro: c.centro, tramo, sigla: '' }, quitar,
+        c.centro + ' queda sin asignar ' + (tramo === 'semana' ? 'de lunes a viernes' : 'el fin de semana'));
+      if (ok) dialogo.close();
+    });
+    campos.appendChild(quitar);
+  }
   dialogo.showModal();
 }
 
@@ -6642,9 +6697,10 @@ document.getElementById('inactivosMuestras').addEventListener('change', e => {
 });
 document.getElementById('btnRecargarPrograma').addEventListener('click', () => cargarPrograma());
 document.getElementById('btnAgregarCentroProg').addEventListener('click', () => { if (programa) abrirAgregarCentro(); });
-document.getElementById('buscarPrograma').addEventListener('input', e => { busquedaProg = e.target.value; dibujarPrograma(); });
 document.getElementById('btnAgregarBiologoProg').addEventListener('click', () => { if (programa) abrirAgregarBiologo(); });
 document.getElementById('btnRecargarComp').addEventListener('click', () => cargarCompensaciones());
+document.getElementById('btnIgualarProg').addEventListener('click', () => { if (programa) abrirIgualarProg(); });
+document.getElementById('buscarPrograma').addEventListener('input', e => { busquedaProg = e.target.value; dibujarPrograma(); });
 document.getElementById('btnZonasComp').addEventListener('click', abrirZonas);
 document.querySelectorAll('#selectorModo button').forEach(b => b.addEventListener('click', () => {
   modoSolicitudes = b.dataset.modo;
