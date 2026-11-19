@@ -872,6 +872,27 @@
   .progAviso { background: #fffdf5; border: 1px solid #e7c66b; border-radius: 12px; padding: 12px 14px; font-size: 13px; display: grid; gap: 6px; }
   .progAviso b { color: #7a5a00; }
   .progTabla { background: white; border: 1px solid var(--borde); border-radius: 12px; overflow-x: auto; }
+  /* Tabla igual a la pestaña Programa de la planilla */
+  .progPlanilla table { border-collapse: collapse; font-size: 13px; }
+  .progPlanilla th, .progPlanilla td { border: 1px solid #dfe3e8; padding: 5px 8px; }
+  .progPlanilla thead th { background: #eef1f5; font-size: 12px; text-align: center; position: sticky; top: 0; z-index: 1; }
+  .progPlanilla td.id { text-align: center; color: var(--suave); width: 34px; }
+  .progPlanilla td.empresa { font-weight: 700; vertical-align: middle; background: color-mix(in srgb, var(--colorEmp) 10%, white); border-left: 4px solid var(--colorEmp); }
+  .progPlanilla td.centro { font-weight: 500; white-space: nowrap; }
+  .progPlanilla td.centro.editable { cursor: pointer; }
+  .progPlanilla td.centro.editable:hover { text-decoration: underline; }
+  .progPlanilla td.centro .flecha { color: #7a5a00; font-weight: 400; }
+  .progPlanilla td.dia { text-align: center; font-weight: 700; font-size: 12px; min-width: 38px; padding: 5px 2px;
+    background: color-mix(in srgb, var(--color) 16%, white); }
+  .progPlanilla td.dia.plancton { background: #f3f4f6; color: var(--suave); font-weight: 500; }
+  .progPlanilla td.dia.vacio { background: #fff4d6; color: #7a5a00; }
+  .progPlanilla td.dia.reemp { text-decoration: underline dotted; }
+  .progPlanilla td.dia.editable { cursor: pointer; }
+  .progPlanilla tr.sobre-semana td.dia.semana.editable, .progPlanilla tr.sobre-finde td.dia.finde.editable { box-shadow: inset 0 0 0 2px var(--azul); }
+  .progPlanilla td.dia.editando { padding: 0; }
+  .progPlanilla td.dia select { width: 100%; min-width: 120px; font: inherit; font-size: 12px; padding: 4px; border: 2px solid var(--azul); border-radius: 4px; }
+  .progPlanilla td.chico { font-size: 12px; color: var(--suave); white-space: nowrap; }
+  .progPlanilla .notaTabla { padding: 8px 12px; font-size: 12px; color: var(--suave); margin: 0; }
   .progTabla table { min-width: 100%; }
   .progTabla tbody tr { cursor: default; }
   .progTabla td { vertical-align: middle; }
@@ -5073,7 +5094,7 @@ const CLAVE_VISTA_PROG = 'mantenciones.programa.vista', CLAVE_TRAMO_PROG = 'mant
 let vistaProg = 'centros', tramoProg = 'semana', fechaProg = '';
 const MOTIVOS_REEMPLAZO = ['Vacaciones', 'Licencia', 'Pidió ayuda', 'Otro'];
 const fechaVerProg = () => fechaProg || hoyIso();
-try { const v = localStorage.getItem(CLAVE_VISTA_PROG); if (['biologos', 'segundas', 'reemplazos'].includes(v)) vistaProg = v; if (localStorage.getItem(CLAVE_TRAMO_PROG) === 'finde') tramoProg = 'finde'; } catch {}
+try { const v = localStorage.getItem(CLAVE_VISTA_PROG); if (['tabla', 'biologos', 'segundas', 'reemplazos'].includes(v)) vistaProg = v; if (localStorage.getItem(CLAVE_TRAMO_PROG) === 'finde') tramoProg = 'finde'; } catch {}
 const DIAS_CENTRO_NUEVO = 30;   // un centro es "nuevo" si su INICIO en SAMS es de los últimos 30 días
 const COLORES_BIO = ['#4f79b5', '#2e8b57', '#c0603a', '#7b68a6', '#c2477a', '#3e8e9a', '#b07800', '#5e7d2e', '#8a5a44', '#1f3f73', '#e0559b', '#6a7f8c'];
 const PLANCTON = { PA: 'Plancton Andino · Noruega', PAC: 'Plancton Andino · Chile' };
@@ -5221,7 +5242,7 @@ function dibujarPrograma() {
   vistas.innerHTML = '<div class="selectorModo" role="group" aria-label="Ver programa"></div>';
   const activas = programa.segundas.filter(sg => estadoSegunda(sg) === 'activa').length;
   const reempActivos = (programa.reemplazos || []).filter(r => estadoReemplazo(r) === 'activo').length;
-  [['centros', 'Por centro'], ['biologos', 'Por biólogo'], ['segundas', 'Segundas muestras' + (activas ? ' (' + activas + ')' : '')],
+  [['centros', 'Por centro'], ['tabla', 'Tabla'], ['biologos', 'Por biólogo'], ['segundas', 'Segundas muestras' + (activas ? ' (' + activas + ')' : '')],
     ['reemplazos', 'Reemplazos' + (reempActivos ? ' (' + reempActivos + ')' : '')]].forEach(([id, texto]) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -5330,7 +5351,7 @@ function dibujarPrograma() {
 
   const q = normalizar(busquedaProg.trim());
   const filas = programa.centros.filter(c => !q || normalizar([c.empresa, c.centro, c.nuevo, c.ubicacion, c.barrio].join(' ')).includes(q));
-  caja.appendChild(vistaProg === 'biologos' ? tableroBiologos(filas, sams) : tablaCentros(filas, sams));
+  caja.appendChild(vistaProg === 'biologos' ? tableroBiologos(filas, sams) : vistaProg === 'tabla' ? tablaPlanilla(filas) : tablaCentros(filas, sams));
   document.getElementById('listaCentrosProg').innerHTML = programa.centros.map(c => c.centro).filter((v, i, a) => a.indexOf(v) === i)
     .sort((a, b) => a.localeCompare(b, 'es')).map(c => '<option value="' + escaparHtml(c) + '">').join('');
   caja.scrollTop = scroll;
@@ -5406,6 +5427,117 @@ function tablaCentros(filas, sams) {
   if (!filas.length) cuerpo.insertRow().insertCell().textContent = 'No hay centros con esa búsqueda.';
   cont.appendChild(tabla);
   return cont;
+}
+
+// C · Igual a la pestaña Programa de la planilla: L a V y S-D por bloque (cambiar un día cambia todo el bloque)
+const DIAS_PROG = [['semana', 'L'], ['semana', 'M'], ['semana', 'M'], ['semana', 'J'], ['semana', 'V'], ['finde', 'S'], ['finde', 'D']];
+
+function tablaPlanilla(filas) {
+  const cont = document.createElement('div');
+  cont.className = 'progTabla progPlanilla';
+  const tabla = document.createElement('table');
+  const enc = tabla.createTHead().insertRow();
+  ['ID', 'Empresa', 'Centro', ...DIAS_PROG.map(d => d[1]), 'Ubicación', 'Barrio'].forEach(t => {
+    const th = document.createElement('th');
+    th.textContent = t;
+    enc.appendChild(th);
+  });
+  const cuerpo = tabla.createTBody();
+  const empresas = [...new Set(programa.centros.map(x => claveEmpresa(x.empresa)))];
+  filas = filas.slice().sort((a, b) => empresas.indexOf(claveEmpresa(a.empresa)) - empresas.indexOf(claveEmpresa(b.empresa)));
+  const fecha = hoyIso();
+  filas.forEach((c, i) => {
+    const tr = cuerpo.insertRow();
+    tr.insertCell().className = 'id';
+    tr.cells[0].textContent = c.id;
+    // Empresa: una celda alta por grupo, como las celdas combinadas de la planilla
+    if (i === 0 || claveEmpresa(filas[i - 1].empresa) !== claveEmpresa(c.empresa)) {
+      const td = tr.insertCell();
+      td.className = 'empresa';
+      td.rowSpan = filas.filter(x => claveEmpresa(x.empresa) === claveEmpresa(c.empresa)).length;
+      td.style.setProperty('--colorEmp', COLORES_EMPRESA[empresas.indexOf(claveEmpresa(c.empresa)) % COLORES_EMPRESA.length]);
+      td.textContent = c.empresa || 'Sin empresa';
+    }
+    const tdCentro = tr.insertCell();
+    tdCentro.className = 'centro';
+    tdCentro.textContent = c.centro;
+    if (c.nuevo) {
+      const fl = document.createElement('span');
+      fl.className = 'flecha';
+      fl.textContent = ' → ' + c.nuevo + (c.fecha ? ' (' + c.fecha + ')' : '');
+      tdCentro.appendChild(fl);
+    }
+    if (estado.admin) {
+      tdCentro.classList.add('editable');
+      tdCentro.title = 'Cambio de centro o quitar';
+      tdCentro.addEventListener('click', () => abrirCambioCentro(c));
+    }
+    DIAS_PROG.forEach(([tramo]) => {
+      const sigla = c[tramo];
+      const td = tr.insertCell();
+      td.className = 'dia ' + tramo;
+      td.style.setProperty('--color', colorBio(sigla));
+      const r = !PLANCTON[sigla] && reemplazoDe(c, tramo, fecha);
+      if (PLANCTON[sigla]) { td.classList.add('plancton'); td.title = PLANCTON[sigla]; }
+      else if (!sigla) td.classList.add('vacio');
+      else td.title = (bioDe(sigla)?.nombre || sigla) + (r ? ' · hoy lo reemplaza ' + (bioDe(r.reemplazo)?.nombre || r.reemplazo) : '');
+      if (r) td.classList.add('reemp');
+      td.textContent = sigla || '—';
+      // Plancton Andino no lleva biólogo: esas celdas no se editan
+      if (estado.admin && !PLANCTON[sigla]) {
+        td.classList.add('editable');
+        td.addEventListener('mouseenter', () => tr.classList.add('sobre-' + tramo));
+        td.addEventListener('mouseleave', () => tr.classList.remove('sobre-' + tramo));
+        td.addEventListener('click', () => editarCeldaProg(td, c, tramo));
+      }
+    });
+    const ub = tr.insertCell(); ub.className = 'chico'; ub.textContent = c.ubicacion || '';
+    const ba = tr.insertCell(); ba.className = 'chico'; ba.textContent = c.barrio || '';
+  });
+  if (!filas.length) cuerpo.insertRow().insertCell().textContent = 'No hay centros con esa búsqueda.';
+  cont.appendChild(tabla);
+  if (estado.admin) cont.insertAdjacentHTML('beforeend', '<p class="notaTabla">Haz clic en un día para cambiar el biólogo: cambia todo el bloque (lunes a viernes, o sábado y domingo). Haz clic en el centro para un cambio de centro o para quitarlo. Los subrayados tienen un reemplazo hoy.</p>');
+  return cont;
+}
+
+// Lista desplegable dentro de la celda; al elegir se guarda y se copia a la planilla
+function editarCeldaProg(td, c, tramo) {
+  if (td.querySelector('select')) return;
+  const actual = c[tramo] || '';
+  const sel = document.createElement('select');
+  sel.setAttribute('aria-label', c.centro + ' · ' + (tramo === 'semana' ? 'lunes a viernes' : 'sábado y domingo'));
+  const opcion = (valor, texto) => { const o = document.createElement('option'); o.value = valor; o.textContent = texto; sel.appendChild(o); };
+  const grupo = (titulo, lista) => {
+    if (!lista.length) return;
+    const g = document.createElement('optgroup'); g.label = titulo;
+    lista.forEach(b => { const o = document.createElement('option'); o.value = b.sigla; o.textContent = b.sigla + ' · ' + b.nombre; g.appendChild(o); });
+    sel.appendChild(g);
+  };
+  opcion('', '— Sin asignar');
+  grupo(tramo === 'semana' ? 'Lunes a viernes' : 'Sábado y domingo', programa.biologos.filter(b => b.equipo === tramo));
+  grupo('Otros', programa.biologos.filter(b => b.equipo !== tramo));
+  if (actual && ![...sel.options].some(o => o.value === actual)) opcion(actual, actual);
+  sel.value = actual;
+  const texto = td.textContent;
+  td.textContent = '';
+  td.classList.add('editando');
+  td.appendChild(sel);
+  let listo = false;
+  const cerrar = () => { if (listo) return; listo = true; td.classList.remove('editando'); td.textContent = texto; };
+  sel.addEventListener('click', e => e.stopPropagation());
+  sel.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
+  sel.addEventListener('blur', () => setTimeout(cerrar, 150));
+  sel.addEventListener('change', async () => {
+    const sigla = sel.value;
+    listo = true;
+    sel.disabled = true;
+    const nombre = sigla ? (bioDe(sigla)?.nombre || PLANCTON[sigla] || sigla) : '';
+    const ok = await guardarPrograma('asignar', { id: c.id, centro: c.centro, tramo, sigla }, { textContent: '', disabled: false },
+      c.centro + ': ' + (sigla ? nombre : 'sin asignar') + (tramo === 'semana' ? ' de lunes a viernes' : ' el fin de semana'));
+    if (!ok) { td.classList.remove('editando'); td.textContent = texto; }
+  });
+  sel.focus();
+  if (sel.showPicker) try { sel.showPicker(); } catch {}
 }
 
 // B · Una columna por biólogo del equipo elegido con sus centros; al tocar un centro se reasigna
@@ -5643,8 +5775,8 @@ async function abrirIgualarProg() {
   });
 }
 
-function abrirAgregarBiologo() {
 // Biólogo nuevo: de semana, de fin de semana o solo para reemplazos
+function abrirAgregarBiologo() {
   const { dialogo, form, error, campo, campos } = dialogoComp('Agregar biólogo', 'Queda en la pestaña "Biólogos (página)" de la planilla', 'Agregar');
   const nombre = campo('Nombre', '<input id="bioNombre" autocomplete="off" placeholder="Ej.: Mauricio">', true);
   const sigla = campo('Sigla (iniciales)', '<input id="bioSigla" autocomplete="off" maxlength="4" placeholder="Ej.: ME">');
@@ -5820,8 +5952,8 @@ function abrirAsignarBio(c, tramo) {
     });
     campos.appendChild(quitar);
   }
-  dialogo.showModal();
   form.addEventListener('submit', e => { e.preventDefault(); dialogo.close(); });
+  dialogo.showModal();
 }
 
 // Cambio de centro (centro nuevo y fecha estimada, que se puede cambiar) o quitar el centro del programa
@@ -6822,11 +6954,11 @@ document.getElementById('terminadosOp').addEventListener('change', dibujarOperac
 document.getElementById('btnChecklists').addEventListener('click', abrirChecklists);
 document.getElementById('btnRecargarCheck').addEventListener('click', () => cargarChecklists({ recargar: true }));
 document.getElementById('listosCheck').addEventListener('change', dibujarChecklists);
-document.getElementById('buscarPlat').addEventListener('input', dibujarPlataforma);
 document.getElementById('btnRecargarPlat').addEventListener('click', () => cargarPlataforma());
+document.getElementById('buscarPlat').addEventListener('input', dibujarPlataforma);
 document.getElementById('btnRecargarMuestras').addEventListener('click', () => cargarMuestras({ silencioso: !!muestras, recargar: true }));
-document.getElementById('inactivosMuestras').addEventListener('change', e => {
 document.getElementById('buscarMuestras').addEventListener('input', () => { if (muestras) dibujarMuestras(); });
+document.getElementById('inactivosMuestras').addEventListener('change', e => {
   try { localStorage.setItem(CLAVE_INACTIVOS_MUESTRAS, e.target.checked ? '1' : '0'); } catch {}
   if (muestras) dibujarMuestras();
 });
@@ -6835,8 +6967,8 @@ document.getElementById('btnAgregarCentroProg').addEventListener('click', () => 
 document.getElementById('btnAgregarBiologoProg').addEventListener('click', () => { if (programa) abrirAgregarBiologo(); });
 document.getElementById('btnIgualarProg').addEventListener('click', () => { if (programa) abrirIgualarProg(); });
 document.getElementById('buscarPrograma').addEventListener('input', e => { busquedaProg = e.target.value; dibujarPrograma(); });
-document.getElementById('btnZonasComp').addEventListener('click', abrirZonas);
 document.getElementById('btnRecargarComp').addEventListener('click', () => cargarCompensaciones());
+document.getElementById('btnZonasComp').addEventListener('click', abrirZonas);
 document.querySelectorAll('#selectorModo button').forEach(b => b.addEventListener('click', () => {
   modoSolicitudes = b.dataset.modo;
   try { localStorage.setItem(CLAVE_MODO_SOLICITUDES, modoSolicitudes); } catch {}
@@ -6876,11 +7008,11 @@ document.getElementById('agregarCentroMapa').addEventListener('keydown', e => { 
 document.getElementById('limpiarFiltrosMapa').addEventListener('click', () => { empresasMapa = []; centrosElegidosMapa = []; guardarFiltroMapa(false); encuadrarPais(); });
 document.getElementById('btnRecargarMapa').addEventListener('click', () => cargarHoja());
 document.getElementById('btnExportarMapa').addEventListener('click', exportarCsvMapa);
-window.addEventListener('resize', () => { if (mapa) mapa.invalidateSize(); });
 document.getElementById('btnRutaMapa').addEventListener('click', () => abrirRuta(document.getElementById('panelRuta').hidden));
 document.getElementById('rutaDesde').addEventListener('change', () => lugarEscrito('desde'));
 document.getElementById('rutaHasta').addEventListener('change', () => lugarEscrito('hasta'));
 document.getElementById('limpiarRuta').addEventListener('click', borrarRuta);
+window.addEventListener('resize', () => { if (mapa) mapa.invalidateSize(); });
 
 iniciar();
 </script>
