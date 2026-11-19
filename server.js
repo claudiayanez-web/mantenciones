@@ -926,6 +926,86 @@ app.get('/api/wellboats', requiereSesion, async (req, res) => {
   }
 });
 
+// ---------- Ruta por tierra ----------
+// Con ORS_KEY en Easypanel se usa OpenRouteService; sin clave, el servidor público de OSRM.
+// Las rutas ya pedidas quedan en memoria.
+const ORS_API = process.env.ORS_API || 'https://api.openrouteservice.org';
+const OSRM_API = process.env.OSRM_API || 'https://router.project-osrm.org';
+const rutasGuardadas = new Map();
+const WAYTYPE_BARCAZA = 9;
+const SIN_RUTA = 'No se encontró una ruta por tierra entre esos puntos.';
+class ErrorRuta extends Error {}
+
+async function rutaOrs(desde, hasta) {
+  const r = await fetch(ORS_API + '/v2/directions/driving-car/geojson', {
+    method: 'POST',
+    headers: { 'Authorization': process.env.ORS_KEY, 'Content-Type': 'application/json', 'Accept': 'application/geo+json, application/json' },
+    // radiuses -1: los centros están en el mar, así que se busca el camino más cercano sin límite
+    body: JSON.stringify({ coordinates: [[desde[1], desde[0]], [hasta[1], hasta[0]]], radiuses: [-1, -1], extra_info: ['waytype'] }),
+    signal: AbortSignal.timeout(20000)
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const motivo = d.error?.message || d.error || '';
+    console.error('OpenRouteService', r.status, motivo);
+    throw new ErrorRuta(r.status === 403 || r.status === 401 ? 'La clave de OpenRouteService no es válida.'
+      : r.status === 429 ? 'Se alcanzó el límite diario de rutas de OpenRouteService. Prueba mañana.'
+      : /routable point|could not find/i.test(String(motivo)) ? 'No hay camino cerca de uno de los puntos.' : SIN_RUTA);
+  }
+  const f = d.features?.[0];
+  if (!f) throw new ErrorRuta(SIN_RUTA);
+  const barcaza = (f.properties.extras?.waytype?.summary || []).find(s => s.value === WAYTYPE_BARCAZA);
+  return { metros: f.properties.summary.distance, segundos: f.properties.summary.duration, metrosBarcaza: barcaza ? barcaza.distance : 0, coordenadas: f.geometry.coordinates };
+}
+
+async function rutaOsrm(desde, hasta) {
+  const url = OSRM_API + '/route/v1/driving/' + desde[1] + ',' + desde[0] + ';' + hasta[1] + ',' + hasta[0] + '?overview=full&geometries=geojson&steps=true';
+  const r = await fetch(url, { headers: { 'User-Agent': 'operaciones-mapa/1.0' }, signal: AbortSignal.timeout(20000) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || d.code !== 'Ok' || !d.routes?.[0]) {
+    console.error('OSRM', r.status, d.code, d.message || '');
+    throw new ErrorRuta(r.status === 429 ? 'El servicio de rutas está ocupado. Prueba en un rato.' : SIN_RUTA);
+  }
+  const ruta = d.routes[0];
+  const cruces = ruta.legs.flatMap(l => l.steps || []).filter(s => s.mode === 'ferry');
+  const metrosBarcaza = cruces.reduce((t, s) => t + s.distance, 0);
+  // Nombre y minutos de cada barcaza (por ejemplo Ferry Pargua – Chacao, 25 min)
+  const barcazas = cruces.map(s => ({ nombre: s.name || 'Barcaza', minutos: Math.round(s.duration / 60) }));
+  return { metros: ruta.distance, segundos: ruta.duration, metrosBarcaza, barcazas, coordenadas: ruta.geometry.coordinates };
+}
+
+app.post('/api/ruta', requiereSesion, async (req, res) => {
+  const punto = p => Array.isArray(p) && p.length === 2 && p.every(n => typeof n === 'number' && isFinite(n)) &&
+    Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180;
+  const { desde, hasta } = req.body || {};
+  if (!punto(desde) || !punto(hasta)) return res.status(400).json({ ok: false, error: 'Faltan el punto de partida o el de llegada.' });
+
+  const servicio = process.env.ORS_KEY ? 'ors' : 'osrm';
+  const clave = servicio + ':' + [...desde, ...hasta].map(n => n.toFixed(4)).join(',');
+  if (rutasGuardadas.has(clave)) return res.json(rutasGuardadas.get(clave));
+  try {
+    const r = await (servicio === 'ors' ? rutaOrs : rutaOsrm)(desde, hasta);
+    const linea = r.coordenadas.map(([lon, lat]) => [+lat.toFixed(5), +lon.toFixed(5)]);
+    const resultado = {
+      ok: true,
+      km: Math.round(r.metros / 100) / 10,
+      minutos: Math.round(r.segundos / 60),
+      kmBarcaza: Math.round(r.metrosBarcaza / 100) / 10,
+      barcazas: r.barcazas || [],
+      linea,
+      inicio: linea[0],
+      fin: linea[linea.length - 1]
+    };
+    if (rutasGuardadas.size > 1000) rutasGuardadas.delete(rutasGuardadas.keys().next().value);
+    rutasGuardadas.set(clave, resultado);
+    res.json(resultado);
+  } catch (err) {
+    if (err instanceof ErrorRuta) return res.status(502).json({ ok: false, error: err.message });
+    console.error('Error al pedir ruta', err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo conectar con el servicio de rutas.' });
+  }
+});
+
 // ---------- Programa de biólogos ----------
 // Todos lo ven; solo un administrador asigna, cambia centros y registra segundas muestras.
 app.get('/api/programa', requiereSesion, async (req, res) => {

@@ -555,6 +555,22 @@
   .limpiarFiltrosMapa { background: none; border: none; color: var(--azul); text-decoration: underline; cursor: pointer; font: inherit; font-size: 12px; padding: 0; justify-self: start; }
   .mapaBotones { display: flex; gap: 8px; }
   .mapaBotones .botonSecundario { flex: 1; }
+  .mapaBotones .botonSecundario[aria-expanded="true"] { background: var(--azul-claro); border-color: var(--azul); color: var(--azul); }
+  .panelRuta { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--azul); border-radius: 8px; background: #f6f8fb; }
+  .panelRuta[hidden] { display: none; }
+  .panelRuta label { display: grid; gap: 3px; font-size: 12px; color: var(--suave); }
+  .panelRuta input { background: white; color: var(--texto); }
+  .resultadoRuta .ayudaRuta { margin: 0; font-size: 12px; color: var(--suave); }
+  .resultadoRuta .cifrasRuta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .resultadoRuta .cifrasRuta div { background: white; border: 1px solid var(--borde); border-radius: 8px; padding: 6px 8px; }
+  .resultadoRuta .cifrasRuta span { display: block; font-size: 11px; color: var(--suave); }
+  .resultadoRuta .cifrasRuta strong { font-size: 18px; color: var(--azul); }
+  .resultadoRuta .notaRuta { margin: 6px 0 0; font-size: 12px; color: var(--suave); }
+  .resultadoRuta .notaRuta.barcaza { color: #8a5a00; }
+  .resultadoRuta .errorRuta { margin: 0; font-size: 12px; color: var(--error); }
+  .iconoRuta { background: none; border: none; }
+  .iconoRuta span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: white; font-size: 12px; font-weight: 700;
+    border: 2px solid white; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); box-sizing: border-box; }
   .listaBarrios { flex: 1; overflow-y: auto; padding: 4px 0 12px; }
   .grupoBarrio { margin-top: 6px; }
   .cabeceraBarrio {
@@ -1387,7 +1403,15 @@
           <button class="botonIcono" id="btnRecargarMapa" type="button" title="Recargar datos" aria-label="Recargar datos">
             <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
           </button>
+          <button class="botonSecundario" id="btnRutaMapa" type="button" aria-expanded="false">Ruta por tierra</button>
           <button class="botonSecundario" id="btnExportarMapa" type="button">Exportar CSV</button>
+        </div>
+        <div class="panelRuta" id="panelRuta" hidden>
+          <label>Desde<input type="search" id="rutaDesde" list="listaLugaresRuta" placeholder="Centro, ciudad o clic en el mapa" autocomplete="off" /></label>
+          <label>Hasta<input type="search" id="rutaHasta" list="listaLugaresRuta" placeholder="Centro, ciudad o clic en el mapa" autocomplete="off" /></label>
+          <datalist id="listaLugaresRuta"></datalist>
+          <div class="resultadoRuta" id="resultadoRuta"></div>
+          <button type="button" class="limpiarFiltrosMapa" id="limpiarRuta">Borrar ruta</button>
         </div>
       </div>
       <div class="listaBarrios" id="listaBarrios"></div>
@@ -3094,6 +3118,7 @@ async function iniciarMapa() {
   }).addTo(mapa);
   capaBarrios.bringToBack();
 
+  mapa.on('click', clicMapaRuta);
   // "Ver ficha" dentro de la ventanita abre el panel lateral del centro
   document.getElementById('mapa').addEventListener('click', (e) => {
     const boton = e.target.closest('[data-ver-ficha]');
@@ -3313,6 +3338,116 @@ function dibujarListaBarrios() {
       });
     lista.appendChild(grupo);
   });
+}
+
+// ---------- Ruta por tierra ----------
+// El servidor pide la ruta a OpenRouteService. Los centros están en el mar: la ruta llega al camino más cercano.
+const CIUDADES_RUTA = [
+  ['Puerto Montt', -41.4693, -72.9424], ['Puerto Varas', -41.3195, -72.9854], ['Calbuco', -41.7731, -73.1306],
+  ['Ancud', -41.8697, -73.8203], ['Castro', -42.4800, -73.7625], ['Chonchi', -42.6236, -73.7731],
+  ['Hornopirén', -41.9653, -72.4703], ['Chaitén', -42.9167, -72.7167], ['Puerto Aysén', -45.4036, -72.6922],
+  ['Coyhaique', -45.5712, -72.0685], ['Puerto Natales', -51.7236, -72.5064], ['Punta Arenas', -53.1638, -70.9171]
+];
+const AYUDA_RUTA = 'Elige dos lugares o haz clic en el mapa: el primer clic es la partida y el segundo la llegada. Los puntos se pueden arrastrar.';
+const ruta = { desde: null, hasta: null, capa: null, marcadores: {}, pedido: 0 };
+
+function lugaresRuta() {
+  const lugares = new Map();
+  [...CIUDADES_RUTA, ...PUEBLOS_MAPA].forEach(([n, lat, lon]) => lugares.set(n, { nombre: n, lat, lon }));
+  centrosMapa.forEach(c => { const n = 'Centro ' + c.nombre; if (!lugares.has(n)) lugares.set(n, { nombre: n, lat: c.lat, lon: c.lon }); });
+  return lugares;
+}
+
+function abrirRuta(abrir) {
+  document.getElementById('panelRuta').hidden = !abrir;
+  document.getElementById('btnRutaMapa').setAttribute('aria-expanded', abrir ? 'true' : 'false');
+  if (!abrir) { borrarRuta(); return; }
+  const lista = document.getElementById('listaLugaresRuta');
+  lista.innerHTML = '';
+  [...lugaresRuta().keys()].sort((a, b) => a.localeCompare(b, 'es')).forEach(n => {
+    const o = document.createElement('option'); o.value = n; lista.appendChild(o);
+  });
+  calcularRuta();
+  document.getElementById('rutaDesde').focus();
+}
+
+const puntoEnMapa = (lat, lon) => ({ nombre: 'Punto ' + lat.toFixed(4) + ', ' + lon.toFixed(4), lat, lon });
+
+function ponerPuntoRuta(cual, punto) {
+  ruta[cual] = punto;
+  document.getElementById(cual === 'desde' ? 'rutaDesde' : 'rutaHasta').value = punto ? punto.nombre : '';
+  if (ruta.marcadores[cual]) { ruta.marcadores[cual].remove(); delete ruta.marcadores[cual]; }
+  if (punto && mapa) {
+    const m = L.marker([punto.lat, punto.lon], {
+      draggable: true, zIndexOffset: 2000, title: cual === 'desde' ? 'Partida' : 'Llegada',
+      icon: L.divIcon({ className: 'iconoRuta', iconSize: [22, 22], iconAnchor: [11, 11],
+        html: '<span style="background:' + (cual === 'desde' ? '#134678' : '#D2452B') + '">' + (cual === 'desde' ? 'A' : 'B') + '</span>' })
+    }).addTo(mapa);
+    m.on('dragend', () => { const p = m.getLatLng(); ponerPuntoRuta(cual, puntoEnMapa(p.lat, p.lng)); });
+    ruta.marcadores[cual] = m;
+  }
+  calcularRuta();
+}
+
+function clicMapaRuta(e) {
+  if (document.getElementById('panelRuta').hidden) return;
+  ponerPuntoRuta(!ruta.desde ? 'desde' : 'hasta', puntoEnMapa(e.latlng.lat, e.latlng.lng));
+}
+
+function lugarEscrito(cual) {
+  const texto = document.getElementById(cual === 'desde' ? 'rutaDesde' : 'rutaHasta').value.trim();
+  if (!texto) { ponerPuntoRuta(cual, null); return; }
+  const lugares = lugaresRuta();
+  const lugar = lugares.get(texto) || [...lugares.values()].find(l => normalizar(l.nombre) === normalizar(texto) || normalizar(l.nombre) === normalizar('Centro ' + texto));
+  if (lugar) ponerPuntoRuta(cual, lugar);
+  else document.getElementById('resultadoRuta').innerHTML = '<p class="errorRuta">No encontré "' + escaparHtml(texto) + '". Elige uno de la lista o haz clic en el mapa.</p>';
+}
+
+const duracionRuta = min => min < 60 ? min + ' min' : Math.floor(min / 60) + ' h' + (min % 60 ? ' ' + String(min % 60).padStart(2, '0') + ' min' : '');
+const kmTexto = km => String(km).replace('.', ',');
+
+async function calcularRuta() {
+  const caja = document.getElementById('resultadoRuta');
+  if (ruta.capa) { ruta.capa.remove(); ruta.capa = null; }
+  if (!ruta.desde || !ruta.hasta) {
+    caja.innerHTML = '<p class="ayudaRuta">' + (ruta.desde ? 'Ahora elige la llegada o haz clic en el mapa.' : AYUDA_RUTA) + '</p>';
+    return;
+  }
+  const n = ++ruta.pedido;
+  caja.innerHTML = '<p class="ayudaRuta">Calculando ruta…</p>';
+  const r = await api('/api/ruta', { method: 'POST', body: JSON.stringify({ desde: [ruta.desde.lat, ruta.desde.lon], hasta: [ruta.hasta.lat, ruta.hasta.lon] }) });
+  if (n !== ruta.pedido) return;
+  if (!r.ok) { caja.innerHTML = '<p class="errorRuta">' + escaparHtml(r.error || 'No se pudo calcular la ruta.') + '</p>'; return; }
+
+  const desde = L.latLng(ruta.desde.lat, ruta.desde.lon), hasta = L.latLng(ruta.hasta.lat, ruta.hasta.lon);
+  const inicioCamino = L.latLng(r.inicio), finCamino = L.latLng(r.fin);
+  ruta.capa = L.layerGroup([
+    L.polyline(r.linea, { color: '#1d6fd1', weight: 5, opacity: 0.85, interactive: false }),
+    L.polyline([desde, inicioCamino], { color: '#555', weight: 2, dashArray: '4 6', interactive: false }),
+    L.polyline([finCamino, hasta], { color: '#555', weight: 2, dashArray: '4 6', interactive: false })
+  ]).addTo(mapa);
+  mapa.flyToBounds(L.latLngBounds(r.linea).extend(desde).extend(hasta), { padding: [40, 40], duration: 0.6 });
+
+  const notas = [];
+  if (r.barcazas?.length) notas.push('<p class="notaRuta barcaza">Incluye ' + r.barcazas.map(b => escaparHtml(b.nombre) + ' (≈ ' + b.minutos + ' min)').join(' y ') +
+    '. El tiempo no considera esperas ni horarios.</p>');
+  else if (r.kmBarcaza) notas.push('<p class="notaRuta barcaza">Incluye barcaza (' + kmTexto(r.kmBarcaza) + ' km de cruce). El tiempo no considera esperas ni horarios.</p>');
+  [[desde, inicioCamino, 'La partida'], [hasta, finCamino, 'La llegada']].forEach(([p, c, quien]) => {
+    const km = p.distanceTo(c) / 1000;
+    if (km >= 0.5) notas.push('<p class="notaRuta">' + quien + ' está a ' + kmTexto(km.toFixed(1)) + ' km del camino más cercano (línea punteada); ese tramo no se cuenta.</p>');
+  });
+  caja.innerHTML = '<div class="cifrasRuta"><div><span>Distancia</span><strong>' + kmTexto(r.km) + ' km</strong></div>' +
+    '<div><span>Tiempo en auto</span><strong>' + duracionRuta(r.minutos) + '</strong></div></div>' + notas.join('');
+}
+
+function borrarRuta() {
+  ruta.pedido++;
+  Object.values(ruta.marcadores).forEach(m => m.remove());
+  ruta.marcadores = {};
+  ruta.desde = ruta.hasta = null;
+  document.getElementById('rutaDesde').value = '';
+  document.getElementById('rutaHasta').value = '';
+  calcularRuta();
 }
 
 function exportarCsvMapa() {
@@ -5475,7 +5610,6 @@ function abrirNuevoReemplazo() {
   titular.focus();
 }
 
-// Biólogo nuevo: de semana, de fin de semana o solo para reemplazos
 // Igualar la pestaña "Programa" de la planilla a la página: primero se ve qué cambiaría y después se aplica
 async function abrirIgualarProg() {
   const { dialogo, form, error, campos } = dialogoComp('Igualar hoja Programa',
@@ -5510,6 +5644,7 @@ async function abrirIgualarProg() {
 }
 
 function abrirAgregarBiologo() {
+// Biólogo nuevo: de semana, de fin de semana o solo para reemplazos
   const { dialogo, form, error, campo, campos } = dialogoComp('Agregar biólogo', 'Queda en la pestaña "Biólogos (página)" de la planilla', 'Agregar');
   const nombre = campo('Nombre', '<input id="bioNombre" autocomplete="off" placeholder="Ej.: Mauricio">', true);
   const sigla = campo('Sigla (iniciales)', '<input id="bioSigla" autocomplete="off" maxlength="4" placeholder="Ej.: ME">');
@@ -5672,7 +5807,6 @@ function abrirAsignarBio(c, tramo) {
     opciones.appendChild(chip);
   });
   campos.appendChild(opciones);
-  form.addEventListener('submit', e => { e.preventDefault(); dialogo.close(); });
   // Quitar el biólogo: el centro queda pendiente ("Sin asignar") hasta que se elija a alguien
   if (actual && !PLANCTON[actual]) {
     const quitar = document.createElement('button');
@@ -5687,6 +5821,7 @@ function abrirAsignarBio(c, tramo) {
     campos.appendChild(quitar);
   }
   dialogo.showModal();
+  form.addEventListener('submit', e => { e.preventDefault(); dialogo.close(); });
 }
 
 // Cambio de centro (centro nuevo y fecha estimada, que se puede cambiar) o quitar el centro del programa
@@ -6680,7 +6815,6 @@ document.getElementById('btnCompensaciones').addEventListener('click', abrirComp
 document.getElementById('btnPrograma').addEventListener('click', abrirPrograma);
 document.getElementById('btnMuestras').addEventListener('click', abrirMuestras);
 document.getElementById('btnPlataforma').addEventListener('click', abrirPlataforma);
-document.getElementById('btnRecargarPlat').addEventListener('click', () => cargarPlataforma());
 document.getElementById('btnOperaciones').addEventListener('click', abrirOperaciones);
 document.getElementById('btnRecargarOp').addEventListener('click', () => cargarOperaciones({ recargar: true }));
 document.getElementById('buscarOp').addEventListener('input', dibujarOperaciones);
@@ -6689,19 +6823,20 @@ document.getElementById('btnChecklists').addEventListener('click', abrirChecklis
 document.getElementById('btnRecargarCheck').addEventListener('click', () => cargarChecklists({ recargar: true }));
 document.getElementById('listosCheck').addEventListener('change', dibujarChecklists);
 document.getElementById('buscarPlat').addEventListener('input', dibujarPlataforma);
-document.getElementById('buscarMuestras').addEventListener('input', () => { if (muestras) dibujarMuestras(); });
+document.getElementById('btnRecargarPlat').addEventListener('click', () => cargarPlataforma());
 document.getElementById('btnRecargarMuestras').addEventListener('click', () => cargarMuestras({ silencioso: !!muestras, recargar: true }));
 document.getElementById('inactivosMuestras').addEventListener('change', e => {
+document.getElementById('buscarMuestras').addEventListener('input', () => { if (muestras) dibujarMuestras(); });
   try { localStorage.setItem(CLAVE_INACTIVOS_MUESTRAS, e.target.checked ? '1' : '0'); } catch {}
   if (muestras) dibujarMuestras();
 });
 document.getElementById('btnRecargarPrograma').addEventListener('click', () => cargarPrograma());
 document.getElementById('btnAgregarCentroProg').addEventListener('click', () => { if (programa) abrirAgregarCentro(); });
 document.getElementById('btnAgregarBiologoProg').addEventListener('click', () => { if (programa) abrirAgregarBiologo(); });
-document.getElementById('btnRecargarComp').addEventListener('click', () => cargarCompensaciones());
 document.getElementById('btnIgualarProg').addEventListener('click', () => { if (programa) abrirIgualarProg(); });
 document.getElementById('buscarPrograma').addEventListener('input', e => { busquedaProg = e.target.value; dibujarPrograma(); });
 document.getElementById('btnZonasComp').addEventListener('click', abrirZonas);
+document.getElementById('btnRecargarComp').addEventListener('click', () => cargarCompensaciones());
 document.querySelectorAll('#selectorModo button').forEach(b => b.addEventListener('click', () => {
   modoSolicitudes = b.dataset.modo;
   try { localStorage.setItem(CLAVE_MODO_SOLICITUDES, modoSolicitudes); } catch {}
@@ -6742,6 +6877,10 @@ document.getElementById('limpiarFiltrosMapa').addEventListener('click', () => { 
 document.getElementById('btnRecargarMapa').addEventListener('click', () => cargarHoja());
 document.getElementById('btnExportarMapa').addEventListener('click', exportarCsvMapa);
 window.addEventListener('resize', () => { if (mapa) mapa.invalidateSize(); });
+document.getElementById('btnRutaMapa').addEventListener('click', () => abrirRuta(document.getElementById('panelRuta').hidden));
+document.getElementById('rutaDesde').addEventListener('change', () => lugarEscrito('desde'));
+document.getElementById('rutaHasta').addEventListener('change', () => lugarEscrito('hasta'));
+document.getElementById('limpiarRuta').addEventListener('click', borrarRuta);
 
 iniciar();
 </script>
