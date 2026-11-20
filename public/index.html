@@ -642,7 +642,11 @@
   .filtrosTablaSol[hidden] { display: none; }
   .filtrosTablaSol .buscador { flex: 0 1 280px; }
   #tablaSolicitudes[hidden], #tablero[hidden] { display: none; }
-  #tablaSolicitudes tbody tr { cursor: default; }
+  #tablaSolicitudes tbody tr { cursor: pointer; }
+  #tablaSolicitudes tbody tr:hover td { background: #f6f8fb; }
+  /* Fila abierta: el texto largo se muestra completo en varias líneas */
+  #tablaSolicitudes tbody tr.abierta td { white-space: pre-wrap; overflow-wrap: anywhere; text-overflow: clip; background: #f6f8fb; }
+  #tablaSolicitudes tbody tr.abierta td:not(.acciones) { max-width: 420px; }
   #tablaSolicitudes td.acciones { overflow: visible; }
   #tablaSolicitudes td.acciones button { padding: 3px 8px; font-size: 12px; margin-right: 4px; }
   #tablaSolicitudes td.acciones .botonMas { background: none; border: none; color: var(--suave); cursor: pointer; font-size: 16px; padding: 0 4px; border-radius: 6px; }
@@ -3506,6 +3510,8 @@ const CLAVE_MODO_SOLICITUDES = 'mantenciones.solicitudes.modo';
 let modoSolicitudes = 'tablero';
 try { if (localStorage.getItem(CLAVE_MODO_SOLICITUDES) === 'tabla') modoSolicitudes = 'tabla'; } catch {}
 let estadoTablaSol = 'abiertos', busquedaSol = '', ordenSol = { campo: 'id', asc: false };
+// Tickets abiertos en la tabla (texto completo); se mantienen al recargar
+const ticketsAbiertosSol = new Set();
 const ESTADOS_TABLA_SOL = [['abiertos', 'Abiertos'], ['finalizados', 'Finalizados'], ['todos', 'Todos']];
 
 async function abrirSolicitudes() {
@@ -3821,6 +3827,14 @@ function dibujarTablaSolicitudes(enEstado) {
   const cuerpo = tabla.createTBody();
   filas.forEach(t => {
     const tr = cuerpo.insertRow();
+    if (ticketsAbiertosSol.has(t.id)) tr.classList.add('abierta');
+    tr.title = 'Clic para ver el texto completo';
+    tr.addEventListener('click', e => {
+      // No se abre al tocar un botón ni al seleccionar texto para copiarlo
+      if (e.target.closest('button, a') || String(getSelection())) return;
+      const abierta = tr.classList.toggle('abierta');
+      if (abierta) ticketsAbiertosSol.add(t.id); else ticketsAbiertosSol.delete(t.id);
+    });
     COLUMNAS_TABLA_SOL.forEach(c => {
       const td = tr.insertCell();
       if (c.campo === 'id') td.textContent = '#' + t.id;
