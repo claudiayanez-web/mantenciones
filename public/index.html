@@ -850,6 +850,8 @@
   .listaHist { display: grid; }
   .mesHist { margin: 14px 0 4px; font-size: 12px; font-weight: 700; color: var(--suave); text-transform: uppercase; letter-spacing: 0.04em; }
   .mesHist:first-child { margin-top: 0; }
+  .barraListaHist { display: flex; justify-content: flex-end; margin-bottom: -6px; }
+  .barraListaHist button { background: none; border: none; color: var(--azul); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 2px 4px; text-decoration: underline; }
   .mesHist span { font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: 4px; }
   .itemHist { border-top: 1px solid #e6e9ee; }
   .itemHist:last-child { border-bottom: 1px solid #e6e9ee; }
@@ -4322,7 +4324,7 @@ function dibujarEquipos() {
 
 // ---------- Historial de tickets de un centro (equipo) ----------
 // Sale de la planilla de Solicitudes: abierto, aceptado, gestión, cerrado, tipo de servicio y observaciones
-let periodoHistorial = '';
+let periodoHistorial = '', historialExpandido = false;
 // Tickets de meses anteriores (se piden una vez, al abrir el primer historial)
 let ticketsAntiguos = null, avisoAntiguos = '';
 async function cargarTicketsAntiguos() {
@@ -4354,6 +4356,7 @@ async function abrirHistorial(centro, equipo) {
   // Desde el INICIO del periodo actual en SAMS: así no se mezclan tickets de un equipo anterior
   const inicio = (centrosSams() || new Map()).get(nombreClave(centro))?.inicio || null;
   periodoHistorial = inicio ? 'periodo' : '12';
+  historialExpandido = false;
   // Primero lo del mes (ya está en la página); los meses anteriores se suman cuando llegan
   dibujarHistorial(centro, equipo, inicio);
   if (!ticketsAntiguos) {
@@ -4437,6 +4440,23 @@ function dibujarHistorial(centro, equipo, inicio) {
     caja.outerHTML = '<p class="vacia">No hay tickets de este centro en este periodo.</p>';
     return;
   }
+  const barra = document.createElement('div');
+  barra.className = 'barraListaHist';
+  const botonTodos = document.createElement('button');
+  botonTodos.type = 'button';
+  const ponerTodos = abrir => {
+    historialExpandido = abrir;
+    caja.querySelectorAll('.itemHist').forEach(it => {
+      it.querySelector('.detalleHist').hidden = !abrir;
+      it.classList.toggle('expandido', abrir);
+      it.querySelector('.filaHist').setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    });
+    botonTodos.textContent = abrir ? 'Contraer todos' : 'Expandir todos';
+  };
+  botonTodos.addEventListener('click', () => ponerTodos(!historialExpandido));
+  barra.appendChild(botonTodos);
+  caja.before(barra);
+
   let mesAnterior = '';
   lista.forEach(({ t, abierto }) => {
     // Título por mes: "Noviembre 2026 · 3 tickets"
@@ -4509,6 +4529,7 @@ function dibujarHistorial(centro, equipo, inicio) {
     });
     caja.appendChild(item);
   });
+  ponerTodos(historialExpandido);
 }
 
 // 25 min, 6 h 10 min, 1 día 8 h}
