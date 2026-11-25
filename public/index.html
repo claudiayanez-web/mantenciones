@@ -4671,6 +4671,10 @@ function ordenarEtiquetasPanel(mapa) {
   });
 }
 
+// Ronia azul, Grip morado, Hefesto rosado; otro wellboat, celeste
+const COLORES_BUQUE_PANEL = { ronia: '#5794f2', grip: '#b877d9', hefesto: '#ff7eb6' };
+const colorBuquePanel = nombre => COLORES_BUQUE_PANEL[Object.keys(COLORES_BUQUE_PANEL).find(k => normalizar(nombre).includes(k))] || '#8ab8ff';
+
 async function dibujarMapasPanel(centros) {
   try { await cargarLeaflet(); } catch { return; }
   const crear = id => {
@@ -4708,7 +4712,13 @@ async function dibujarMapasPanel(centros) {
   const w = crear('wellboats');
   if (w) {
     w.capa.clearLayers();
-    buques.forEach(b => punto(w.capa, b.lat, b.lon, nombreBuque(b.nombre).toUpperCase(), '#5794f2', ''));
+    // Cada wellboat con su color (punto y nombre)
+    buques.forEach(b => {
+      const color = colorBuquePanel(b.nombre);
+      const m = punto(w.capa, b.lat, b.lon, nombreBuque(b.nombre).toUpperCase(), color, '');
+      const el = m.getTooltip()?.getElement();
+      if (el) { el.style.color = color; el.style.fontWeight = '700'; }
+    });
     w.mapa.invalidateSize();
     if (!w.encuadrado && buques.length) { w.mapa.fitBounds(L.latLngBounds(buques.map(b => [b.lat, b.lon])).pad(0.5), { maxZoom: 8 }); w.encuadrado = true; }
     setTimeout(() => ordenarEtiquetasPanel(w.mapa), 50);
