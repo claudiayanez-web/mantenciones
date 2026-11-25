@@ -4761,6 +4761,9 @@ function dibujarTablaSolicitudes(enEstado) {
   [contenedor.scrollTop, contenedor.scrollLeft] = scroll;
 }
 
+// Largo mínimo de las observaciones al cerrar o pasar a gestión (el servidor pide lo mismo)
+const MIN_OBSERVACIONES = 10;
+
 // Formulario de cada acción. modo: aceptar | cerrar | gestionCentro | gestionTerreno | nuevo
 function abrirDialogoTicket(modo, t) {
   if (!solicitudes) return;
@@ -4808,10 +4811,18 @@ function abrirDialogoTicket(modo, t) {
     opciones = campoOpciones(modo === 'cerrar' ? 'Tipo de servicio (puedes marcar varios)' : 'Tipo de problema (puedes marcar varios)', solicitudes.tipos);
     campos.appendChild(opciones.label);
   }
+  // Al cerrar o pasar a gestión hay que contar qué se hizo (obligatorio); al crear un ticket es opcional
+  const obsObligatoria = modo === 'cerrar' || modo === 'gestionCentro' || modo === 'gestionTerreno';
   if (modo !== 'aceptar') {
     const l = document.createElement('label');
-    l.innerHTML = '<span>Observaciones</span><textarea></textarea>';
+    l.innerHTML = '<span></span><textarea rows="3"></textarea>';
+    l.firstChild.textContent = obsObligatoria ? 'Observaciones: ¿qué se hizo? (obligatorio)' : 'Observaciones';
     observaciones = l.querySelector('textarea');
+    if (obsObligatoria) {
+      observaciones.required = true;
+      observaciones.placeholder = modo === 'cerrar' ? 'Ej.: se cebó la bomba y se cambió la abrazadera del filtro; queda tomando muestras.'
+        : 'Ej.: se pidió al centro revisar la conexión del Starlink; queda pendiente su respuesta.';
+    }
     campos.appendChild(l);
   }
   // Qué pasa al confirmar, para que nadie mande un mensaje sin darse cuenta
@@ -4849,6 +4860,11 @@ function abrirDialogoTicket(modo, t) {
     if (centro && !centro.select.value) { error.textContent = 'Elige el centro.'; return; }
     if (!tecnico.select.value) { error.textContent = 'Elige el técnico.'; return; }
     if (opciones && !elegidas.length) { error.textContent = 'Marca al menos un tipo.'; return; }
+    if (obsObligatoria && observaciones.value.trim().length < MIN_OBSERVACIONES) {
+      error.textContent = 'Escribe en Observaciones qué se hizo (al menos ' + MIN_OBSERVACIONES + ' letras).';
+      observaciones.focus();
+      return;
+    }
 
     const datos = { tecnico: tecnico.select.value, observaciones: observaciones ? observaciones.value.trim() : '' };
     let ruta;

@@ -361,12 +361,15 @@ app.get('/api/solicitudes/historial', requiereSesion, async (req, res) => {
 });
 
 // Cada acción valida sus datos y arma lo que se manda al Apps Script
+// Al cerrar o pasar a gestión las observaciones son obligatorias: qué se hizo
+const MIN_OBSERVACIONES = 10;
+const observacionObligatoria = v => { const t = texto(v ?? ''); return t && t.length >= MIN_OBSERVACIONES ? t : null; };
 const ACCIONES_SOLICITUD = {
   aceptar: b => texto(b.tecnico, 100) && { accion: 'solicitudesAceptar', tecnico: b.tecnico.trim() },
-  cerrar: b => texto(b.tecnico, 100) && listaTextos(b.tipos) && texto(b.observaciones ?? '') !== null &&
-    { accion: 'solicitudesCerrar', tecnico: b.tecnico.trim(), tipos: listaTextos(b.tipos), observaciones: (b.observaciones || '').trim() },
-  gestion: b => texto(b.tecnico, 100) && ['centro', 'terreno'].includes(b.gestion) && texto(b.observaciones ?? '') !== null &&
-    { accion: 'solicitudesGestion', tecnico: b.tecnico.trim(), gestion: b.gestion, observaciones: (b.observaciones || '').trim() },
+  cerrar: b => texto(b.tecnico, 100) && listaTextos(b.tipos) && observacionObligatoria(b.observaciones) &&
+    { accion: 'solicitudesCerrar', tecnico: b.tecnico.trim(), tipos: listaTextos(b.tipos), observaciones: observacionObligatoria(b.observaciones) },
+  gestion: b => texto(b.tecnico, 100) && ['centro', 'terreno'].includes(b.gestion) && observacionObligatoria(b.observaciones) &&
+    { accion: 'solicitudesGestion', tecnico: b.tecnico.trim(), gestion: b.gestion, observaciones: observacionObligatoria(b.observaciones) },
   centro: b => texto(b.centro, 200) && { accion: 'solicitudesCentro', centro: b.centro.trim() },
   // Hay que escribir el número del ticket y un motivo; el script lo vuelve a comprobar
   eliminar: b => texto(b.motivo, 500) && b.motivo.trim().length >= 5 && String(b.confirmacion ?? '').trim() === String(b.id) &&
@@ -389,7 +392,10 @@ app.post('/api/solicitudes/:accion', requiereSesion, async (req, res) => {
     cuerpo = armar(b);
     if (cuerpo) Object.assign(cuerpo, { fila: b.fila, id: String(b.id) });
   }
-  if (!cuerpo) return res.status(400).json({ ok: false, error: 'Faltan datos' });
+  if (!cuerpo) {
+    const faltaObs = ['cerrar', 'gestion'].includes(req.params.accion) && !observacionObligatoria(b.observaciones);
+    return res.status(400).json({ ok: false, error: faltaObs ? 'Escribe en Observaciones qué se hizo (al menos ' + MIN_OBSERVACIONES + ' letras).' : 'Faltan datos' });
+  }
 
   // Cada técnico actúa a su nombre; solo un administrador puede elegir a otro técnico
   if (!esAdmin(req.usuario)) {
