@@ -1131,6 +1131,85 @@ function conexionRetina() {
   return poolRetina;
 }
 
+// ---------- Dispositivos: enlaces a la página de muestras (app2) y a la UI remota (remote.it) ----------
+// Retina: cada dispositivo con su centro (para el enlace a app2). remote.it: la lista de dispositivos de la cuenta,
+// pedida con la clave de acceso R3_ACCESS_KEY_ID / R3_SECRET_ACCESS_KEY (firma HTTP hmac-sha256).
+const REMOTEIT_API = process.env.REMOTEIT_API || 'https://api.remote.it/graphql/v1';
+const SQL_DISPOSITIVOS = `
+  SELECT d.id, d.code AS codigo, ce.name AS centro
+  FROM devices d LEFT JOIN centers ce ON ce.id = d.center_id
+  WHERE d.deleted_at IS NULL`;
+const CONSULTA_REMOTEIT = `query getDevices($size: Int, $from: Int) {
+  login { devices(size: $size, from: $from, sort: "name") { total hasMore items { id name services { id name } } } }
+}`;
+
+function pedirRemoteit(variables) {
+  const url = new URL(REMOTEIT_API);
+  const cuerpo = JSON.stringify({ query: CONSULTA_REMOTEIT, variables });
+  const fecha = new Date().toUTCString();
+  const firmar = ['(request-target): post ' + url.pathname, 'host: ' + url.host, 'date: ' + fecha, 'content-type: application/json'].join('\n');
+  const firma = crypto.createHmac('sha256', Buffer.from(process.env.R3_SECRET_ACCESS_KEY, 'base64')).update(firmar).digest('base64');
+  const cabeceras = {
+    'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(cuerpo), Date: fecha,
+    Authorization: 'Signature keyId="' + process.env.R3_ACCESS_KEY_ID + '",algorithm="hmac-sha256",headers="(request-target) host date content-type",signature="' + firma + '"'
+  };
+  const modulo = url.protocol === 'http:' ? require('http') : require('https');
+  return new Promise((resolver, rechazar) => {
+    const pedido = modulo.request(url, { method: 'POST', headers: cabeceras, timeout: 20000 }, res => {
+      let datos = '';
+      res.setEncoding('utf8');
+      res.on('data', d => { datos += d; });
+      res.on('end', () => {
+        let json = null;
+        try { json = JSON.parse(datos); } catch {}
+        if (res.statusCode !== 200 || !json || json.errors) {
+          return rechazar(new Error('remote.it ' + res.statusCode + ' ' + (json?.errors?.[0]?.message || datos.slice(0, 200))));
+        }
+        resolver(json.data?.login?.devices || { items: [], hasMore: false });
+      });
+    });
+    pedido.on('timeout', () => pedido.destroy(new Error('remote.it no respondió')));
+    pedido.on('error', rechazar);
+    pedido.end(cuerpo);
+  });
+}
+
+async function dispositivosRemoteit() {
+  const todos = [];
+  for (let desde = 0; desde < 20000; desde += 1000) {
+    const pagina = await pedirRemoteit({ size: 1000, from: desde });
+    todos.push(...(pagina.items || []));
+    if (!pagina.hasMore) break;
+  }
+  return todos.map(d => ({ id: d.id, nombre: d.name, servicios: (d.services || []).map(x => ({ id: x.id, nombre: x.name })) }));
+}
+
+// Cada lista se guarda 10 minutos por separado: casi no cambian y remote.it pide no consultar de más
+const DIEZ_MINUTOS = 10 * 60000;
+const memoriaDisp = { retina: null, remote: null };
+async function conMemoria(clave, recargar, leer) {
+  const m = memoriaDisp[clave];
+  if (m && !recargar && Date.now() - m.leido < DIEZ_MINUTOS) return m.lista;
+  const lista = await leer();
+  memoriaDisp[clave] = { leido: Date.now(), lista };
+  return lista;
+}
+
+app.get('/api/dispositivos', requiereSesion, async (req, res) => {
+  const recargar = req.query.recargar === '1';
+  const respuesta = { ok: true, retina: [], remote: [], avisos: [] };
+  const pool = conexionRetina();
+  const tareas = [];
+  if (pool) tareas.push(conMemoria('retina', recargar, async () => (await pool.query(SQL_DISPOSITIVOS)).rows).then(l => { respuesta.retina = l; })
+    .catch(err => { console.error('Dispositivos Retina', err.message); respuesta.avisos.push('No se pudo leer la base de Retina.'); }));
+  else respuesta.avisos.push('Falta RETINA_DB_URL en el servidor.');
+  if (process.env.R3_ACCESS_KEY_ID && process.env.R3_SECRET_ACCESS_KEY) tareas.push(conMemoria('remote', recargar, dispositivosRemoteit).then(l => { respuesta.remote = l; })
+    .catch(err => { console.error('Dispositivos remote.it', err.message); respuesta.avisos.push('No se pudo leer remote.it.'); }));
+  else respuesta.avisos.push('Falta la clave de remote.it (R3_ACCESS_KEY_ID y R3_SECRET_ACCESS_KEY) en Easypanel.');
+  await Promise.all(tareas);
+  res.json(respuesta);
+});
+
 // "Hoy" es el día en Chile, aunque el equipo esté en Noruega
 const SQL_MUESTRAS = `
   SELECT d.id AS equipo_id, d.code AS equipo, d.is_active AS activo, ce.id AS centro_id, ce.name AS centro, co.name AS empresa,

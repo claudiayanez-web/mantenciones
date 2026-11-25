@@ -767,6 +767,16 @@
     font-size: 16px; line-height: 1; padding: 0 4px 4px; margin-top: -2px; border-radius: 6px;
   }
   .ticket .botonMas:hover, .ticket .botonMas:focus-visible { background: var(--azul-claro); color: var(--azul); }
+  /* Enlaces del dispositivo del centro: página de muestras (app2) y UI remota (remote.it) */
+  .enlacesDisp { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .enlacesDisp a { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border: 1px solid var(--borde); border-radius: 999px;
+    font-size: 11px; font-weight: 600; color: var(--azul); text-decoration: none; background: white; white-space: nowrap; }
+  .enlacesDisp a:hover { border-color: var(--azul); background: var(--azul-claro); }
+  .enlacesDisp a.remota { color: #0f6e56; }
+  .enlacesDisp a.remota:hover { border-color: #0f6e56; background: #e1f5ee; }
+  #tablaSolicitudes td.acciones .enlacesDisp { display: inline-flex; flex-wrap: nowrap; margin: 0 0 0 4px; vertical-align: middle; }
+  /* la columna Acciones crece para que los enlaces no tapen la columna siguiente */
+  #tablaSolicitudes td.acciones { max-width: none; }
   .dialogoTicket .seccionOpcion { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid #e2e6ec; }
   .dialogoTicket .seccionOpcion h3 { margin: 0; font-size: 14px; color: var(--azul); }
   .dialogoTicket .seccionOpcion.peligro h3 { color: var(--error); }
@@ -3588,6 +3598,7 @@ async function abrirSolicitudes() {
   mostrarVista('solicitudes');
   document.getElementById('tituloHoja').textContent = 'Solicitudes';
   mostrarPanelNotas(notasAbiertas());
+  cargarDispositivos();
   if (solicitudes) dibujarSolicitudes();
   else document.getElementById('conteo').textContent = 'Cargando…';
   await cargarSolicitudes({ silencioso: !!solicitudes });
@@ -3927,6 +3938,62 @@ function dibujarSolicitudes() {
   });
 }
 
+// ---------- Enlaces a los dispositivos de cada centro ----------
+const APP2_DISPOSITIVO = 'https://app2.retinalab.cl/analyst/devices/';
+const REMOTEIT_DISPOSITIVO = 'https://app.remote.it/#/devices/';
+let dispositivos = null, dispositivosEn = 0, cargandoDispositivos = false;
+const claveDisp = x => normalizar(String(x || '')).replace(/[^a-z0-9]/g, '');
+
+async function cargarDispositivos() {
+  if (cargandoDispositivos || (dispositivos && Date.now() - dispositivosEn < 10 * 60000)) return;
+  cargandoDispositivos = true;
+  const r = await api('/api/dispositivos');
+  cargandoDispositivos = false;
+  if (!r.ok) return;
+  dispositivos = r;
+  dispositivosEn = Date.now();
+  if (r.avisos?.length) console.warn('Dispositivos:', r.avisos.join(' '));
+  if (estado.vista === 'solicitudes') dibujarSolicitudes();
+}
+
+// Dispositivos de un centro: los de Retina por nombre de centro; los de remote.it si su nombre
+// contiene el nombre del centro o el código del equipo de Retina
+function dispositivosDe(centro) {
+  const c = claveDisp(centro);
+  if (!dispositivos || c.length < 3) return { retina: [], remote: [] };
+  const retina = (dispositivos.retina || []).filter(d => claveDisp(d.centro) === c);
+  const codigos = retina.map(d => claveDisp(d.codigo)).filter(x => x.length >= 3);
+  const remote = (dispositivos.remote || []).filter(d => {
+    const n = claveDisp(d.nombre);
+    return (c.length >= 4 && n.includes(c)) || codigos.some(k => n.includes(k));
+  });
+  return { retina, remote };
+}
+
+// La UI se abre en el servicio web del dispositivo (http, web, ui); si no hay, en la ficha del dispositivo
+function enlaceRemoteit(d) {
+  const web = d.servicios.find(x => /http|web|\bui\b|panel/i.test(x.nombre));
+  return REMOTEIT_DISPOSITIVO + d.id + (web ? '/' + web.id + '/connect' : '');
+}
+
+function enlacesDispositivo(centro) {
+  const { retina, remote } = dispositivosDe(centro);
+  if (!retina.length && !remote.length) return null;
+  const caja = document.createElement('div');
+  caja.className = 'enlacesDisp';
+  const enlace = (href, texto, titulo, clase) => {
+    const a = document.createElement('a');
+    a.href = href; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = texto + ' ↗'; a.title = titulo;
+    if (clase) a.className = clase;
+    a.addEventListener('click', e => e.stopPropagation());
+    caja.appendChild(a);
+  };
+  retina.forEach(d => enlace(APP2_DISPOSITIVO + d.id, retina.length > 1 ? 'Muestras ' + d.codigo : 'Muestras', 'Muestras del equipo ' + (d.codigo || '') + ' en app2'));
+  remote.forEach(d => enlace(enlaceRemoteit(d), remote.length > 1 ? 'UI remota ' + d.nombre : 'UI remota', 'Abrir ' + d.nombre + ' en remote.it', 'remota'));
+  return caja;
+}
+
 function tarjetaTicket(t) {
   const div = document.createElement('article');
   const quien = t.nombre && normalizar(t.telefono) !== 'interno' ? t.nombre : (t.nombre ? t.nombre + ' (interno)' : '');
@@ -3960,6 +4027,8 @@ function tarjetaTicket(t) {
   div.querySelector('.numero').textContent = '#' + t.id;
   div.querySelector('.problema').textContent = t.problema;
   div.querySelector('.meta').textContent = meta;
+  const enlaces = enlacesDispositivo(t.centro);
+  if (enlaces) div.querySelector('.meta').after(enlaces);
   if (t.columna !== 'finalizado') div.querySelector('.ladoTicket').appendChild(botonMasTicket(t));
   if (t.observaciones && t.columna !== 'aceptar') {
     const nota = document.createElement('div');
@@ -4115,6 +4184,8 @@ function dibujarTablaSolicitudes(enEstado) {
         td.className = 'acciones';
         botonesTicket(t).forEach(b => td.appendChild(b));
         if (t.columna !== 'finalizado') td.appendChild(botonMasTicket(t));
+        const enlaces = enlacesDispositivo(t.centro);
+        if (enlaces) td.appendChild(enlaces);
       }
     });
   });
