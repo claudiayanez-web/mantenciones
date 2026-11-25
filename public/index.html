@@ -4674,7 +4674,8 @@ async function dibujarMapasPanel(centros) {
     if (mapasPanel[id]) return mapasPanel[id];
     const el = document.getElementById('mapaPanel-' + id);
     if (!el) return null;
-    const m = L.map(el, { zoomControl: false, attributionControl: false, scrollWheelZoom: true, wheelPxPerZoomLevel: 120 });
+    // Zoom fino: el rodillo avanza de a poco (zoom con decimales) y el doble clic de a medio nivel
+    const m = L.map(el, { zoomControl: false, attributionControl: false, scrollWheelZoom: true, zoomSnap: 0.1, zoomDelta: 0.5, wheelPxPerZoomLevel: 400, wheelDebounceTime: 20 });
     // Sin botones + / − (tapaban puntos): se acerca con el rodillo del mouse o doble clic, y se arrastra
     m.on('zoomend moveend', () => ordenarEtiquetasPanel(m));
     // Mapa base gris oscuro de Esri (no pide clave), como el del Grafana
@@ -8279,7 +8280,7 @@ document.getElementById('panelPantalla').addEventListener('click', e => {
     const z = mapasPanel[fijar.dataset.fijar];
     if (!z) return;
     const c = z.mapa.getCenter();
-    vistasPanel[fijar.dataset.fijar] = { lat: +c.lat.toFixed(5), lon: +c.lng.toFixed(5), zoom: z.mapa.getZoom() };
+    vistasPanel[fijar.dataset.fijar] = { lat: +c.lat.toFixed(5), lon: +c.lng.toFixed(5), zoom: +z.mapa.getZoom().toFixed(2) };
     guardarVistasPanel();
     fijar.classList.add('fijado');
     avisar('Posición del mapa fijada');
