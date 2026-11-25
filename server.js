@@ -1136,7 +1136,7 @@ function conexionRetina() {
 // pedida con la clave de acceso R3_ACCESS_KEY_ID / R3_SECRET_ACCESS_KEY (firma HTTP hmac-sha256).
 const REMOTEIT_API = process.env.REMOTEIT_API || 'https://api.remote.it/graphql/v1';
 const SQL_DISPOSITIVOS = `
-  SELECT d.id, d.code AS codigo, ce.name AS centro
+  SELECT d.id, d.code AS codigo, d.is_active AS activo, ce.name AS centro
   FROM devices d LEFT JOIN centers ce ON ce.id = d.center_id
   WHERE d.deleted_at IS NULL`;
 // Campos de cada dispositivo, del más completo al mínimo: si remote.it no reconoce "state" o "lastReported",

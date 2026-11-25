@@ -4012,10 +4012,46 @@ const centroRemoteit = nombre => claveDisp(String(nombre || '').replace(/^samsv\
 
 // Dispositivos de un centro. Retina: por nombre de centro. remote.it: nombre igual al del centro, o "ID 118" igual
 // al código del equipo en Retina; si ninguno calza, uno cuyo nombre contenga el del centro (Temuan → Canal Temuan)
+// "ID V3" de los centros activos de SAMS: el equipo que está hoy en cada centro ("72", "V3-72" → 72)
+function idsSamsActivos() {
+  const datos = datosDeHoja('sams');
+  if (!datos) return null;
+  const col = n => datos.columnas.find(x => normalizar(x.nombre) === n)?.nombre;
+  const colCentro = col('centro'), colEstado = col('estado'), colId = col('id v3');
+  if (!colCentro || !colId) return null;
+  const mapa = new Map();
+  datos.filas.forEach(f => {
+    if (colEstado && !/^activ/i.test(String(f.celdas[colEstado] || '').trim())) return;
+    const ids = String(f.celdas[colId] || '').match(/\d+/g);
+    if (!ids) return;
+    const k = claveDisp(f.celdas[colCentro]);
+    mapa.set(k, new Set([...(mapa.get(k) || []), ...ids.map(n => String(Number(n)))]));
+  });
+  return mapa;
+}
+
+// Centros con Estado "Activado" en SAMS (null si SAMS aún no se lee)
+function centrosSamsActivos() {
+  const datos = datosDeHoja('sams');
+  if (!datos) return null;
+  const col = n => datos.columnas.find(x => normalizar(x.nombre) === n)?.nombre;
+  const colCentro = col('centro'), colEstado = col('estado');
+  if (!colCentro || !colEstado) return null;
+  return new Set(datos.filas.filter(f => /^activ/i.test(String(f.celdas[colEstado] || '').trim())).map(f => claveDisp(f.celdas[colCentro])));
+}
+
+// Equipos de Retina del centro: solo los activos y, si SAMS dice qué ID tiene el centro, solo ese
+function equiposRetinaDe(c) {
+  const activos = (dispositivos.retina || []).filter(d => claveDisp(d.centro) === c && d.activo !== false);
+  const ids = idsSamsActivos()?.get(c);
+  const delSams = ids ? activos.filter(d => ids.has(String(Number(d.codigo)))) : [];
+  return delSams.length ? delSams : activos;
+}
+
 function dispositivosDe(centro) {
   const c = claveDisp(centro);
   if (!dispositivos || c.length < 3) return { retina: [], remote: [] };
-  const retina = (dispositivos.retina || []).filter(d => claveDisp(d.centro) === c);
+  const retina = equiposRetinaDe(c);
   const codigos = new Set(retina.map(d => String(d.codigo)));
   const lista = dispositivos.remote || [];
   let remote = lista.filter(d => centroRemoteit(d.nombre) === c || codigos.has((String(d.nombre).match(/\bid\s*(\d+)/i) || [])[1]));
@@ -4065,6 +4101,9 @@ function enlacesDispositivo(centro) {
 // ---------- Vista Equipos ----------
 // Cada equipo activo de Retina con su conexión en remote.it y su última muestra
 let filtroEquipos = 'todos', equiposCargados = false;
+// Orden por columna (clic en el encabezado); sin columna: desconectados y sin muestras de hoy primero
+let ordenEquipos = { columna: null, asc: true };
+const COLUMNAS_EQUIPOS = [['centro', 'Centro'], ['equipo', 'Equipo'], ['remote', 'remote.it'], ['ultima', 'Última muestra'], [null, 'Abrir']];
 
 async function abrirEquipos() {
   abrirMenu(false);
@@ -4073,7 +4112,12 @@ async function abrirEquipos() {
   document.getElementById('tituloHoja').textContent = 'Equipos';
   document.getElementById('actualizado').textContent = '';
   dibujarEquipos();
-  await Promise.all([cargarDispositivos(), cargarMuestras({ silencioso: true })]);
+  const leerSams = async () => {
+    if (datosDeHoja('sams')) return;
+    const r = await api('/api/hojas/sams');
+    if (r.ok) estado.cache.sams = prepararDatos(r);
+  };
+  await Promise.all([cargarDispositivos(), cargarMuestras({ silencioso: true }), leerSams()]);
   equiposCargados = true;
   dibujarEquipos();
 }
@@ -4098,7 +4142,14 @@ function cuandoMuestra(fecha) {
 
 function filasEquipos() {
   if (!muestras) return [];
-  return muestras.equipos.filter(e => e.activo && e.centro && !/^prueba$/i.test(e.centro.trim())).map(e => {
+  const activosSams = centrosSamsActivos();
+  return muestras.equipos.filter(e => {
+    if (!e.activo || !e.centro || /^prueba$/i.test(e.centro.trim())) return false;
+    const c = claveDisp(e.centro);
+    if (activosSams && !activosSams.has(c)) return false;
+    // Si el centro tiene varios equipos en Retina, solo el del ID de SAMS
+    return !dispositivos || equiposRetinaDe(c).some(d => d.id === e.equipo_id);
+  }).map(e => {
     const remote = dispositivosDe(e.centro).remote;
     const estadoRemoto = remote.some(d => d.estado === 'inactive') ? 'inactive' : remote.some(d => d.estado === 'active') ? 'active' : remote.length ? 'sinDato' : 'sinRemoto';
     return { e, remote, estadoRemoto };
@@ -4142,17 +4193,41 @@ function dibujarEquipos() {
   const q = normalizar(document.getElementById('buscarEquipos').value.trim());
   const pasa = filtros.find(f => f[0] === filtroEquipos)[2];
   const peso = f => f.estadoRemoto === 'inactive' ? 0 : sinMuestraHoy(f) ? 1 : 2;
+  const tiempo = f => f.e.ultima ? f.e.ultima.getTime() : 0;
+  // remote.it: desconectados (los más antiguos primero), conectados, sin estado, sin dispositivo
+  const ordenRemoto = { inactive: 0, active: 1, sinDato: 2, sinRemoto: 3 };
+  const desde = f => { const d = f.remote.find(x => x.estado === 'inactive'); return d && d.ultimo ? new Date(d.ultimo).getTime() : 0; };
+  const comparar = {
+    centro: (a, b) => a.e.centro.localeCompare(b.e.centro, 'es', { numeric: true }),
+    equipo: (a, b) => (Number(a.e.equipo) || 0) - (Number(b.e.equipo) || 0),
+    remote: (a, b) => ordenRemoto[a.estadoRemoto] - ordenRemoto[b.estadoRemoto] || desde(a) - desde(b),
+    ultima: (a, b) => tiempo(a) - tiempo(b)
+  };
+  const { columna, asc } = ordenEquipos;
   const filas = todas.filter(f => pasa(f) && (!q || normalizar([f.e.centro, f.e.empresa, f.e.equipo].join(' ')).includes(q)))
-    .sort((a, b) => peso(a) - peso(b) || (a.e.ultima ? a.e.ultima.getTime() : 0) - (b.e.ultima ? b.e.ultima.getTime() : 0) || a.e.centro.localeCompare(b.e.centro, 'es'));
+    .sort(columna ? (a, b) => (asc ? 1 : -1) * comparar[columna](a, b) || comparar.centro(a, b)
+      : (a, b) => peso(a) - peso(b) || tiempo(a) - tiempo(b) || comparar.centro(a, b));
 
   const caidos = todas.filter(f => f.estadoRemoto === 'inactive').length;
-  document.getElementById('conteo').textContent = todas.length + ' equipos activos' + (caidos ? ' · ' + caidos + ' desconectados en remote.it' : '');
+  document.getElementById('conteo').textContent = todas.length + ' equipos en centros activos' + (caidos ? ' · ' + caidos + ' desconectados en remote.it' : '');
   document.getElementById('actualizado').textContent = dispositivosEn ? '· Actualizado ' + horaDe(new Date(dispositivosEn)) : '';
   if (dispositivos.avisos?.length && estado.admin) document.getElementById('actualizado').textContent += ' · ' + dispositivos.avisos.join(' ');
 
   const tabla = document.createElement('table');
   const enc = tabla.createTHead().insertRow();
-  ['Centro', 'Equipo', 'remote.it', 'Última muestra', 'Abrir'].forEach(t => { const th = document.createElement('th'); th.textContent = t; th.style.cursor = 'default'; enc.appendChild(th); });
+  COLUMNAS_EQUIPOS.forEach(([id, t]) => {
+    const th = document.createElement('th');
+    th.textContent = t;
+    if (!id) { th.style.cursor = 'default'; enc.appendChild(th); return; }
+    th.title = 'Ordenar por ' + t;
+    if (ordenEquipos.columna === id) th.insertAdjacentHTML('beforeend', '<span class="flecha">' + (ordenEquipos.asc ? '▲' : '▼') + '</span>');
+    // 1er clic ascendente, 2º descendente, 3º vuelve al orden de siempre
+    th.addEventListener('click', () => {
+      ordenEquipos = ordenEquipos.columna !== id ? { columna: id, asc: true } : ordenEquipos.asc ? { columna: id, asc: false } : { columna: null, asc: true };
+      dibujarEquipos();
+    });
+    enc.appendChild(th);
+  });
   const cuerpo = tabla.createTBody();
   filas.forEach(({ e, remote, estadoRemoto }) => {
     const tr = cuerpo.insertRow();
