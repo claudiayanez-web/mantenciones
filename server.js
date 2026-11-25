@@ -1139,13 +1139,12 @@ const SQL_DISPOSITIVOS = `
   SELECT d.id, d.code AS codigo, ce.name AS centro
   FROM devices d LEFT JOIN centers ce ON ce.id = d.center_id
   WHERE d.deleted_at IS NULL`;
-const CONSULTA_REMOTEIT = `query getDevices($size: Int, $from: Int) {
-  login { devices(size: $size, from: $from, sort: "name") { total hasMore items { id name services { id name } } } }
-}`;
+const CAMPOS_DISPOSITIVOS = 'devices(size: $size, from: $from, sort: "name") { total hasMore items { id name services { id name } } }';
 
-function pedirRemoteit(variables) {
+// Una consulta firmada a remote.it; devuelve data o lanza error con el mensaje de remote.it
+function pedirRemoteit(query, variables = {}) {
   const url = new URL(REMOTEIT_API);
-  const cuerpo = JSON.stringify({ query: CONSULTA_REMOTEIT, variables });
+  const cuerpo = JSON.stringify({ query, variables });
   const fecha = new Date().toUTCString();
   const firmar = ['(request-target): post ' + url.pathname, 'host: ' + url.host, 'date: ' + fecha, 'content-type: application/json'].join('\n');
   const firma = crypto.createHmac('sha256', Buffer.from(process.env.R3_SECRET_ACCESS_KEY, 'base64')).update(firmar).digest('base64');
@@ -1162,10 +1161,11 @@ function pedirRemoteit(variables) {
       res.on('end', () => {
         let json = null;
         try { json = JSON.parse(datos); } catch {}
-        if (res.statusCode !== 200 || !json || json.errors) {
+        if (res.statusCode !== 200 || !json || (json.errors && !json.data)) {
           return rechazar(new Error('remote.it ' + res.statusCode + ' ' + (json?.errors?.[0]?.message || datos.slice(0, 200))));
         }
-        resolver(json.data?.login?.devices || { items: [], hasMore: false });
+        if (json.errors) return rechazar(new Error('remote.it ' + json.errors[0].message));
+        resolver(json.data);
       });
     });
     pedido.on('timeout', () => pedido.destroy(new Error('remote.it no respondió')));
@@ -1174,14 +1174,59 @@ function pedirRemoteit(variables) {
   });
 }
 
-async function dispositivosRemoteit() {
+// Todas las páginas de dispositivos: de la cuenta de la clave (cuenta = '') o de una organización (cuenta = id)
+async function paginasRemoteit(cuenta) {
+  const query = cuenta
+    ? 'query($id: String!, $size: Int, $from: Int) { login { account(id: $id) { ' + CAMPOS_DISPOSITIVOS + ' } } }'
+    : 'query($size: Int, $from: Int) { login { ' + CAMPOS_DISPOSITIVOS + ' } }';
   const todos = [];
   for (let desde = 0; desde < 20000; desde += 1000) {
-    const pagina = await pedirRemoteit({ size: 1000, from: desde });
+    const data = await pedirRemoteit(query, { id: cuenta || undefined, size: 1000, from: desde });
+    const pagina = (cuenta ? data?.login?.account?.devices : data?.login?.devices) || { items: [], hasMore: false };
     todos.push(...(pagina.items || []));
     if (!pagina.hasMore) break;
   }
-  return todos.map(d => ({ id: d.id, nombre: d.name, servicios: (d.services || []).map(x => ({ id: x.id, nombre: x.name })) }));
+  return todos;
+}
+
+// Organizaciones y cuentas a las que tiene acceso la clave. REMOTEIT_ORG_ID (separadas por coma) las fija a mano;
+// si no, se buscan en el esquema de remote.it los campos de "login" que las entregan.
+async function cuentasRemoteit() {
+  if (process.env.REMOTEIT_ORG_ID) return process.env.REMOTEIT_ORG_ID.split(',').map(x => x.trim()).filter(Boolean);
+  let campos = [];
+  try {
+    const data = await pedirRemoteit('{ __type(name: "Login") { fields { name } } }');
+    campos = (data?.__type?.fields || []).map(f => f.name);
+  } catch (err) { console.error('remote.it esquema', err.message); }
+  const intentos = [
+    ['organization', '{ login { organization { id } } }', d => [d.login?.organization?.id]],
+    ['accounts', '{ login { accounts { id } } }', d => (d.login?.accounts || []).map(x => x.id)],
+    ['membership', '{ login { membership { organization { id } } } }', d => (d.login?.membership || []).map(x => x.organization?.id)],
+    ['memberships', '{ login { memberships { organization { id } } } }', d => (d.login?.memberships || []).map(x => x.organization?.id)]
+  ];
+  const ids = new Set();
+  for (const [campo, query, sacar] of intentos) {
+    if (campos.length && !campos.includes(campo)) continue;
+    try { sacar(await pedirRemoteit(query)).filter(Boolean).forEach(id => ids.add(id)); }
+    catch (err) { console.error('remote.it ' + campo, err.message); }
+  }
+  return [...ids];
+}
+
+// Para revisar en /api/dispositivos cuántas organizaciones encontró
+let cuentasRemoteitVistas = [];
+async function dispositivosRemoteit() {
+  const cuentas = await cuentasRemoteit();
+  cuentasRemoteitVistas = cuentas;
+  const listas = await Promise.all(['', ...cuentas].map(c => paginasRemoteit(c).catch(err => {
+    console.error('remote.it dispositivos ' + (c || 'propios'), err.message);
+    if (!c) throw err;
+    return [];
+  })));
+  const porId = new Map();
+  listas.flat().forEach(d => porId.set(d.id, { id: d.id, nombre: d.name, servicios: (d.services || []).map(x => ({ id: x.id, nombre: x.name })) }));
+  console.log('remote.it:', porId.size, 'dispositivos en', cuentas.length, 'organizaciones/cuentas además de la propia');
+  return [...porId.values()];
 }
 
 // Cada lista se guarda 10 minutos por separado: casi no cambian y remote.it pide no consultar de más
@@ -1207,6 +1252,7 @@ app.get('/api/dispositivos', requiereSesion, async (req, res) => {
     .catch(err => { console.error('Dispositivos remote.it', err.message); respuesta.avisos.push('No se pudo leer remote.it.'); }));
   else respuesta.avisos.push('Falta la clave de remote.it (R3_ACCESS_KEY_ID y R3_SECRET_ACCESS_KEY) en Easypanel.');
   await Promise.all(tareas);
+  respuesta.organizacionesRemoteit = cuentasRemoteitVistas.length;
   res.json(respuesta);
 });
 
