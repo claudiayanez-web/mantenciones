@@ -861,8 +861,11 @@
   .cifraPanel strong { font-size: clamp(30px, 3.6vw, 52px); font-weight: 700; color: #73bf69; line-height: 1; }
   .cifraPanel.version { flex-direction: column; gap: 2px; }
   .cifraPanel.version strong { color: #ff9830; }
-  .filaPanel { position: relative; display: grid; gap: 10px; grid-template-columns: var(--columnasFila, 1.3fr 1fr 1.2fr 1fr); }
-  .filaPanel.fila2 { grid-template-columns: var(--columnasFila, 2.2fr 1fr 1.6fr); }
+  /* Zona del medio: 4 columnas y 2 filas; Foco sobre Bomba y Equipos desconectados en las dos filas */
+  .zonaMedia { position: relative; display: grid; gap: 10px;
+    grid-template-columns: var(--columnasMedia, 1.6fr 1fr 1.2fr 1.2fr);
+    grid-template-rows: minmax(0, var(--altoFila1, 1fr)) minmax(0, var(--altoFila2, 1.25fr));
+    grid-template-areas: "muestras foco descon armados" "pend bomba descon wellb"; }
   .wellboatsPanel.lado { flex: 0 0 auto; grid-template-columns: 1fr 1fr; margin-bottom: 6px; }
   .cuadroPanel { background: #1e2735; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; min-height: 150px; min-width: 0; }
   .cuadroPanel > h4 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: #dfe5ee; }
@@ -926,10 +929,10 @@
   .leyendaPanel span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; background: var(--c); }
   @media (min-width: 1101px) and (min-height: 560px) {
     .panelPantalla { overflow: hidden; gap: 8px; padding: 10px 12px; margin-top: 10px;
-      grid-template-rows: auto auto minmax(0, var(--altoFila1, 0.9fr)) minmax(0, var(--altoFila2, 1.15fr)) minmax(0, var(--altoMapas, 1.3fr)) auto; }
+      grid-template-rows: auto auto minmax(0, var(--altoMedia, 2.05fr)) minmax(0, var(--altoMapas, 1.3fr)) auto; }
     .panelPantalla .cuadroPanel, .mapasPanel .cuadroPanel { min-height: 0; padding: 6px; }
     .panelPantalla .cuadroPanel > h4 { margin-bottom: 4px; }
-    .filaPanel, .mapasPanel { min-height: 0; }
+    .zonaMedia, .mapasPanel { min-height: 0; }
     .mapaPanel { min-height: 0; }
     .relojPanel strong { font-size: clamp(20px, 4.6vh, 48px); }
     .relojPanel span { font-size: clamp(9px, 1.2vh, 11px); }
@@ -948,13 +951,14 @@
     .wellboatsPanel .alertaPanel { font-size: clamp(10px, 1.4vh, 12px); }
   }
   @media (max-width: 1100px) {
-    .filaPanel { grid-template-columns: 1fr 1fr; }
+    .zonaMedia { grid-template-columns: 1fr 1fr !important; grid-template-rows: none; grid-auto-rows: minmax(170px, auto);
+      grid-template-areas: "muestras foco" "descon bomba" "pend pend" "armados wellb"; }
     .mapasPanel { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .mapasPanel .cuadroPanel { min-height: 240px; }
   }
   @media (max-width: 760px) {
     .panelPantalla { margin: 0 8px 12px; padding: 10px; }
-    .filaPanel { grid-template-columns: 1fr; }
+    .zonaMedia { grid-template-columns: 1fr !important; grid-template-areas: "muestras" "foco" "bomba" "descon" "pend" "armados" "wellb"; }
   }
   /* Historial de tickets de un centro */
   .dialogoHistorial { width: min(780px, calc(100vw - 24px)); max-height: calc(100vh - 40px); border: none; border-radius: 14px; padding: 0;
@@ -4553,24 +4557,28 @@ function actualizarRelojesPanel() {
 const CLAVE_DISENO_PANEL = 'mantenciones.dashboard.diseno';
 const disenoOriginal = () => ({
   filas: [0.9, 1.15, 1.3],
-  fila1: [1.3, 1, 1.2, 1],
-  fila2: [2.2, 1, 1.6],
+  media: [1.6, 1, 1.2, 1.2],
   mapas: ZONAS_PANEL.map(z => z[3])
 });
 let disenoPanel = disenoOriginal(), disenoEditando = false, arrastrandoPanel = false;
 try {
   const g = JSON.parse(localStorage.getItem(CLAVE_DISENO_PANEL) || 'null');
-  if (g && Array.isArray(g.fila2) && g.fila2.length === 4) g.fila2 = [g.fila2[0], g.fila2[1], g.fila2[2] + g.fila2[3]];
-  if (g && ['filas', 'fila1', 'fila2', 'mapas'].every(k => Array.isArray(g[k]) && g[k].length === disenoPanel[k].length)) disenoPanel = g;
+  // Un diseño guardado antes (filas separadas) conserva altos y mapas; las columnas del medio vuelven a las originales
+  if (g && !Array.isArray(g.media)) g.media = disenoPanel.media.slice();
+  if (g && ['filas', 'media', 'mapas'].every(k => Array.isArray(g[k]) && g[k].length === disenoPanel[k].length)) disenoPanel = { filas: g.filas, media: g.media, mapas: g.mapas };
 } catch {}
 
 const fr = lista => lista.map(n => 'minmax(0, ' + (+n).toFixed(3) + 'fr)').join(' ');
 function aplicarDisenoPanel() {
   const p = document.getElementById('panelPantalla');
   if (!p.dataset.armado) return;
-  ['--altoFila1', '--altoFila2', '--altoMapas'].forEach((v, i) => p.style.setProperty(v, (+disenoPanel.filas[i]).toFixed(3) + 'fr'));
-  p.querySelector('.filaPanel.fila1').style.setProperty('--columnasFila', fr(disenoPanel.fila1));
-  p.querySelector('.filaPanel.fila2').style.setProperty('--columnasFila', fr(disenoPanel.fila2));
+  const [f1, f2, fm] = disenoPanel.filas.map(Number);
+  p.style.setProperty('--altoMedia', (f1 + f2).toFixed(3) + 'fr');
+  p.style.setProperty('--altoMapas', fm.toFixed(3) + 'fr');
+  const media = p.querySelector('.zonaMedia');
+  media.style.setProperty('--altoFila1', f1.toFixed(3) + 'fr');
+  media.style.setProperty('--altoFila2', f2.toFixed(3) + 'fr');
+  media.style.setProperty('--columnasMedia', fr(disenoPanel.media));
   p.querySelector('.mapasPanel').style.setProperty('--columnasMapas', fr(disenoPanel.mapas));
   // Mientras se arrastra no se rehacen los bordes (se perdería el mouse); se rehacen al soltar
   if (disenoEditando && !arrastrandoPanel) requestAnimationFrame(ponerTiradoresPanel);
@@ -4585,10 +4593,11 @@ function ponerTiradoresPanel() {
   const p = document.getElementById('panelPantalla');
   p.querySelectorAll('.tiradorPanel').forEach(t => t.remove());
   if (!disenoEditando) return;
-  const filas = [['fila1', p.querySelector('.filaPanel.fila1')], ['fila2', p.querySelector('.filaPanel.fila2')], ['mapas', p.querySelector('.mapasPanel')]];
-  // Columnas
-  filas.forEach(([clave, cont]) => {
-    const hijos = [...cont.children].filter(h => h.classList.contains('cuadroPanel'));
+  const media = p.querySelector('.zonaMedia'), mapas = p.querySelector('.mapasPanel');
+  // Columnas: las de la zona del medio (se miden con su primera fila) y las de los mapas
+  [['media', media, [...media.querySelectorAll('[style*="grid-area:muestras"], [style*="grid-area:foco"], [style*="grid-area:descon"], [style*="grid-area:armados"]')]],
+   ['mapas', mapas, null]].forEach(([clave, cont, elegidos]) => {
+    const hijos = elegidos || [...cont.children].filter(h => h.classList.contains('cuadroPanel'));
     const rc = cont.getBoundingClientRect();
     hijos.slice(0, -1).forEach((h, i) => {
       const r = h.getBoundingClientRect(), sig = hijos[i + 1].getBoundingClientRect();
@@ -4601,15 +4610,17 @@ function ponerTiradoresPanel() {
       cont.appendChild(t);
     });
   });
-  // Filas (alto)
+  // Filas (alto): entre las dos filas del medio, y entre el medio y los mapas
   const rp = p.getBoundingClientRect();
-  filas.slice(0, -1).forEach(([, cont], i) => {
-    const r = cont.getBoundingClientRect(), sig = filas[i + 1][1].getBoundingClientRect();
+  const fila1 = media.querySelector('[style*="grid-area:muestras"]'), fila2 = media.querySelector('[style*="grid-area:pend"]');
+  const altos = () => fila1.getBoundingClientRect().height + fila2.getBoundingClientRect().height + mapas.getBoundingClientRect().height;
+  [[fila1, fila2], [media, mapas]].forEach(([a, b], i) => {
+    const r = a.getBoundingClientRect(), sig = b.getBoundingClientRect();
     const t = document.createElement('div');
     t.className = 'tiradorPanel fila';
     t.style.top = ((r.bottom + sig.top) / 2 - rp.top + p.scrollTop - 7) + 'px';
     t.title = 'Arrastra para cambiar el alto';
-    arrastrarPanel(t, 'y', 'filas', i, () => filas.reduce((suma, [, c]) => suma + c.getBoundingClientRect().height, 0));
+    arrastrarPanel(t, 'y', 'filas', i, altos);
     p.appendChild(t);
   });
 }
@@ -4671,15 +4682,14 @@ function armarPanel() {
     '<div class="relojesPanel"><div class="relojPanel mx"><strong>--:--:--</strong><span>MÉXICO</span></div>' +
     '<div class="relojPanel cl"><strong>--:--:--</strong><span>CHILE</span></div><div class="relojPanel no"><strong>--:--:--</strong><span>NORUEGA</span></div></div>' +
     '<div class="cifrasPanel" id="cifrasPanel"></div>' +
-    '<div class="filaPanel fila1">' +
-    '  <div class="cuadroPanel"><h4>Muestras no subidas (primeras de cada profundidad, hoy)</h4><div class="alertasPanel" id="pMuestras"></div></div>' +
-    '  <div class="cuadroPanel"><h4>Foco</h4><div class="alertasPanel" id="pFoco"></div></div>' +
-    '  <div class="cuadroPanel"><h4>Equipos desconectados (remote.it)</h4><div class="alertasPanel" id="pDesconectados"></div></div>' +
-    '  <div class="cuadroPanel"><h4>Equipos armados</h4><div class="armadosPanel" id="pArmados"></div></div>' +
-    '</div><div class="filaPanel fila2">' +
-    '  <div class="cuadroPanel"><h4>Mantenciones pendientes (en gestión)</h4><div class="pendientesPanel" id="pPendientes"></div></div>' +
-    '  <div class="cuadroPanel"><h4>Bomba</h4><div class="alertasPanel" id="pBomba"></div></div>' +
-    '  <div class="cuadroPanel"><h4>Wellboats</h4><div class="wellboatsPanel lado" id="pWellboats"></div><div class="mapaPanel" id="mapaPanel-wellboats"></div></div>' +
+    '<div class="zonaMedia">' +
+    '  <div class="cuadroPanel" style="grid-area:muestras"><h4>Muestras no subidas (primeras de cada profundidad, hoy)</h4><div class="alertasPanel" id="pMuestras"></div></div>' +
+    '  <div class="cuadroPanel" style="grid-area:foco"><h4>Foco</h4><div class="alertasPanel" id="pFoco"></div></div>' +
+    '  <div class="cuadroPanel" style="grid-area:descon"><h4>Equipos desconectados (remote.it)</h4><div class="alertasPanel" id="pDesconectados"></div></div>' +
+    '  <div class="cuadroPanel" style="grid-area:armados"><h4>Equipos armados</h4><div class="armadosPanel" id="pArmados"></div></div>' +
+    '  <div class="cuadroPanel" style="grid-area:pend"><h4>Mantenciones pendientes (en gestión)</h4><div class="pendientesPanel" id="pPendientes"></div></div>' +
+    '  <div class="cuadroPanel" style="grid-area:bomba"><h4>Bomba</h4><div class="alertasPanel" id="pBomba"></div></div>' +
+    '  <div class="cuadroPanel" style="grid-area:wellb"><h4>Wellboats</h4><div class="wellboatsPanel lado" id="pWellboats"></div><div class="mapaPanel" id="mapaPanel-wellboats"></div></div>' +
     '</div><div class="mapasPanel" style="--columnasMapas:' + ZONAS_PANEL.map(z => 'minmax(0, ' + z[3] + 'fr)').join(' ') + '">' + ZONAS_PANEL.map(([id, titulo]) =>
       '<div class="cuadroPanel"><h4 class="conBotones"><span>' + titulo + '</span><span class="botonesMapa">' +
       '<button type="button" data-fijar="' + id + '" title="Fijar esta posición del mapa (queda así siempre en este computador)">📌</button>' +
