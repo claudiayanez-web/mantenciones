@@ -773,6 +773,14 @@
     font-size: 11px; font-weight: 600; color: var(--azul); text-decoration: none; background: white; white-space: nowrap; }
   .enlacesDisp a:hover { border-color: var(--azul); background: var(--azul-claro); }
   .enlacesDisp a.remota { color: #0f6e56; }
+  /* Historial del centro: ícono de reloj discreto al lado del número del ticket */
+  .botonHist { display: inline-flex; align-items: center; gap: 3px; background: white; border: 1px solid #cfd6df; color: var(--azul); cursor: pointer;
+    padding: 1px 7px 1px 5px; border-radius: 999px; font: inherit; font-size: 11px; font-weight: 600; line-height: 16px; vertical-align: middle; white-space: nowrap; }
+  .botonHist svg { width: 12px; height: 12px; }
+  .botonHist:hover, .botonHist:focus-visible { background: var(--azul-claro); border-color: var(--azul); }
+  .ticket .ladoTicket .botonHist { margin-right: 4px; }
+  .ticket .ladoTicket { align-items: center; }
+  #tablaSolicitudes td .botonHist { margin-left: 4px; }
   .enlacesDisp a.remota:hover { border-color: #0f6e56; background: #e1f5ee; }
   /* Punto de conexión en remote.it: verde conectado, rojo desconectado, gris sin dato */
   .puntoEstado { width: 7px; height: 7px; border-radius: 50%; background: #b4b2a9; flex-shrink: 0; display: inline-block; }
@@ -4428,6 +4436,17 @@ function duracionTicket(ms) {
   return d + (d === 1 ? ' día' : ' días') + (h % 24 ? ' ' + (h % 24) + ' h' : '');
 }
 
+function botonHistorialTicket(t) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'botonHist';
+  b.title = 'Historial de tickets de ' + t.centro;
+  b.setAttribute('aria-label', 'Historial de tickets de ' + t.centro);
+  b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg><span>Historial</span>';
+  b.addEventListener('click', e => { e.stopPropagation(); abrirHistorial(t.centro); });
+  return b;
+}
+
 function tarjetaTicket(t) {
   const div = document.createElement('article');
   const quien = t.nombre && normalizar(t.telefono) !== 'interno' ? t.nombre : (t.nombre ? t.nombre + ' (interno)' : '');
@@ -4463,6 +4482,7 @@ function tarjetaTicket(t) {
   div.querySelector('.meta').textContent = meta;
   const enlaces = enlacesDispositivo(t.centro);
   if (enlaces) div.querySelector('.meta').after(enlaces);
+  if (t.centro) div.querySelector('.ladoTicket').prepend(botonHistorialTicket(t));
   if (t.columna !== 'finalizado') div.querySelector('.ladoTicket').appendChild(botonMasTicket(t));
   if (t.observaciones && t.columna !== 'aceptar') {
     const nota = document.createElement('div');
@@ -4605,7 +4625,7 @@ function dibujarTablaSolicitudes(enEstado) {
     });
     COLUMNAS_TABLA_SOL.forEach(c => {
       const td = tr.insertCell();
-      if (c.campo === 'id') td.textContent = '#' + t.id;
+      if (c.campo === 'id') { td.textContent = '#' + t.id; if (t.centro) td.appendChild(botonHistorialTicket(t)); }
       else if (c.campo === 'estado') {
         const [texto, clase] = estadoVisible(t);
         td.innerHTML = '<span class="pillEstado ' + clase + '"></span>';
