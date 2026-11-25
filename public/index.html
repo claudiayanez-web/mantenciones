@@ -3956,23 +3956,26 @@ async function cargarDispositivos() {
   if (estado.vista === 'solicitudes') dibujarSolicitudes();
 }
 
-// Dispositivos de un centro: los de Retina por nombre de centro; los de remote.it si su nombre
-// contiene el nombre del centro o el código del equipo de Retina
+// Nombre del centro en remote.it: "samsv4 - Pocoihuen" → pocoihuen ("samsv4 N4 - ID 118", "(por instalar)" se limpian)
+const centroRemoteit = nombre => claveDisp(String(nombre || '').replace(/^samsv\d*\s*(n\d+)?\s*-?\s*/i, '').replace(/\(.*?\)/g, ''));
+
+// Dispositivos de un centro. Retina: por nombre de centro. remote.it: nombre igual al del centro, o "ID 118" igual
+// al código del equipo en Retina; si ninguno calza, uno cuyo nombre contenga el del centro (Temuan → Canal Temuan)
 function dispositivosDe(centro) {
   const c = claveDisp(centro);
   if (!dispositivos || c.length < 3) return { retina: [], remote: [] };
   const retina = (dispositivos.retina || []).filter(d => claveDisp(d.centro) === c);
-  const codigos = retina.map(d => claveDisp(d.codigo)).filter(x => x.length >= 3);
-  const remote = (dispositivos.remote || []).filter(d => {
-    const n = claveDisp(d.nombre);
-    return (c.length >= 4 && n.includes(c)) || codigos.some(k => n.includes(k));
-  });
+  const codigos = new Set(retina.map(d => String(d.codigo)));
+  const lista = dispositivos.remote || [];
+  let remote = lista.filter(d => centroRemoteit(d.nombre) === c || codigos.has((String(d.nombre).match(/\bid\s*(\d+)/i) || [])[1]));
+  if (!remote.length && c.length >= 5) remote = lista.filter(d => centroRemoteit(d.nombre).includes(c));
   return { retina, remote };
 }
 
-// La UI se abre en el servicio web del dispositivo (http, web, ui); si no hay, en la ficha del dispositivo
+// La UI se abre en el servicio "UI" del dispositivo (si no hay, uno web: HTTP); sin ninguno, en la ficha del dispositivo
 function enlaceRemoteit(d) {
-  const web = d.servicios.find(x => /http|web|\bui\b|panel/i.test(x.nombre));
+  const s = d.servicios || [];
+  const web = s.find(x => /^ui$/i.test(x.nombre.trim())) || s.find(x => /^ui/i.test(x.nombre.trim())) || s.find(x => /http|web/i.test(x.nombre));
   return REMOTEIT_DISPOSITIVO + d.id + (web ? '/' + web.id + '/connect' : '');
 }
 
