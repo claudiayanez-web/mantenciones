@@ -469,6 +469,44 @@ app.post('/api/plataforma', requiereSesion, async (req, res) => {
   }
 });
 
+// ---------- Notas y recordatorios del equipo (Solicitudes) ----------
+// Todos leen, escriben, fijan y marcan hechas. Editar o borrar: quien la escribió o un administrador (lo revisa el script).
+app.get('/api/notas', requiereSesion, async (req, res) => {
+  try {
+    const r = await llamarScript({ accion: 'notasLeer' });
+    res.status(r.ok ? 200 : 502).json(r);
+  } catch (err) {
+    console.error('Error al leer notas', err.message);
+    res.status(502).json({ ok: false, error: 'No se pudieron leer las notas.' });
+  }
+});
+
+const fechaIso = v => v === '' || v == null ? '' : typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+const ACCIONES_NOTAS = {
+  guardar: b => {
+    const textoNota = texto(b.texto ?? '', 1000), para = texto(b.para ?? 'Todos', 100), centro = texto(b.centro ?? '', 200), recordar = fechaIso(b.recordar);
+    if (!textoNota || para === null || centro === null || recordar === null) return null;
+    return { accion: 'notasGuardar', id: b.id ? String(b.id) : '', texto: textoNota, para: para || 'Todos', centro, recordar, fijada: b.fijada === true };
+  },
+  marcar: b => b.id && ['hecha', 'fijada'].includes(b.campo) && typeof b.valor === 'boolean' &&
+    { accion: 'notasMarcar', id: String(b.id), campo: b.campo, valor: b.valor },
+  eliminar: b => b.id && { accion: 'notasEliminar', id: String(b.id) }
+};
+
+app.post('/api/notas/:accion', requiereSesion, async (req, res) => {
+  const armar = ACCIONES_NOTAS[req.params.accion];
+  if (!armar) return res.status(404).json({ ok: false, error: 'Acción no válida' });
+  const cuerpo = armar(req.body || {});
+  if (!cuerpo) return res.status(400).json({ ok: false, error: 'Faltan datos de la nota' });
+  try {
+    const r = await llamarScript({ ...cuerpo, usuario: req.usuario, autor: tecnicos[req.usuario] || req.usuario, admin: esAdmin(req.usuario) });
+    res.status(r.ok ? 200 : 409).json(r);
+  } catch (err) {
+    console.error('Error al guardar nota', err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo guardar la nota. Intenta de nuevo.' });
+  }
+});
+
 // ---------- Notion: Operaciones y checklists ----------
 // Se lee y se marca directo en Notion (integración "Página operaciones"); Notion sigue siendo el original.
 // Operaciones la ven todos; los checklists de instalación y desinstalación, solo administradores.

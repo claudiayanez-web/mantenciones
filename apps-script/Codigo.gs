@@ -60,6 +60,11 @@ function doPost(e) {
 
       case 'platLeer':           return responder(platLeer());
       case 'platMarcar':         return responder(platMarcar(body));
+      // Notas y recordatorios del equipo (pestaña Notas del log)
+      case 'notasLeer':          return responder(notasLeer());
+      case 'notasGuardar':       return responder(notasGuardar(body));
+      case 'notasMarcar':        return responder(notasMarcar(body));
+      case 'notasEliminar':      return responder(notasEliminar(body));
       // Programa de biólogos (planilla Programa biólogos)
       case 'progLeer':           return responder(progLeer());
       case 'progAsignar':        return responder(progAsignar(body));
@@ -886,6 +891,133 @@ function platMarcar(body) {
     if (cambioMarca) registrar([new Date(), body.usuario || '', 'Acceso plataforma', fila, centro, 'Con acceso', antes[2], nueva[2]]);
     if (nota !== antes[5]) registrar([new Date(), body.usuario || '', 'Acceso plataforma', fila, centro, 'Nota', antes[5], nota]);
     return { ok: true, centro: { centro: centro, listo: !!body.listo, fecha: nueva[3], por: nueva[4], nota: nota } };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ---------- Notas y recordatorios del equipo (Solicitudes) ----------
+// Se guardan en la pestaña "Notas" de la planilla de log. Cualquiera escribe, fija o marca hecha;
+// editar o borrar solo quien la escribió o un administrador (el servidor manda admin).
+
+const NOTAS = {
+  pestana: 'Notas',
+  columnas: ['ID', 'Creada', 'Usuario', 'Autor', 'Para', 'Centro', 'Texto', 'Recordar', 'Fijada', 'Hecha', 'Hecha el', 'Hecha por']
+};
+const NC = { id: 0, creada: 1, usuario: 2, autor: 3, para: 4, centro: 5, texto: 6, recordar: 7, fijada: 8, hecha: 9, hechaEl: 10, hechaPor: 11 };
+
+function hojaNotas() {
+  const logId = PropertiesService.getScriptProperties().getProperty('LOG_ID');
+  if (!logId) return null;
+  const log = SpreadsheetApp.openById(logId);
+  let sheet = log.getSheetByName(NOTAS.pestana);
+  if (!sheet) {
+    sheet = log.insertSheet(NOTAS.pestana);
+    sheet.getRange(1, 1, 1, NOTAS.columnas.length).setValues([NOTAS.columnas]).setFontWeight('bold');
+    sheet.getRange('A:L').setNumberFormat('@');  // todo como texto: fechas tal cual se escriben
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function filasNotas(sheet) {
+  const n = Math.max(sheet.getLastRow() - 1, 0);
+  return n ? sheet.getRange(2, 1, n, NOTAS.columnas.length).getDisplayValues() : [];
+}
+
+function notaDe(f) {
+  return {
+    id: f[NC.id], creada: f[NC.creada], usuario: f[NC.usuario], autor: f[NC.autor], para: f[NC.para], centro: f[NC.centro],
+    texto: f[NC.texto], recordar: f[NC.recordar], fijada: /^s/i.test(f[NC.fijada]), hecha: /^s/i.test(f[NC.hecha]),
+    hechaEl: f[NC.hechaEl], hechaPor: f[NC.hechaPor]
+  };
+}
+
+const ahoraNota = () => Utilities.formatDate(new Date(), 'America/Santiago', 'dd/MM/yyyy HH:mm');
+
+function notasLeer() {
+  const sheet = hojaNotas();
+  if (!sheet) return { ok: false, error: 'No hay planilla de log donde guardar las notas' };
+  const notas = filasNotas(sheet).filter(f => f[NC.id]).map(notaDe);
+  // Pendientes todas; de las hechas, solo las 100 más recientes
+  const pendientes = notas.filter(n => !n.hecha);
+  const hechas = notas.filter(n => n.hecha).slice(-100);
+  return { ok: true, notas: pendientes.concat(hechas) };
+}
+
+function notasGuardar(body) {
+  const texto = String(body.texto || '').trim();
+  if (!texto) return { ok: false, error: 'Escribe la nota' };
+  const recordar = String(body.recordar || '').trim();
+  if (recordar && !/^\d{4}-\d{2}-\d{2}$/.test(recordar)) return { ok: false, error: 'Fecha de recordatorio no válida' };
+  const sheet = hojaNotas();
+  if (!sheet) return { ok: false, error: 'No hay planilla de log donde guardar las notas' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const filas = filasNotas(sheet);
+    const para = comoTexto(body.para || 'Todos'), centro = comoTexto(body.centro || '');
+    if (body.id) {
+      const i = filas.findIndex(f => f[NC.id] === String(body.id));
+      if (i === -1) return { ok: false, conflicto: true, error: 'La nota ya no existe. Recarga la página.' };
+      if (filas[i][NC.usuario] !== String(body.usuario) && !body.admin) return { ok: false, error: 'Solo quien escribió la nota puede editarla' };
+      const fila = i + 2;
+      sheet.getRange(fila, NC.para + 1, 1, 4).setValues([[para, centro, comoTexto(texto), recordar]]);
+      SpreadsheetApp.flush();
+      registrar([new Date(), body.usuario || '', 'Notas', fila, body.id, 'Editada', filas[i][NC.texto], texto]);
+      return { ok: true, nota: notaDe(sheet.getRange(fila, 1, 1, NOTAS.columnas.length).getDisplayValues()[0]) };
+    }
+    const id = String(filas.reduce((m, f) => Math.max(m, Number(f[NC.id]) || 0), 0) + 1);
+    const nueva = [id, ahoraNota(), String(body.usuario || ''), comoTexto(body.autor || body.usuario || ''), para, centro, comoTexto(texto), recordar,
+      body.fijada ? 'Sí' : '', '', '', ''];
+    const fila = sheet.getLastRow() + 1;
+    sheet.getRange(fila, 1, 1, nueva.length).setNumberFormat('@').setValues([nueva]);
+    SpreadsheetApp.flush();
+    registrar([new Date(), body.usuario || '', 'Notas', fila, id, 'Nueva', '', texto]);
+    return { ok: true, nota: notaDe(nueva) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Marcar hecha / pendiente, o fijar / soltar
+function notasMarcar(body) {
+  const campo = body.campo === 'fijada' ? 'fijada' : body.campo === 'hecha' ? 'hecha' : '';
+  if (!campo) return { ok: false, error: 'Faltan datos' };
+  const sheet = hojaNotas();
+  if (!sheet) return { ok: false, error: 'No hay planilla de log donde guardar las notas' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const filas = filasNotas(sheet);
+    const i = filas.findIndex(f => f[NC.id] === String(body.id));
+    if (i === -1) return { ok: false, conflicto: true, error: 'La nota ya no existe. Recarga la página.' };
+    const fila = i + 2;
+    const valor = !!body.valor;
+    if (campo === 'fijada') sheet.getRange(fila, NC.fijada + 1).setValue(valor ? 'Sí' : '');
+    else sheet.getRange(fila, NC.hecha + 1, 1, 3).setValues([[valor ? 'Sí' : '', valor ? ahoraNota() : '', valor ? comoTexto(body.autor || body.usuario || '') : '']]);
+    SpreadsheetApp.flush();
+    registrar([new Date(), body.usuario || '', 'Notas', fila, body.id, campo === 'fijada' ? 'Fijada' : 'Hecha', '', valor ? 'Sí' : 'No']);
+    return { ok: true, nota: notaDe(sheet.getRange(fila, 1, 1, NOTAS.columnas.length).getDisplayValues()[0]) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function notasEliminar(body) {
+  const sheet = hojaNotas();
+  if (!sheet) return { ok: false, error: 'No hay planilla de log donde guardar las notas' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const filas = filasNotas(sheet);
+    const i = filas.findIndex(f => f[NC.id] === String(body.id));
+    if (i === -1) return { ok: true };
+    if (filas[i][NC.usuario] !== String(body.usuario) && !body.admin) return { ok: false, error: 'Solo quien escribió la nota puede borrarla' };
+    sheet.deleteRow(i + 2);
+    SpreadsheetApp.flush();
+    registrar([new Date(), body.usuario || '', 'Notas', i + 2, body.id, 'Borrada', filas[i][NC.texto], '']);
+    return { ok: true };
   } finally {
     lock.releaseLock();
   }
