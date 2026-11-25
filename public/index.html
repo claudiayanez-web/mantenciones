@@ -847,17 +847,35 @@
   .resumenHist strong { font-size: 17px; color: var(--texto); }
   .resumenHist strong.abiertos { color: #8a5a00; }
   .franjaHist { width: 100%; height: 48px; }
-  .listaHist { border-left: 2px solid #d5dae1; margin-left: 6px; padding-left: 16px; display: grid; gap: 14px; }
-  .itemHist { position: relative; font-size: 13px; display: grid; gap: 3px; }
-  .itemHist::before { content: ""; position: absolute; left: -23px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #378add; border: 2px solid white; }
-  .itemHist.abierto::before { background: #e3a21a; }
-  .itemHist .titulo { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; color: var(--texto); }
-  .itemHist .titulo span:last-child { font-weight: 400; font-size: 12px; color: var(--suave); white-space: nowrap; }
-  .itemHist .titulo .enCurso { color: #8a5a00; font-weight: 600; }
-  .itemHist .pasos { color: var(--suave); font-size: 12px; }
-  .itemHist .solucion { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
-  .itemHist .tipoHist { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: #e3f3e8; color: #22693f; }
-  .itemHist .obsHist { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .listaHist { display: grid; }
+  .mesHist { margin: 14px 0 4px; font-size: 12px; font-weight: 700; color: var(--suave); text-transform: uppercase; letter-spacing: 0.04em; }
+  .mesHist:first-child { margin-top: 0; }
+  .mesHist span { font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: 4px; }
+  .itemHist { border-top: 1px solid #e6e9ee; }
+  .itemHist:last-child { border-bottom: 1px solid #e6e9ee; }
+  .filaHist { width: 100%; display: grid; grid-template-columns: 52px minmax(0, 1.2fr) minmax(0, 1fr) auto 14px; gap: 10px; align-items: center;
+    padding: 8px 6px; background: none; border: none; border-left: 3px solid transparent; font: inherit; font-size: 13px; text-align: left; color: var(--texto); cursor: pointer; }
+  .filaHist:hover { background: #f6f8fb; }
+  .itemHist.abierto .filaHist { border-left-color: #e3a21a; }
+  .filaHist .fechaH { color: var(--suave); font-size: 12px; }
+  .filaHist .probH { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .filaHist .solH { min-width: 0; overflow: hidden; }
+  .filaHist .durH { font-size: 12px; color: var(--suave); white-space: nowrap; }
+  .filaHist .durH.enCurso { color: #8a5a00; font-weight: 600; }
+  .filaHist .flechaH { color: var(--suave); font-size: 11px; transition: transform 0.15s; }
+  .itemHist.expandido .flechaH { transform: rotate(90deg); }
+  .itemHist .tipoHist { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
+    font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: #e3f3e8; color: #22693f; }
+  .detalleHist { padding: 2px 10px 12px 68px; display: grid; gap: 8px; font-size: 12px; }
+  .detalleHist[hidden] { display: none; }
+  .pasosHist { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; color: var(--suave); }
+  .pasosHist b { font-weight: 600; color: var(--texto); }
+  .obsHist { white-space: pre-wrap; overflow-wrap: anywhere; background: #f6f8fb; border-radius: 8px; padding: 6px 10px; color: var(--texto); font-size: 13px; }
+  @media (max-width: 640px) {
+    .filaHist { grid-template-columns: 44px minmax(0, 1fr) auto 12px; }
+    .filaHist .solH { display: none; }
+    .detalleHist { padding-left: 14px; }
+  }
   .dialogoHistorial .vacia { color: var(--suave); font-size: 13px; }
   .dialogoTicket .seccionOpcion .verHistorial { justify-self: start; }
   .equiposTabla tbody tr { cursor: pointer; }
@@ -4331,12 +4349,17 @@ async function abrirHistorial(centro, equipo) {
   const dialogo = document.getElementById('dialogoHistorial');
   dialogo.innerHTML = '<div class="contenido"><div class="mensajeCentro">Cargando tickets…</div></div>';
   if (!dialogo.open) dialogo.showModal();
-  await Promise.all([solicitudes ? null : cargarSolicitudes({ silencioso: true }), cargarTicketsAntiguos()]);
+  if (!solicitudes) await cargarSolicitudes({ silencioso: true });
   if (!solicitudes) { dialogo.querySelector('.contenido').innerHTML = '<div class="mensajeCentro">No se pudieron leer las solicitudes.</div>'; return; }
   // Desde el INICIO del periodo actual en SAMS: así no se mezclan tickets de un equipo anterior
   const inicio = (centrosSams() || new Map()).get(nombreClave(centro))?.inicio || null;
   periodoHistorial = inicio ? 'periodo' : '12';
+  // Primero lo del mes (ya está en la página); los meses anteriores se suman cuando llegan
   dibujarHistorial(centro, equipo, inicio);
+  if (!ticketsAntiguos) {
+    await cargarTicketsAntiguos();
+    if (dialogo.open && dialogo.dataset.centro === centro) dibujarHistorial(centro, equipo, inicio);
+  }
 }
 
 function dibujarHistorial(centro, equipo, inicio) {
@@ -4356,12 +4379,13 @@ function dibujarHistorial(centro, equipo, inicio) {
   const comun = Object.entries(conteo).sort((a, b) => b[1] - a[1])[0];
   const abiertos = lista.filter(x => x.t.columna !== 'finalizado').length;
 
+  dialogo.dataset.centro = centro;
   dialogo.innerHTML = '<div class="contenido"><div class="cabeza"><div><h2 id="tituloHistorial"></h2><div class="sub"></div></div>' +
     '<div class="lado"><div class="chips" id="periodoHist"></div><button type="button" class="cerrarDialogo" aria-label="Cerrar">&times;</button></div></div>' +
     '<div class="resumenHist"></div><svg class="franjaHist" role="img" aria-label="Tickets en el tiempo"></svg><div class="listaHist"></div></div>';
   dialogo.querySelector('h2').textContent = 'Historial de ' + centro;
   dialogo.querySelector('.sub').textContent = [equipo ? 'Equipo ' + equipo : '', inicio ? 'periodo actual desde ' + inicio.toLocaleDateString('es-CL') : '',
-    avisoAntiguos ? avisoAntiguos + ' Se muestran solo los de este mes.' : ''].filter(Boolean).join(' · ');
+    avisoAntiguos ? avisoAntiguos + ' Se muestran solo los de este mes.' : !ticketsAntiguos ? 'Cargando meses anteriores…' : ''].filter(Boolean).join(' · ');
   dialogo.querySelector('.cerrarDialogo').addEventListener('click', () => dialogo.close());
 
   const periodos = [['periodo', 'Periodo actual'], ['3', '3 meses'], ['12', '12 meses'], ['todo', 'Todo']].filter(([id]) => id !== 'periodo' || inicio);
@@ -4413,40 +4437,81 @@ function dibujarHistorial(centro, equipo, inicio) {
     caja.outerHTML = '<p class="vacia">No hay tickets de este centro en este periodo.</p>';
     return;
   }
+  let mesAnterior = '';
   lista.forEach(({ t, abierto }) => {
+    // Título por mes: "Noviembre 2026 · 3 tickets"
+    const mes = abierto.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' }).replace(' de ', ' ');
+    if (mes !== mesAnterior) {
+      const n = lista.filter(x => x.abierto.getMonth() === abierto.getMonth() && x.abierto.getFullYear() === abierto.getFullYear()).length;
+      const h = document.createElement('h4');
+      h.className = 'mesHist';
+      h.innerHTML = '<span></span>';
+      h.prepend(mes.charAt(0).toUpperCase() + mes.slice(1));
+      h.lastChild.textContent = '· ' + n + (n === 1 ? ' ticket' : ' tickets');
+      caja.appendChild(h);
+      mesAnterior = mes;
+    }
     const item = document.createElement('article');
     const abiertoAun = t.columna !== 'finalizado';
     item.className = 'itemHist' + (abiertoAun ? ' abierto' : '');
     const cierre = fechaTicket(t.fechaTecnico);
-    const titulo = document.createElement('div');
-    titulo.className = 'titulo';
-    titulo.innerHTML = '<span></span><span></span>';
-    titulo.firstChild.textContent = '#' + t.id + ' · ' + (t.problema || 'Sin problema indicado');
-    if (abiertoAun) { titulo.lastChild.textContent = estadoVisible(t)[0] + ' · lleva ' + duracionTicket(Date.now() - abierto); titulo.lastChild.className = 'enCurso'; }
-    else if (cierre) titulo.lastChild.textContent = 'duró ' + duracionTicket(cierre - abierto);
-    item.appendChild(titulo);
-    // Recorrido del ticket
-    const pasos = ['Abierto ' + fechaCortaTicket(abierto) + (t.nombre ? ' por ' + t.nombre : '')];
-    const aceptado = fechaTicket(t.aceptacion);
-    if (aceptado) pasos.push('aceptado ' + fechaCortaTicket(aceptado) + (t.tecnico ? ' (' + t.tecnico + ')' : ''));
-    const gc = fechaTicket(t.gestionCentro), gt = fechaTicket(t.gestionTerreno);
-    if (gc) pasos.push('gestión con el centro ' + fechaCortaTicket(gc));
-    if (gt) pasos.push('gestión en terreno ' + fechaCortaTicket(gt));
-    if (!abiertoAun && cierre) pasos.push('cerrado ' + fechaCortaTicket(cierre));
-    const p = document.createElement('div');
-    p.className = 'pasos';
-    p.textContent = pasos.join(' → ');
-    item.appendChild(p);
-    if (t.tipo || t.observaciones) {
-      const sol = document.createElement('div');
-      sol.className = 'solucion';
-      if (t.tipo) { const e = document.createElement('span'); e.className = 'tipoHist'; e.textContent = t.tipo; sol.appendChild(e); }
-      if (t.observaciones) { const o = document.createElement('span'); o.className = 'obsHist'; o.textContent = t.observaciones; sol.appendChild(o); }
-      item.appendChild(sol);
+
+    // Una línea: fecha · problema · cómo se solucionó · duración
+    const fila = document.createElement('button');
+    fila.type = 'button';
+    fila.className = 'filaHist';
+    fila.setAttribute('aria-expanded', 'false');
+    fila.innerHTML = '<span class="fechaH"></span><span class="probH"></span><span class="solH"></span><span class="durH"></span><span class="flechaH" aria-hidden="true">▶</span>';
+    fila.querySelector('.fechaH').textContent = abierto.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }).replace('.', '');
+    fila.querySelector('.probH').textContent = t.problema || 'Sin problema indicado';
+    fila.querySelector('.probH').title = t.problema || '';
+    if (t.tipo) {
+      const e = document.createElement('span');
+      e.className = 'tipoHist';
+      e.textContent = t.tipo;
+      e.title = t.tipo;
+      fila.querySelector('.solH').appendChild(e);
     }
+    const dur = fila.querySelector('.durH');
+    if (abiertoAun) { dur.textContent = estadoVisible(t)[0] + ' · ' + duracionTicket(Date.now() - abierto); dur.classList.add('enCurso'); }
+    else if (cierre) dur.textContent = duracionTicket(cierre - abierto);
+    item.appendChild(fila);
+
+    // Detalle (al hacer clic): recorrido, técnico y observaciones
+    const detalle = document.createElement('div');
+    detalle.className = 'detalleHist';
+    detalle.hidden = true;
+    const pasos = document.createElement('div');
+    pasos.className = 'pasosHist';
+    const paso = (que, fecha, quien) => {
+      if (!fecha) return;
+      const a = document.createElement('b'); a.textContent = que;
+      const b = document.createElement('span'); b.textContent = fechaCortaTicket(fecha) + (quien ? ' · ' + quien : '');
+      pasos.append(a, b);
+    };
+    paso('Abierto', abierto, (t.nombre || '') + (t.id ? ' · ticket #' + t.id : ''));
+    paso('Aceptado', fechaTicket(t.aceptacion), t.tecnico);
+    paso('Gestión con el centro', fechaTicket(t.gestionCentro));
+    paso('Gestión en terreno', fechaTicket(t.gestionTerreno));
+    if (!abiertoAun) paso('Cerrado', cierre, t.tipo ? 'solución: ' + t.tipo : '');
+    detalle.appendChild(pasos);
+    if (t.observaciones) {
+      const o = document.createElement('div');
+      o.className = 'obsHist';
+      o.textContent = t.observaciones;
+      detalle.appendChild(o);
+    }
+    item.appendChild(detalle);
+    fila.addEventListener('click', () => {
+      detalle.hidden = !detalle.hidden;
+      item.classList.toggle('expandido', !detalle.hidden);
+      fila.setAttribute('aria-expanded', detalle.hidden ? 'false' : 'true');
+    });
     caja.appendChild(item);
   });
 }
+
+// 25 min, 6 h 10 min, 1 día 8 h}
 
 // 25 min, 6 h 10 min, 1 día 8 h
 function duracionTicket(ms) {
