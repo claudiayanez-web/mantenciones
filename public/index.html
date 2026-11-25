@@ -4173,7 +4173,7 @@ function textoConexion(d) {
 }
 
 async function cargarDispositivos(forzar) {
-  if (cargandoDispositivos || (!forzar && dispositivos && Date.now() - dispositivosEn < 10 * 60000)) return;
+  if (cargandoDispositivos || (!forzar && dispositivos && Date.now() - dispositivosEn < 5 * 60000)) return;
   cargandoDispositivos = true;
   const r = await api('/api/dispositivos' + (forzar ? '?recargar=1' : ''));
   cargandoDispositivos = false;
@@ -4495,7 +4495,7 @@ async function cargarPanel(forzar) {
     if (r.ok) estado.cache.sams = prepararDatos(r);
   };
   const [panel] = await Promise.all([
-    api('/api/panel' + (forzar ? '?recargar=1' : '')), leerSams(), cargarDispositivos(true),
+    api('/api/panel' + (forzar ? '?recargar=1' : '')), leerSams(), cargarDispositivos(!!forzar),
     cargarSolicitudes({ silencioso: true }), cargarBuques()
   ]);
   boton.classList.remove('cargando');

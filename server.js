@@ -1342,8 +1342,16 @@ async function paginasRemoteit(cuenta) {
 
 // Organizaciones y cuentas a las que tiene acceso la clave. REMOTEIT_ORG_ID (separadas por coma) las fija a mano;
 // si no, se buscan en el esquema de remote.it los campos de "login" que las entregan.
+let cuentasRemoteitGuardadas = null;
 async function cuentasRemoteit() {
   if (process.env.REMOTEIT_ORG_ID) return process.env.REMOTEIT_ORG_ID.split(',').map(x => x.trim()).filter(Boolean);
+  if (cuentasRemoteitGuardadas) return cuentasRemoteitGuardadas;
+  const ids = await buscarCuentasRemoteit();
+  if (ids.length) cuentasRemoteitGuardadas = ids;
+  return ids;
+}
+
+async function buscarCuentasRemoteit() {
   let campos = [];
   try {
     const data = await pedirRemoteit('{ __type(name: "Login") { fields { name } } }');
@@ -1386,10 +1394,11 @@ async function dispositivosRemoteit() {
 
 // Cada lista se guarda 10 minutos por separado: casi no cambian y remote.it pide no consultar de más
 const DIEZ_MINUTOS = 10 * 60000;
+const DURACION_MEMORIA_DISP = { retina: DIEZ_MINUTOS, remote: 5 * 60000 };
 const memoriaDisp = { retina: null, remote: null };
 async function conMemoria(clave, recargar, leer) {
   const m = memoriaDisp[clave];
-  if (m && !recargar && Date.now() - m.leido < DIEZ_MINUTOS) return m.lista;
+  if (m && !recargar && Date.now() - m.leido < (DURACION_MEMORIA_DISP[clave] || DIEZ_MINUTOS)) return m.lista;
   const lista = await leer();
   memoriaDisp[clave] = { leido: Date.now(), lista };
   return lista;
