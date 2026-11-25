@@ -861,7 +861,8 @@
   .cifraPanel strong { font-size: clamp(30px, 3.6vw, 52px); font-weight: 700; color: #73bf69; line-height: 1; }
   .cifraPanel.version { flex-direction: column; gap: 2px; }
   .cifraPanel.version strong { color: #ff9830; }
-  .filaPanel { display: grid; gap: 10px; grid-template-columns: 1.3fr 1fr 1.2fr 1fr; }
+  .filaPanel { position: relative; display: grid; gap: 10px; grid-template-columns: var(--columnasFila, 1.3fr 1fr 1.2fr 1fr); }
+  .filaPanel.fila2 { grid-template-columns: var(--columnasFila, 2.2fr 1fr 0.75fr 1fr); }
   .cuadroPanel { background: #1e2735; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; min-height: 150px; min-width: 0; }
   .cuadroPanel > h4 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: #dfe5ee; }
   .alertasPanel { flex: 1; display: grid; gap: 4px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); grid-auto-rows: minmax(54px, 1fr); }
@@ -882,7 +883,9 @@
   .pendientesPanel .numero { font-size: 40px; font-weight: 700; line-height: 1; color: #f2495c; }
   .pendientesPanel .numero.cero { color: #73bf69; }
   .pendientesPanel .detalleP { color: #8a96a6; font-size: 12px; }
-  .pendientesPanel .listaP { flex: 1; min-height: 0; overflow-y: auto; display: grid; gap: 3px; align-content: start; scrollbar-width: thin; scrollbar-color: #3a4556 transparent; }
+  .pendientesPanel .listaP { flex: 1; min-height: 0; overflow: hidden; display: grid; gap: 3px 6px;
+    grid-template-columns: repeat(var(--columnas, 1), minmax(0, 1fr)); grid-template-rows: repeat(var(--filas, 1), minmax(0, 1fr)); grid-auto-flow: column; }
+  .filaP { min-height: 0; overflow: hidden; }
   .filaP { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; background: #252f3f; border-left: 3px solid var(--c); border-radius: 3px; padding: 4px 8px; font-size: 12px; }
   .filaP .queP { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #dfe5ee; }
   .filaP .queP b { font-weight: 600; }
@@ -890,9 +893,10 @@
   .filaP .dondeP { font-size: 11px; color: #8a96a6; }
   .filaP .dondeP.terreno { color: #5794f2; }
   .filaP .diasP { background: var(--c); color: var(--t); border-radius: 999px; padding: 1px 8px; font-weight: 700; font-size: 11px; white-space: nowrap; }
-  .wellboatsPanel { flex: 1; display: grid; gap: 6px; }
+  .wellboatsPanel { flex: 1; display: grid; gap: 4px; align-content: start; }
+  .wellboatsPanel .alertaPanel { font-size: 12px; padding: 6px 8px; min-height: 0; }
   .mapaPanel { flex: 1; min-height: 140px; border-radius: 4px; background: #232c3a; }
-  .mapasPanel { display: grid; gap: 8px; grid-template-columns: var(--columnasMapas, repeat(8, minmax(0, 1fr))); }
+  .mapasPanel { position: relative; display: grid; gap: 8px; grid-template-columns: var(--columnasMapas, repeat(8, minmax(0, 1fr))); }
   .mapasPanel .cuadroPanel { min-height: 220px; }
   .panelPantalla .leaflet-container { background: #232c3a; }
   .panelPantalla .leaflet-tooltip.etiquetaPanel { background: none; border: none; box-shadow: none; padding: 0; color: #dfe5ee; font-size: 10px; text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 3px #000; }
@@ -900,6 +904,18 @@
   .panelPantalla .leaflet-tooltip.etiquetaPanel.tapada { visibility: hidden; }
   .panelPantalla .leaflet-tooltip.etiquetaPanel::before { display: none; }
   .avisosPanel { font-size: 11px; color: #ff9830; }
+  /* Modo Editar diseño: bordes azules que se arrastran */
+  .panelPantalla.editando .cuadroPanel { outline: 1px dashed rgba(87, 148, 242, 0.6); }
+  .tiradorPanel { position: absolute; z-index: 20; background: transparent; touch-action: none; }
+  .tiradorPanel::after { content: ""; position: absolute; background: #5794f2; border-radius: 2px; opacity: 0.7; }
+  .tiradorPanel:hover::after, .tiradorPanel.arrastrando::after { opacity: 1; background: #8ab8ff; }
+  .tiradorPanel.columna { width: 14px; cursor: col-resize; }
+  .tiradorPanel.columna::after { left: 5px; top: 0; bottom: 0; width: 4px; }
+  .tiradorPanel.fila { height: 14px; cursor: row-resize; left: 0; right: 0; }
+  .tiradorPanel.fila::after { top: 5px; left: 0; right: 0; height: 4px; }
+  .panelPantalla.editando .leaflet-container { pointer-events: none; }
+  .panelBarra .editarDiseno[aria-pressed="true"] { background: #5794f2; border-color: #5794f2; color: #fff; }
+  @media (max-width: 1100px), (max-height: 559px) { .panelBarra .soloComputador { display: none; } }
   .cuadroPanel > h4.conBotones { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
   .botonesMapa { display: flex; gap: 2px; flex-shrink: 0; }
   .botonesMapa button { background: none; border: 1px solid transparent; color: #8a96a6; cursor: pointer; font: inherit; font-size: 12px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
@@ -909,7 +925,7 @@
   .leyendaPanel span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; background: var(--c); }
   @media (min-width: 1101px) and (min-height: 560px) {
     .panelPantalla { overflow: hidden; gap: 8px; padding: 10px 12px; margin-top: 10px;
-      grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.35fr) auto; }
+      grid-template-rows: auto auto minmax(0, var(--altoFila1, 0.9fr)) minmax(0, var(--altoFila2, 1.15fr)) minmax(0, var(--altoMapas, 1.3fr)) auto; }
     .panelPantalla .cuadroPanel, .mapasPanel .cuadroPanel { min-height: 0; padding: 6px; }
     .panelPantalla .cuadroPanel > h4 { margin-bottom: 4px; }
     .filaPanel, .mapasPanel { min-height: 0; }
@@ -925,8 +941,10 @@
     .alertaPanel { font-size: clamp(11px, 1.9vh, 19px); padding: 4px; overflow: hidden; }
     .armadosPanel strong { font-size: clamp(22px, 4.6vh, 44px); }
     .pendientesPanel .numero { font-size: clamp(26px, 4.6vh, 44px); }
-    .filaP { font-size: clamp(10px, 1.4vh, 12px); padding: 3px 7px; }
-    .wellboatsPanel { min-height: 0; grid-auto-rows: minmax(0, 1fr); }
+    .filaP { font-size: clamp(10px, 1.45vh, 13px); padding: 1px 7px; }
+    .filaP .diasP { font-size: clamp(9px, 1.25vh, 11px); padding: 0 7px; }
+    .wellboatsPanel { min-height: 0; grid-auto-rows: auto; }
+    .wellboatsPanel .alertaPanel { font-size: clamp(10px, 1.4vh, 12px); }
   }
   @media (max-width: 1100px) {
     .filaPanel { grid-template-columns: 1fr 1fr; }
@@ -1820,6 +1838,8 @@
   <!-- Dashboard: pantalla tipo Grafana con alertas de Retina, SAMS, remote.it, tickets y wellboats -->
   <div class="vista vistaPanel" id="vistaPanel" hidden>
     <div class="panelBarra">
+      <button class="botonSecundario soloComputador" id="btnRestablecerDiseno" type="button" hidden>Volver a lo original</button>
+      <button class="botonSecundario editarDiseno soloComputador" id="btnEditarDiseno" type="button" aria-pressed="false" title="Arrastrar los bordes para cambiar el tamaño de los cuadros">Editar diseño</button>
       <button class="botonSecundario" id="btnPantallaPanel" type="button">Pantalla completa</button>
       <button class="botonIcono" id="btnRecargarPanel" type="button" title="Recargar" aria-label="Recargar panel">
         <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
@@ -4528,6 +4548,118 @@ function actualizarRelojesPanel() {
   });
 }
 
+// ---------- Diseño del Dashboard: proporciones de filas y columnas, guardadas en este navegador ----------
+const CLAVE_DISENO_PANEL = 'mantenciones.dashboard.diseno';
+const disenoOriginal = () => ({
+  filas: [0.9, 1.15, 1.3],
+  fila1: [1.3, 1, 1.2, 1],
+  fila2: [2.2, 1, 0.75, 1],
+  mapas: ZONAS_PANEL.map(z => z[3])
+});
+let disenoPanel = disenoOriginal(), disenoEditando = false, arrastrandoPanel = false;
+try {
+  const g = JSON.parse(localStorage.getItem(CLAVE_DISENO_PANEL) || 'null');
+  if (g && ['filas', 'fila1', 'fila2', 'mapas'].every(k => Array.isArray(g[k]) && g[k].length === disenoPanel[k].length)) disenoPanel = g;
+} catch {}
+
+const fr = lista => lista.map(n => 'minmax(0, ' + (+n).toFixed(3) + 'fr)').join(' ');
+function aplicarDisenoPanel() {
+  const p = document.getElementById('panelPantalla');
+  if (!p.dataset.armado) return;
+  ['--altoFila1', '--altoFila2', '--altoMapas'].forEach((v, i) => p.style.setProperty(v, (+disenoPanel.filas[i]).toFixed(3) + 'fr'));
+  p.querySelector('.filaPanel.fila1').style.setProperty('--columnasFila', fr(disenoPanel.fila1));
+  p.querySelector('.filaPanel.fila2').style.setProperty('--columnasFila', fr(disenoPanel.fila2));
+  p.querySelector('.mapasPanel').style.setProperty('--columnasMapas', fr(disenoPanel.mapas));
+  // Mientras se arrastra no se rehacen los bordes (se perdería el mouse); se rehacen al soltar
+  if (disenoEditando && !arrastrandoPanel) requestAnimationFrame(ponerTiradoresPanel);
+}
+
+function reajustarMapasPanel() {
+  Object.values(mapasPanel).forEach(z => { z.mapa.invalidateSize(); ordenarEtiquetasPanel(z.mapa); });
+}
+
+// Pone los bordes que se arrastran: entre columnas de cada fila y entre las tres filas grandes
+function ponerTiradoresPanel() {
+  const p = document.getElementById('panelPantalla');
+  p.querySelectorAll('.tiradorPanel').forEach(t => t.remove());
+  if (!disenoEditando) return;
+  const filas = [['fila1', p.querySelector('.filaPanel.fila1')], ['fila2', p.querySelector('.filaPanel.fila2')], ['mapas', p.querySelector('.mapasPanel')]];
+  // Columnas
+  filas.forEach(([clave, cont]) => {
+    const hijos = [...cont.children].filter(h => h.classList.contains('cuadroPanel'));
+    const rc = cont.getBoundingClientRect();
+    hijos.slice(0, -1).forEach((h, i) => {
+      const r = h.getBoundingClientRect(), sig = hijos[i + 1].getBoundingClientRect();
+      const t = document.createElement('div');
+      t.className = 'tiradorPanel columna';
+      t.style.left = ((r.right + sig.left) / 2 - rc.left - 7) + 'px';
+      t.style.top = '0'; t.style.bottom = '0';
+      t.title = 'Arrastra para cambiar el ancho';
+      arrastrarPanel(t, 'x', clave, i, () => cont.getBoundingClientRect().width - (hijos.length - 1) * parseFloat(getComputedStyle(cont).columnGap || 0));
+      cont.appendChild(t);
+    });
+  });
+  // Filas (alto)
+  const rp = p.getBoundingClientRect();
+  filas.slice(0, -1).forEach(([, cont], i) => {
+    const r = cont.getBoundingClientRect(), sig = filas[i + 1][1].getBoundingClientRect();
+    const t = document.createElement('div');
+    t.className = 'tiradorPanel fila';
+    t.style.top = ((r.bottom + sig.top) / 2 - rp.top + p.scrollTop - 7) + 'px';
+    t.title = 'Arrastra para cambiar el alto';
+    arrastrarPanel(t, 'y', 'filas', i, () => filas.reduce((suma, [, c]) => suma + c.getBoundingClientRect().height, 0));
+    p.appendChild(t);
+  });
+}
+
+// Arrastrar un borde: pasa la diferencia de píxeles a proporciones entre los dos vecinos (la suma no cambia)
+function arrastrarPanel(t, eje, clave, i, tamanoTotal) {
+  t.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    t.setPointerCapture(e.pointerId);
+    t.classList.add('arrastrando');
+    arrastrandoPanel = true;
+    const inicio = eje === 'x' ? e.clientX : e.clientY;
+    const lista = disenoPanel[clave].slice();
+    const porPx = lista.reduce((a, b) => a + b, 0) / Math.max(1, tamanoTotal());
+    const mover = ev => {
+      const d = ((eje === 'x' ? ev.clientX : ev.clientY) - inicio) * porPx;
+      const par = lista[i] + lista[i + 1], minimo = par * 0.12;
+      const a = Math.min(par - minimo, Math.max(minimo, lista[i] + d));
+      disenoPanel[clave] = lista.map((v, k) => k === i ? a : k === i + 1 ? par - a : v);
+      aplicarDisenoPanel();
+      const movido = (a - lista[i]) / porPx;
+      t.style.transform = eje === 'x' ? 'translateX(' + movido + 'px)' : 'translateY(' + movido + 'px)';
+    };
+    const soltar = () => {
+      t.removeEventListener('pointermove', mover);
+      t.classList.remove('arrastrando');
+      arrastrandoPanel = false;
+      reajustarMapasPanel();
+      requestAnimationFrame(ponerTiradoresPanel);
+    };
+    t.addEventListener('pointermove', mover);
+    t.addEventListener('pointerup', soltar, { once: true });
+    t.addEventListener('pointercancel', soltar, { once: true });
+  });
+}
+
+function editarDisenoPanel(activar) {
+  disenoEditando = activar;
+  const p = document.getElementById('panelPantalla');
+  p.classList.toggle('editando', activar);
+  const boton = document.getElementById('btnEditarDiseno');
+  boton.setAttribute('aria-pressed', activar ? 'true' : 'false');
+  boton.textContent = activar ? 'Guardar diseño' : 'Editar diseño';
+  document.getElementById('btnRestablecerDiseno').hidden = !activar;
+  if (!activar) {
+    try { localStorage.setItem(CLAVE_DISENO_PANEL, JSON.stringify(disenoPanel)); } catch {}
+    avisar('Diseño del Dashboard guardado en este computador');
+  }
+  ponerTiradoresPanel();
+  reajustarMapasPanel();
+}
+
 // Esqueleto fijo (los mapas se crean una vez); los datos se pintan en dibujarPanel
 function armarPanel() {
   const p = document.getElementById('panelPantalla');
@@ -4537,12 +4669,12 @@ function armarPanel() {
     '<div class="relojesPanel"><div class="relojPanel mx"><strong>--:--:--</strong><span>MÉXICO</span></div>' +
     '<div class="relojPanel cl"><strong>--:--:--</strong><span>CHILE</span></div><div class="relojPanel no"><strong>--:--:--</strong><span>NORUEGA</span></div></div>' +
     '<div class="cifrasPanel" id="cifrasPanel"></div>' +
-    '<div class="filaPanel">' +
+    '<div class="filaPanel fila1">' +
     '  <div class="cuadroPanel"><h4>Muestras no subidas (primeras de cada profundidad, hoy)</h4><div class="alertasPanel" id="pMuestras"></div></div>' +
     '  <div class="cuadroPanel"><h4>Foco</h4><div class="alertasPanel" id="pFoco"></div></div>' +
     '  <div class="cuadroPanel"><h4>Equipos desconectados (remote.it)</h4><div class="alertasPanel" id="pDesconectados"></div></div>' +
     '  <div class="cuadroPanel"><h4>Equipos armados</h4><div class="armadosPanel" id="pArmados"></div></div>' +
-    '</div><div class="filaPanel">' +
+    '</div><div class="filaPanel fila2">' +
     '  <div class="cuadroPanel"><h4>Mantenciones pendientes (en gestión)</h4><div class="pendientesPanel" id="pPendientes"></div></div>' +
     '  <div class="cuadroPanel"><h4>Bomba</h4><div class="alertasPanel" id="pBomba"></div></div>' +
     '  <div class="cuadroPanel"><h4>Wellboats</h4><div class="wellboatsPanel" id="pWellboats"></div></div>' +
@@ -4555,6 +4687,7 @@ function armarPanel() {
     '<div class="leyendaPanel"><span style="--c:#73bf69">Mantención al día</span><span style="--c:#fade2a">Faltan menos de 7 días</span>' +
     '<span style="--c:#ff9830">Mantención atrasada</span><span style="--c:#f2495c">En gestión centro o terreno</span></div>' +
     '<div class="avisosPanel" id="avisosPanel"></div>';
+  aplicarDisenoPanel();
   actualizarRelojesPanel();
 }
 
@@ -4635,6 +4768,10 @@ function dibujarPanel() {
   pend.innerHTML = '<div class="resumenP"><span class="numero"></span><span class="detalleP"></span></div><div class="listaP"></div>';
   pend.querySelector('.numero').textContent = enGestion.length;
   pend.querySelector('.numero').classList.toggle('cero', !enGestion.length);
+  // Hasta 7 por columna; más que eso, se reparten en 2 o 3 columnas para que se vean todos sin deslizar
+  const columnasP = Math.min(3, Math.max(1, Math.ceil(enGestion.length / 7)));
+  pend.querySelector('.listaP').style.setProperty('--columnas', columnasP);
+  pend.querySelector('.listaP').style.setProperty('--filas', Math.max(1, Math.ceil(enGestion.length / columnasP)));
   pend.querySelector('.detalleP').textContent = enGestion.length
     ? 'en gestión · ' + (enGestion.length - nTerreno) + ' centro · ' + nTerreno + ' terreno' : 'Ninguna mantención en gestión';
   enGestion.map(t => ({ t, d: diasGestion(t) })).sort((a, b) => b.d - a.d).forEach(({ t, d }) => {
@@ -8316,6 +8453,12 @@ document.getElementById('btnPlataforma').addEventListener('click', abrirPlatafor
 document.getElementById('btnOperaciones').addEventListener('click', abrirOperaciones);
 document.getElementById('btnEquipos').addEventListener('click', abrirEquipos);
 document.getElementById('btnPanel').addEventListener('click', abrirPanelPantalla);
+document.getElementById('btnEditarDiseno').addEventListener('click', () => editarDisenoPanel(!disenoEditando));
+document.getElementById('btnRestablecerDiseno').addEventListener('click', () => {
+  disenoPanel = disenoOriginal();
+  aplicarDisenoPanel();
+  reajustarMapasPanel();
+});
 document.getElementById('panelPantalla').addEventListener('click', e => {
   const fijar = e.target.closest('[data-fijar]'), volver = e.target.closest('[data-volver]');
   if (fijar) {
@@ -8336,6 +8479,7 @@ document.getElementById('btnPantallaPanel').addEventListener('click', () => {
 window.addEventListener('resize', () => {
   if (estado.vista !== 'panel') return;
   Object.values(mapasPanel).forEach(z => { z.mapa.invalidateSize(); ordenarEtiquetasPanel(z.mapa); });
+  if (disenoEditando) ponerTiradoresPanel();
 });
 document.addEventListener('fullscreenchange', () => {
   document.getElementById('btnPantallaPanel').textContent = document.fullscreenElement ? 'Salir de pantalla completa' : 'Pantalla completa';
