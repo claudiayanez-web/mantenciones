@@ -4648,8 +4648,8 @@ async function dibujarMapasPanel(centros) {
     if (mapasPanel[id]) return mapasPanel[id];
     const el = document.getElementById('mapaPanel-' + id);
     if (!el) return null;
-    const m = L.map(el, { zoomControl: false, attributionControl: false, scrollWheelZoom: false });
-    // Sin botones + / − (tapaban puntos): se acerca con doble clic y se arrastra
+    const m = L.map(el, { zoomControl: false, attributionControl: false, scrollWheelZoom: true, wheelPxPerZoomLevel: 120 });
+    // Sin botones + / − (tapaban puntos): se acerca con el rodillo del mouse o doble clic, y se arrastra
     m.on('zoomend moveend', () => ordenarEtiquetasPanel(m));
     // Mapa base gris oscuro de Esri (no pide clave), como el del Grafana
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 }).addTo(m);
