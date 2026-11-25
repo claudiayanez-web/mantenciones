@@ -883,7 +883,7 @@
   .pendientesPanel td { background: #e8d23a; color: #2c2400; border: 1px solid #b9a62a; padding: 3px 6px; max-width: 140px; }
   .wellboatsPanel { flex: 1; display: grid; gap: 6px; }
   .mapaPanel { flex: 1; min-height: 140px; border-radius: 4px; background: #232c3a; }
-  .mapasPanel { display: grid; gap: 8px; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .mapasPanel { display: grid; gap: 8px; grid-template-columns: var(--columnasMapas, repeat(8, minmax(0, 1fr))); }
   .mapasPanel .cuadroPanel { min-height: 220px; }
   .panelPantalla .leaflet-container { background: #232c3a; }
   .panelPantalla .leaflet-tooltip.etiquetaPanel { background: none; border: none; box-shadow: none; padding: 0; color: #dfe5ee; font-size: 10px; text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 3px #000; }
@@ -891,6 +891,11 @@
   .panelPantalla .leaflet-tooltip.etiquetaPanel.tapada { visibility: hidden; }
   .panelPantalla .leaflet-tooltip.etiquetaPanel::before { display: none; }
   .avisosPanel { font-size: 11px; color: #ff9830; }
+  .cuadroPanel > h4.conBotones { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+  .botonesMapa { display: flex; gap: 2px; flex-shrink: 0; }
+  .botonesMapa button { background: none; border: 1px solid transparent; color: #8a96a6; cursor: pointer; font: inherit; font-size: 12px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
+  .botonesMapa button:hover { color: #fff; border-color: rgba(255, 255, 255, 0.25); }
+  .botonesMapa button.fijado { color: #fade2a; }
   .leyendaPanel { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11px; color: #c9d1dc; }
   .leyendaPanel span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; background: var(--c); }
   @media (min-width: 1101px) and (min-height: 560px) {
@@ -916,7 +921,7 @@
   }
   @media (max-width: 1100px) {
     .filaPanel { grid-template-columns: 1fr 1fr; }
-    .mapasPanel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mapasPanel { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .mapasPanel .cuadroPanel { min-height: 240px; }
   }
   @media (max-width: 760px) {
@@ -4440,14 +4445,32 @@ function dibujarEquipos() {
 // Se arma con: SAMS (contadores y mapas), /api/panel (Retina: muestras, foco, bomba; planilla de armados),
 // remote.it (desconectados), Solicitudes (mantenciones pendientes) y la pestaña wellboat de SAMS.
 let panelDatos = null, panelEn = 0, mapasPanel = {}, relojPanel = null, cargandoPanel = false;
+// [id, título, área [[lat sur, lon oeste], [lat norte, lon este]], ancho relativo]
 const ZONAS_PANEL = [
-  ['calbuco', 'Centros Calbuco', c => /los lagos/.test(c.region) && c.lat > -42.05],
-  ['chiloe', 'Centros Chiloé', c => /los lagos/.test(c.region) && c.lat <= -42.05],
-  ['aysen', 'Centros Aysén', c => /aysen/.test(c.region)],
-  ['melinka', 'Centros Melinka', c => /melinka/.test(c.region)],
-  ['mexico', 'México', c => /extranjero/.test(c.region) && c.lat > 13 && c.lat < 33],
-  ['noruega', 'Noruega', c => /extranjero/.test(c.region) && c.lat > 55]
+  ['calbuco', 'Centros Calbuco', [[-41.98, -73.40], [-41.10, -72.20]], 2],
+  ['chiloe', 'Centros Chiloé', [[-42.78, -73.85], [-41.90, -72.35]], 2.5],
+  ['chiloeSur', 'Centros Chiloé', [[-43.36, -73.78], [-42.88, -73.40]], 1],
+  ['aysen', 'Centros Puerto Aysén', [[-45.98, -74.35], [-44.95, -73.15]], 1.5],
+  ['melinka', 'Centros Melinka', [[-44.85, -74.50], [-44.05, -73.10]], 1.5],
+  ['mexico', 'México', [[31.55, -117.60], [32.70, -116.30]], 1.5],
+  ['noruegaSur', 'Noruega', [[57.90, 4.60], [62.40, 7.30]], 1],
+  ['noruegaNorte', 'Noruega', [[62.80, 6.50], [70.10, 19.00]], 1]
 ];
+// Posición que cada mapa tiene fijada ({ id: { lat, lon, zoom } }), guardada en este navegador
+const CLAVE_VISTAS_PANEL = 'mantenciones.dashboard.vistas';
+let vistasPanel = {};
+try { vistasPanel = JSON.parse(localStorage.getItem(CLAVE_VISTAS_PANEL) || '{}') || {}; } catch {}
+function guardarVistasPanel() { try { localStorage.setItem(CLAVE_VISTAS_PANEL, JSON.stringify(vistasPanel)); } catch {} }
+// Lleva un mapa a su posición fijada o, si no tiene, a su área inicial
+function ponerVistaPanel(id) {
+  const z = mapasPanel[id];
+  if (!z) return;
+  const v = vistasPanel[id];
+  if (v) z.mapa.setView([v.lat, v.lon], v.zoom, { animate: false });
+  else z.mapa.fitBounds(ZONAS_PANEL.find(x => x[0] === id)[2]);
+  document.querySelector('[data-fijar="' + id + '"]')?.classList.toggle('fijado', !!v);
+}
+const dentroDeZona = (c, area) => c.lat >= area[0][0] && c.lat <= area[1][0] && c.lon >= area[0][1] && c.lon <= area[1][1];
 
 async function abrirPanelPantalla() {
   abrirMenu(false);
@@ -4515,8 +4538,11 @@ function armarPanel() {
     '  <div class="cuadroPanel"><h4>Bomba</h4><div class="alertasPanel" id="pBomba"></div></div>' +
     '  <div class="cuadroPanel"><h4>Wellboats</h4><div class="wellboatsPanel" id="pWellboats"></div></div>' +
     '  <div class="cuadroPanel"><h4>Ubicación wellboats</h4><div class="mapaPanel" id="mapaPanel-wellboats"></div></div>' +
-    '</div><div class="mapasPanel">' + ZONAS_PANEL.map(([id, titulo]) =>
-      '<div class="cuadroPanel"><h4>' + titulo + '</h4><div class="mapaPanel" id="mapaPanel-' + id + '"></div></div>').join('') + '</div>' +
+    '</div><div class="mapasPanel" style="--columnasMapas:' + ZONAS_PANEL.map(z => 'minmax(0, ' + z[3] + 'fr)').join(' ') + '">' + ZONAS_PANEL.map(([id, titulo]) =>
+      '<div class="cuadroPanel"><h4 class="conBotones"><span>' + titulo + '</span><span class="botonesMapa">' +
+      '<button type="button" data-fijar="' + id + '" title="Fijar esta posición del mapa (queda así siempre en este computador)">📌</button>' +
+      '<button type="button" data-volver="' + id + '" title="Volver a la posición fijada">↺</button></span></h4>' +
+      '<div class="mapaPanel" id="mapaPanel-' + id + '"></div></div>').join('') + '</div>' +
     '<div class="leyendaPanel"><span style="--c:#73bf69">Mantención al día</span><span style="--c:#fade2a">Faltan menos de 7 días</span>' +
     '<span style="--c:#ff9830">Mantención atrasada</span><span style="--c:#f2495c">En gestión centro o terreno</span></div>' +
     '<div class="avisosPanel" id="avisosPanel"></div>';
@@ -4664,14 +4690,15 @@ async function dibujarMapasPanel(centros) {
     m.on('mouseout', () => ordenarEtiquetasPanel(m._map));
     return m;
   };
-  ZONAS_PANEL.forEach(([id, , pasa]) => {
+  const conCoordenadas = centros.filter(c => isFinite(c.lat) && isFinite(c.lon));
+  ZONAS_PANEL.forEach(([id]) => {
     const z = crear(id);
     if (!z) return;
     z.capa.clearLayers();
-    const lista = centros.filter(c => isFinite(c.lat) && isFinite(c.lon) && pasa(c));
-    lista.forEach(c => punto(z.capa, c.lat, c.lon, c.centro, c.color, c.nota));
+    // Todos los centros en todos los mapas: cada mapa muestra lo que cae en su vista
+    conCoordenadas.forEach(c => punto(z.capa, c.lat, c.lon, c.centro, c.color, c.nota));
     z.mapa.invalidateSize();
-    if (!z.encuadrado && lista.length) { z.mapa.fitBounds(L.latLngBounds(lista.map(c => [c.lat, c.lon])).pad(0.15), { maxZoom: 10 }); z.encuadrado = true; }
+    if (!z.encuadrado) { ponerVistaPanel(id); z.encuadrado = true; }
     setTimeout(() => ordenarEtiquetasPanel(z.mapa), 50);
   });
   const w = crear('wellboats');
@@ -8246,6 +8273,18 @@ document.getElementById('btnPlataforma').addEventListener('click', abrirPlatafor
 document.getElementById('btnOperaciones').addEventListener('click', abrirOperaciones);
 document.getElementById('btnEquipos').addEventListener('click', abrirEquipos);
 document.getElementById('btnPanel').addEventListener('click', abrirPanelPantalla);
+document.getElementById('panelPantalla').addEventListener('click', e => {
+  const fijar = e.target.closest('[data-fijar]'), volver = e.target.closest('[data-volver]');
+  if (fijar) {
+    const z = mapasPanel[fijar.dataset.fijar];
+    if (!z) return;
+    const c = z.mapa.getCenter();
+    vistasPanel[fijar.dataset.fijar] = { lat: +c.lat.toFixed(5), lon: +c.lng.toFixed(5), zoom: z.mapa.getZoom() };
+    guardarVistasPanel();
+    fijar.classList.add('fijado');
+    avisar('Posición del mapa fijada');
+  } else if (volver) ponerVistaPanel(volver.dataset.volver);
+});
 document.getElementById('btnRecargarPanel').addEventListener('click', () => cargarPanel(true));
 document.getElementById('btnPantallaPanel').addEventListener('click', () => {
   const p = document.getElementById('panelPantalla');
