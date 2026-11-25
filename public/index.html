@@ -4945,6 +4945,11 @@ async function cargarTicketsAntiguos() {
   ticketsAntiguos = r.tickets.map(t => ({ ...t, columna: columnaTicket(t) }));
 }
 
+// Abierto de verdad: está en la pestaña solicitudes (el Tablero) y no está finalizado
+const ticketAbierto = t => t.columna !== 'finalizado' && (solicitudes?.tickets || []).includes(t);
+// Sin cierre: un ticket de meses anteriores que quedó sin "Finalizado" en la planilla
+const sinCierreRegistrado = t => t.columna !== 'finalizado' && !ticketAbierto(t);
+
 // Tickets del mes (pestaña solicitudes) + los de meses anteriores, sin repetir
 function todosLosTickets() {
   const vistos = new Set();
@@ -4993,7 +4998,7 @@ function dibujarHistorial(centro, equipo, inicio) {
   const conteo = {};
   lista.forEach(x => { const p = String(x.t.problema || '').trim(); if (p) conteo[p] = (conteo[p] || 0) + 1; });
   const comun = Object.entries(conteo).sort((a, b) => b[1] - a[1])[0];
-  const abiertos = lista.filter(x => x.t.columna !== 'finalizado').length;
+  const abiertos = lista.filter(x => ticketAbierto(x.t)).length;
 
   dialogo.dataset.centro = centro;
   dialogo.innerHTML = '<div class="contenido"><div class="cabeza"><div><h2 id="tituloHistorial"></h2><div class="sub"></div></div>' +
@@ -5086,7 +5091,7 @@ function dibujarHistorial(centro, equipo, inicio) {
       mesAnterior = mes;
     }
     const item = document.createElement('article');
-    const abiertoAun = t.columna !== 'finalizado';
+    const abiertoAun = ticketAbierto(t);
     item.className = 'itemHist' + (abiertoAun ? ' abierto' : '');
     const cierre = fechaTicket(t.fechaTecnico);
 
@@ -5108,6 +5113,7 @@ function dibujarHistorial(centro, equipo, inicio) {
     }
     const dur = fila.querySelector('.durH');
     if (abiertoAun) { dur.textContent = estadoVisible(t)[0] + ' · ' + duracionTicket(Date.now() - abierto); dur.classList.add('enCurso'); }
+    else if (sinCierreRegistrado(t)) { dur.textContent = 'sin cierre registrado'; dur.title = 'En la planilla quedó como "' + (t.estado || 'sin estado') + '"'; }
     else if (cierre) dur.textContent = duracionTicket(cierre - abierto);
     item.appendChild(fila);
 
@@ -5184,7 +5190,7 @@ async function dibujarLineaSolicitudes() {
   }
   const fin = Date.now(), inicio = fin - DIAS_LINEA_SOL * 864e5;
   const todos = todosLosTickets().map(t => ({ t, abierto: fechaTicket(t.fecha) })).filter(x => x.abierto);
-  const abiertos = todos.filter(x => x.t.columna !== 'finalizado' && (!filtroTecnicoActual || x.t.tecnico === filtroTecnicoActual));
+  const abiertos = todos.filter(x => ticketAbierto(x.t) && (!filtroTecnicoActual || x.t.tecnico === filtroTecnicoActual));
   const centros = [...new Set(abiertos.map(x => claveDisp(x.t.centro)))];
   // Primero el centro con el ticket abierto más antiguo
   const masAntiguo = c => Math.min(...abiertos.filter(x => claveDisp(x.t.centro) === c).map(x => x.abierto.getTime()));
@@ -5225,12 +5231,12 @@ async function dibujarLineaSolicitudes() {
   caja.appendChild(eje);
 
   centros.forEach(c => {
-    const delCentro = todos.filter(x => claveDisp(x.t.centro) === c && (x.t.columna !== 'finalizado' || (fechaTicket(x.t.fechaTecnico) || x.abierto) >= inicio))
+    const delCentro = todos.filter(x => claveDisp(x.t.centro) === c && (ticketAbierto(x.t) || (fechaTicket(x.t.fechaTecnico) || x.abierto) >= inicio))
       .sort((a, b) => a.abierto - b.abierto);
     const fila = document.createElement('div');
     fila.className = 'filaL';
     const nombre = delCentro[delCentro.length - 1]?.t.centro || c;
-    const abiertosC = delCentro.filter(x => x.t.columna !== 'finalizado').length;
+    const abiertosC = delCentro.filter(x => ticketAbierto(x.t)).length;
     fila.innerHTML = '<div class="centroL" title="Ver el historial completo"></div><div class="pistaL"></div>';
     fila.firstChild.textContent = nombre;
     fila.firstChild.insertAdjacentHTML('beforeend', '<span>' + abiertosC + (abiertosC === 1 ? ' abierto' : ' abiertos') + ' · ' + delCentro.length + ' en el mes</span>');
@@ -5240,7 +5246,7 @@ async function dibujarLineaSolicitudes() {
     // Tickets que se cruzan en el tiempo van en carriles distintos
     const carriles = [];
     delCentro.forEach(({ t, abierto }) => {
-      const abiertoAun = t.columna !== 'finalizado';
+      const abiertoAun = ticketAbierto(t);
       const cierre = abiertoAun ? fin : (fechaTicket(t.fechaTecnico) || abierto).getTime();
       const a = Math.max(abierto.getTime(), inicio);
       let carril = carriles.findIndex(fc => fc <= a);
@@ -5272,7 +5278,7 @@ async function dibujarLineaSolicitudes() {
         barra.appendChild(i);
       });
       // Cerrado: una marca verde al final de la barra
-      if (!abiertoAun) { const fin = document.createElement('i'); fin.className = 'cierreL'; barra.appendChild(fin); }
+      if (t.columna === 'finalizado') { const fin = document.createElement('i'); fin.className = 'cierreL'; barra.appendChild(fin); }
       barra.addEventListener('mouseenter', e => mostrarTooltipLinea(e, t, abierto));
       barra.addEventListener('mousemove', moverTooltipLinea);
       barra.addEventListener('mouseleave', ocultarTooltipLinea);
@@ -5293,13 +5299,14 @@ function inicioGestionReal(t) {
 let tooltipLinea = null;
 function mostrarTooltipLinea(e, t, abierto) {
   if (!tooltipLinea) { tooltipLinea = document.createElement('div'); tooltipLinea.className = 'tooltipL'; document.body.appendChild(tooltipLinea); }
-  const abiertoAun = t.columna !== 'finalizado';
+  const abiertoAun = ticketAbierto(t);
   const cierre = fechaTicket(t.fechaTecnico);
   const pasos = ['Abierto ' + fechaCortaTicket(abierto) + (t.nombre ? ' por ' + t.nombre : '')];
   if (fechaTicket(t.aceptacion)) pasos.push('Aceptado ' + fechaCortaTicket(fechaTicket(t.aceptacion)) + (t.tecnico ? ' · ' + t.tecnico : ''));
   if (fechaTicket(t.gestionCentro)) pasos.push('Gestión con el centro ' + fechaCortaTicket(fechaTicket(t.gestionCentro)));
   if (fechaTicket(t.gestionTerreno)) pasos.push('Gestión en terreno ' + fechaCortaTicket(fechaTicket(t.gestionTerreno)));
-  if (!abiertoAun && cierre) pasos.push('Cerrado ' + fechaCortaTicket(cierre) + ' · duró ' + duracionTicket(cierre - abierto));
+  if (sinCierreRegistrado(t)) pasos.push('Sin cierre registrado (en la planilla quedó como "' + (t.estado || 'sin estado') + '")');
+  else if (!abiertoAun && cierre) pasos.push('Cerrado ' + fechaCortaTicket(cierre) + ' · duró ' + duracionTicket(cierre - abierto));
   else pasos.push(estadoVisible(t)[0] + ' · lleva ' + duracionTicket(Date.now() - abierto));
   tooltipLinea.innerHTML = '<b></b><div class="pasosT"></div>';
   tooltipLinea.querySelector('b').textContent = '#' + t.id + ' · ' + t.centro + ' · ' + (t.problema || 'Sin problema indicado');
