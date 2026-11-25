@@ -4566,7 +4566,7 @@ async function cargarPanel(forzar) {
   cargandoPanel = false;
   if (panel.ok) panelDatos = panel;
   panelEn = Date.now();
-  if (estado.vista === 'panel') dibujarPanel();
+  if (estado.vista === 'panel') dibujarDashboard();
 }
 
 // Se actualiza solo cada 60 segundos mientras está a la vista
@@ -4758,7 +4758,8 @@ function alertasPanel(caja, lista, textoOk, color = () => 'roja') {
   });
 }
 
-function dibujarPanel() {
+// (se llama dibujarDashboard: dibujarPanel es la ficha de un centro en las planillas)
+function dibujarDashboard() {
   armarPanel();
   const centros = centrosPanel();
   // Contadores
