@@ -42,6 +42,7 @@ function doPost(e) {
     // Tickets de la planilla Mantenciones (pestaña solicitudes)
     switch (body.accion) {
       case 'solicitudesLeer':    return responder(solicitudesLeer());
+      case 'solicitudesHistorial': return responder(solicitudesHistorial());
       case 'solicitudesAceptar': return responder(solicitudesAceptar(body));
       case 'solicitudesCerrar':  return responder(solicitudesCerrar(body));
       case 'solicitudesGestion': return responder(solicitudesGestion(body));
@@ -410,6 +411,37 @@ function solicitudesLeer() {
     centros: columna(9),
     zona: ss.getSpreadsheetTimeZone()
   };
+}
+
+// Tickets de meses anteriores: cada mes se mueven a su propia pestaña ("OCTUBRE 2026", "Septiembre"...),
+// con las mismas columnas. Se leen todas las que empiezan con "ID" / "Fecha biólogo", menos la actual y
+// las que juntan todo ("Complete", "DATOS REVISIÓN"), que repetirían tickets. Solo lectura.
+function solicitudesHistorial() {
+  const ss = SpreadsheetApp.openById(SOLICITUDES.archivoId);
+  const tickets = [];
+  const vistos = {};
+  const pestanas = [];
+  ss.getSheets().forEach(sheet => {
+    const nombre = sheet.getName();
+    if (nombre === SOLICITUDES.pestana || /^(complete|datos revisi)/i.test(nombre.trim())) return;
+    if (sheet.getLastRow() < 2 || sheet.getLastColumn() < 11) return;
+    const enc = sheet.getRange(1, 1, 1, 2).getDisplayValues()[0].map(x => normalizar(x));
+    if (enc[0] !== 'id' || enc[1].indexOf('fecha') !== 0) return;
+    pestanas.push(nombre);
+    const valores = sheet.getRange(2, 1, sheet.getLastRow() - 1, 14).getDisplayValues();
+    valores.forEach(f => {
+      if (!/^\d+$/.test(String(f[0]).trim()) || !String(f[4]).trim()) return;
+      const clave = [f[1], f[4], f[5], f[2]].map(x => String(x).trim()).join('|');
+      if (vistos[clave]) return;
+      vistos[clave] = true;
+      tickets.push({
+        hoja: nombre, id: f[0].trim(), fecha: f[1].trim(), nombre: f[2], telefono: f[3], centro: f[4], problema: f[5],
+        estado: f[6], tecnico: f[7], tipo: f[8], observaciones: f[9], fechaTecnico: String(f[10]).trim(),
+        aceptacion: String(f[11]).trim(), gestionCentro: f[12] || '', gestionTerreno: f[13] || ''
+      });
+    });
+  });
+  return { ok: true, tickets: tickets, pestanas: pestanas };
 }
 
 // Aceptar = "abrir ticket": guarda el técnico (H) y la hora de inicio (L)

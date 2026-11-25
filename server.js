@@ -336,6 +336,20 @@ app.get('/api/solicitudes', requiereSesion, async (req, res) => {
   }
 });
 
+// Tickets de meses anteriores (pestañas por mes). Pesan más, así que se guardan 30 minutos.
+let historialSolCache = null;
+app.get('/api/solicitudes/historial', requiereSesion, async (req, res) => {
+  if (historialSolCache && Date.now() - historialSolCache.leido < 30 * 60000 && req.query.recargar !== '1') return res.json(historialSolCache.respuesta);
+  try {
+    const r = await llamarScript({ accion: 'solicitudesHistorial' });
+    if (r.ok) historialSolCache = { leido: Date.now(), respuesta: r };
+    res.status(r.ok ? 200 : 502).json(r);
+  } catch (err) {
+    console.error('Error al leer tickets antiguos', err.message);
+    res.status(502).json({ ok: false, error: 'No se pudieron leer los tickets de meses anteriores.' });
+  }
+});
+
 // Cada acción valida sus datos y arma lo que se manda al Apps Script
 const ACCIONES_SOLICITUD = {
   aceptar: b => texto(b.tecnico, 100) && { accion: 'solicitudesAceptar', tecnico: b.tecnico.trim() },

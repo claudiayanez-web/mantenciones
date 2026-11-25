@@ -4305,12 +4305,33 @@ function dibujarEquipos() {
 // ---------- Historial de tickets de un centro (equipo) ----------
 // Sale de la planilla de Solicitudes: abierto, aceptado, gestión, cerrado, tipo de servicio y observaciones
 let periodoHistorial = '';
+// Tickets de meses anteriores (se piden una vez, al abrir el primer historial)
+let ticketsAntiguos = null, avisoAntiguos = '';
+async function cargarTicketsAntiguos() {
+  if (ticketsAntiguos) return;
+  const r = await api('/api/solicitudes/historial');
+  if (!r.ok) { avisoAntiguos = r.error || 'No se pudieron leer los meses anteriores.'; return; }
+  avisoAntiguos = '';
+  ticketsAntiguos = r.tickets.map(t => ({ ...t, columna: columnaTicket(t) }));
+}
+
+// Tickets del mes (pestaña solicitudes) + los de meses anteriores, sin repetir
+function todosLosTickets() {
+  const vistos = new Set();
+  const clave = t => [t.fecha, t.centro, t.problema, t.nombre].map(x => String(x || '').trim()).join('|');
+  return [...(solicitudes?.tickets || []), ...(ticketsAntiguos || [])].filter(t => {
+    const k = clave(t);
+    if (vistos.has(k)) return false;
+    vistos.add(k);
+    return true;
+  });
+}
 
 async function abrirHistorial(centro, equipo) {
   const dialogo = document.getElementById('dialogoHistorial');
   dialogo.innerHTML = '<div class="contenido"><div class="mensajeCentro">Cargando tickets…</div></div>';
   if (!dialogo.open) dialogo.showModal();
-  if (!solicitudes) await cargarSolicitudes({ silencioso: true });
+  await Promise.all([solicitudes ? null : cargarSolicitudes({ silencioso: true }), cargarTicketsAntiguos()]);
   if (!solicitudes) { dialogo.querySelector('.contenido').innerHTML = '<div class="mensajeCentro">No se pudieron leer las solicitudes.</div>'; return; }
   // Desde el INICIO del periodo actual en SAMS: así no se mezclan tickets de un equipo anterior
   const inicio = (centrosSams() || new Map()).get(nombreClave(centro))?.inicio || null;
@@ -4321,7 +4342,7 @@ async function abrirHistorial(centro, equipo) {
 function dibujarHistorial(centro, equipo, inicio) {
   const dialogo = document.getElementById('dialogoHistorial');
   const c = claveDisp(centro);
-  const todos = solicitudes.tickets.filter(t => claveDisp(t.centro) === c).map(t => ({ t, abierto: fechaTicket(t.fecha) }))
+  const todos = todosLosTickets().filter(t => claveDisp(t.centro) === c).map(t => ({ t, abierto: fechaTicket(t.fecha) }))
     .filter(x => x.abierto).sort((a, b) => b.abierto - a.abierto);
   const desde = periodoHistorial === 'periodo' ? inicio
     : periodoHistorial === 'todo' ? null : new Date(Date.now() - Number(periodoHistorial) * 30.44 * 864e5);
@@ -4339,7 +4360,8 @@ function dibujarHistorial(centro, equipo, inicio) {
     '<div class="lado"><div class="chips" id="periodoHist"></div><button type="button" class="cerrarDialogo" aria-label="Cerrar">&times;</button></div></div>' +
     '<div class="resumenHist"></div><svg class="franjaHist" role="img" aria-label="Tickets en el tiempo"></svg><div class="listaHist"></div></div>';
   dialogo.querySelector('h2').textContent = 'Historial de ' + centro;
-  dialogo.querySelector('.sub').textContent = [equipo ? 'Equipo ' + equipo : '', inicio ? 'periodo actual desde ' + inicio.toLocaleDateString('es-CL') : ''].filter(Boolean).join(' · ');
+  dialogo.querySelector('.sub').textContent = [equipo ? 'Equipo ' + equipo : '', inicio ? 'periodo actual desde ' + inicio.toLocaleDateString('es-CL') : '',
+    avisoAntiguos ? avisoAntiguos + ' Se muestran solo los de este mes.' : ''].filter(Boolean).join(' · ');
   dialogo.querySelector('.cerrarDialogo').addEventListener('click', () => dialogo.close());
 
   const periodos = [['periodo', 'Periodo actual'], ['3', '3 meses'], ['12', '12 meses'], ['todo', 'Todo']].filter(([id]) => id !== 'periodo' || inicio);
