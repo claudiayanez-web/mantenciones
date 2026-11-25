@@ -774,6 +774,24 @@
   .enlacesDisp a:hover { border-color: var(--azul); background: var(--azul-claro); }
   .enlacesDisp a.remota { color: #0f6e56; }
   .enlacesDisp a.remota:hover { border-color: #0f6e56; background: #e1f5ee; }
+  /* Punto de conexión en remote.it: verde conectado, rojo desconectado, gris sin dato */
+  .puntoEstado { width: 7px; height: 7px; border-radius: 50%; background: #b4b2a9; flex-shrink: 0; display: inline-block; }
+  .puntoEstado.active { background: #2e8b57; }
+  .puntoEstado.inactive { background: #c0392b; }
+  .estadoDisp { font-size: 11px; color: var(--suave); margin-top: 3px; }
+  .estadoDisp.inactive { color: var(--error); font-weight: 600; }
+  /* Vista Equipos */
+  .vistaEquipos { min-height: 0; }
+  .equiposTabla td { vertical-align: middle; }
+  .equiposTabla td.centroEq strong { color: var(--azul); }
+  .equiposTabla td.centroEq span { display: block; font-size: 11px; color: var(--suave); }
+  .equiposTabla .conexion { display: inline-flex; align-items: center; gap: 6px; }
+  .equiposTabla .conexion.inactive { color: var(--error); font-weight: 600; }
+  .equiposTabla .conexion.active { color: #22693f; }
+  .equiposTabla .conexion.sinDato { color: var(--suave); }
+  .equiposTabla .muestraVieja { color: #8a5a00; font-weight: 600; }
+  .equiposTabla .cuentaHoyEq { font-size: 11px; color: var(--suave); margin-left: 4px; }
+  .equiposTabla .enlacesDisp { margin: 0; }
   #tablaSolicitudes td.acciones .enlacesDisp { display: inline-flex; flex-wrap: nowrap; margin: 0 0 0 4px; vertical-align: middle; }
   /* la columna Acciones crece para que los enlaces no tapen la columna siguiente */
   #tablaSolicitudes td.acciones { max-width: none; }
@@ -1366,6 +1384,11 @@
           <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="10" rx="1.5"/><rect x="17" y="4" width="4" height="13" rx="1.5"/></svg>
           <span>Operaciones</span>
         </button>
+        <button type="button" id="btnEquipos" aria-selected="false">
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/><path d="M2 9a14 14 0 0 1 20 0"/></svg>
+          <span>Equipos</span>
+          <span class="insignia" id="insigniaEquipos" title="Equipos desconectados en remote.it" hidden></span>
+        </button>
       </nav>
       <div class="tituloMenu" id="tituloMenu">Planillas</div>
       <nav class="pestanas" id="pestanas" role="tablist" aria-labelledby="tituloMenu"></nav>
@@ -1604,6 +1627,22 @@
       <div class="resumenTiempo" id="resumenTiempo" hidden></div>
     </div>
     <div class="tiempoContenedor" id="tiempoContenedor"></div>
+  </div>
+
+  <!-- Equipos: conexión en remote.it y última muestra en Retina de cada equipo activo -->
+  <div class="vista vistaEquipos" id="vistaEquipos" hidden>
+    <div class="progBarra">
+      <label class="buscador">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="buscarEquipos" placeholder="Buscar centro, empresa o equipo" aria-label="Buscar centro, empresa o equipo">
+      </label>
+      <span class="espacio"></span>
+      <button class="botonIcono" id="btnRecargarEquipos" type="button" title="Recargar" aria-label="Recargar equipos">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
+      </button>
+    </div>
+    <div class="progBarra chips" id="filtroEquipos" role="group" aria-label="Filtrar equipos"></div>
+    <div class="contenedorTabla equiposTabla" id="equiposContenido"></div>
   </div>
 
   <div class="vista vistaMuestras" id="vistaMuestras" hidden>
@@ -1886,6 +1925,7 @@ async function iniciar() {
   else if (anterior.vista === 'muestras') abrirMuestras();
   else if (anterior.vista === 'plataforma' && estado.admin) abrirPlataforma();
   else if (anterior.vista === 'operaciones') abrirOperaciones();
+  else if (anterior.vista === 'equipos') abrirEquipos();
   else if (anterior.vista === 'checklists' && estado.admin) abrirChecklists();
   else abrirSolicitudes();
   if (anterior.vista && anterior.vista !== 'solicitudes') cargarSolicitudes({ silencioso: true });  // para la cantidad del menú
@@ -1989,6 +2029,8 @@ function mostrarVista(vista) {
   document.getElementById('vistaMuestras').hidden = vista !== 'muestras';
   document.getElementById('vistaPlat').hidden = vista !== 'plataforma';
   document.getElementById('vistaOp').hidden = vista !== 'operaciones';
+  document.getElementById('vistaEquipos').hidden = vista !== 'equipos';
+  document.getElementById('btnEquipos').setAttribute('aria-selected', vista === 'equipos' ? 'true' : 'false');
   document.getElementById('vistaCheck').hidden = vista !== 'checklists';
   document.getElementById('btnOperaciones').setAttribute('aria-selected', vista === 'operaciones' ? 'true' : 'false');
   document.getElementById('btnChecklists').setAttribute('aria-selected', vista === 'checklists' ? 'true' : 'false');
@@ -3944,16 +3986,25 @@ const REMOTEIT_DISPOSITIVO = 'https://app.remote.it/#/devices/';
 let dispositivos = null, dispositivosEn = 0, cargandoDispositivos = false;
 const claveDisp = x => normalizar(String(x || '')).replace(/[^a-z0-9]/g, '');
 
-async function cargarDispositivos() {
-  if (cargandoDispositivos || (dispositivos && Date.now() - dispositivosEn < 10 * 60000)) return;
+// "Conectado", "Desconectado hace 3 h" o "Sin estado en remote.it"
+function textoConexion(d) {
+  if (d.estado === 'active') return 'Conectado';
+  if (d.estado === 'inactive') return 'Desconectado' + (d.ultimo ? ' ' + haceCuanto(new Date(d.ultimo)) : '');
+  return 'Sin estado en remote.it';
+}
+
+async function cargarDispositivos(forzar) {
+  if (cargandoDispositivos || (!forzar && dispositivos && Date.now() - dispositivosEn < 10 * 60000)) return;
   cargandoDispositivos = true;
-  const r = await api('/api/dispositivos');
+  const r = await api('/api/dispositivos' + (forzar ? '?recargar=1' : ''));
   cargandoDispositivos = false;
   if (!r.ok) return;
   dispositivos = r;
   dispositivosEn = Date.now();
   if (r.avisos?.length) console.warn('Dispositivos:', r.avisos.join(' '));
   if (estado.vista === 'solicitudes') dibujarSolicitudes();
+  if (estado.vista === 'equipos') dibujarEquipos();
+  actualizarInsigniaEquipos();
 }
 
 // Nombre del centro en remote.it: "samsv4 - Pocoihuen" → pocoihuen ("samsv4 N4 - ID 118", "(por instalar)" se limpian)
@@ -3993,8 +4044,144 @@ function enlacesDispositivo(centro) {
     caja.appendChild(a);
   };
   retina.forEach(d => enlace(APP2_DISPOSITIVO + d.id, retina.length > 1 ? 'Muestras ' + d.codigo : 'Muestras', 'Muestras del equipo ' + (d.codigo || '') + ' en app2'));
-  remote.forEach(d => enlace(enlaceRemoteit(d), remote.length > 1 ? 'UI remota ' + d.nombre : 'UI remota', 'Abrir ' + d.nombre + ' en remote.it', 'remota'));
+  remote.forEach(d => {
+    enlace(enlaceRemoteit(d), remote.length > 1 ? 'UI remota ' + d.nombre : 'UI remota', 'Abrir ' + d.nombre + ' en remote.it · ' + textoConexion(d), 'remota');
+    const punto = document.createElement('span');
+    punto.className = 'puntoEstado ' + (d.estado || '');
+    caja.lastChild.prepend(punto);
+  });
+  // Si el equipo está desconectado, se avisa bajo los enlaces
+  const caido = remote.find(d => d.estado === 'inactive');
+  if (caido) {
+    const aviso = document.createElement('div');
+    aviso.className = 'estadoDisp inactive';
+    aviso.textContent = textoConexion(caido);
+    caja.appendChild(aviso);
+    aviso.style.flexBasis = '100%';
+  }
   return caja;
+}
+
+// ---------- Vista Equipos ----------
+// Cada equipo activo de Retina con su conexión en remote.it y su última muestra
+let filtroEquipos = 'todos', equiposCargados = false;
+
+async function abrirEquipos() {
+  abrirMenu(false);
+  if (!cerrarPanel()) return;
+  mostrarVista('equipos');
+  document.getElementById('tituloHoja').textContent = 'Equipos';
+  document.getElementById('actualizado').textContent = '';
+  dibujarEquipos();
+  await Promise.all([cargarDispositivos(), cargarMuestras({ silencioso: true })]);
+  equiposCargados = true;
+  dibujarEquipos();
+}
+
+async function recargarEquipos() {
+  const boton = document.getElementById('btnRecargarEquipos');
+  boton.classList.add('cargando');
+  await Promise.all([cargarDispositivos(true), cargarMuestras({ silencioso: true, recargar: true })]);
+  boton.classList.remove('cargando');
+  dibujarEquipos();
+}
+
+// "hoy 10:12", "ayer 18:05" o "lun 23/11 14:30"
+function cuandoMuestra(fecha) {
+  if (!fecha) return 'Sin muestras';
+  const hora = horaDe(fecha);
+  const hoy = new Date(); const ayer = new Date(Date.now() - 864e5);
+  if (mismoDia(fecha, hoy)) return 'hoy ' + hora;
+  if (mismoDia(fecha, ayer)) return 'ayer ' + hora;
+  return fecha.toLocaleDateString('es-CL', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ' ' + hora;
+}
+
+function filasEquipos() {
+  if (!muestras) return [];
+  return muestras.equipos.filter(e => e.activo && e.centro && !/^prueba$/i.test(e.centro.trim())).map(e => {
+    const remote = dispositivosDe(e.centro).remote;
+    const estadoRemoto = remote.some(d => d.estado === 'inactive') ? 'inactive' : remote.some(d => d.estado === 'active') ? 'active' : remote.length ? 'sinDato' : 'sinRemoto';
+    return { e, remote, estadoRemoto };
+  });
+}
+
+function actualizarInsigniaEquipos() {
+  const n = filasEquipos().filter(f => f.estadoRemoto === 'inactive').length;
+  const insignia = document.getElementById('insigniaEquipos');
+  insignia.textContent = n;
+  insignia.hidden = !n;
+}
+
+function dibujarEquipos() {
+  if (estado.vista !== 'equipos') return;
+  const caja = document.getElementById('equiposContenido');
+  if (!muestras || !dispositivos) {
+    caja.innerHTML = '<div class="mensajeCentro">' + (equiposCargados ? 'No se pudieron leer los equipos. Usa Recargar para intentar de nuevo.' : 'Cargando equipos…') + '</div>';
+    return;
+  }
+  const todas = filasEquipos();
+  actualizarInsigniaEquipos();
+  const sinMuestraHoy = f => !f.e.hoy;
+  const filtros = [
+    ['todos', 'Todos', () => true],
+    ['caidos', 'Desconectados', f => f.estadoRemoto === 'inactive'],
+    ['conectados', 'Conectados', f => f.estadoRemoto === 'active'],
+    ['sinHoy', 'Sin muestras hoy', sinMuestraHoy],
+    ['sinRemoto', 'Sin remote.it', f => f.estadoRemoto === 'sinRemoto']
+  ];
+  const chips = document.getElementById('filtroEquipos');
+  chips.innerHTML = '';
+  filtros.forEach(([id, texto, pasa]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = escaparHtml(texto) + '<span class="cuenta">' + todas.filter(pasa).length + '</span>';
+    b.setAttribute('aria-pressed', id === filtroEquipos ? 'true' : 'false');
+    b.addEventListener('click', () => { filtroEquipos = id; dibujarEquipos(); });
+    chips.appendChild(b);
+  });
+  const q = normalizar(document.getElementById('buscarEquipos').value.trim());
+  const pasa = filtros.find(f => f[0] === filtroEquipos)[2];
+  const peso = f => f.estadoRemoto === 'inactive' ? 0 : sinMuestraHoy(f) ? 1 : 2;
+  const filas = todas.filter(f => pasa(f) && (!q || normalizar([f.e.centro, f.e.empresa, f.e.equipo].join(' ')).includes(q)))
+    .sort((a, b) => peso(a) - peso(b) || (a.e.ultima ? a.e.ultima.getTime() : 0) - (b.e.ultima ? b.e.ultima.getTime() : 0) || a.e.centro.localeCompare(b.e.centro, 'es'));
+
+  const caidos = todas.filter(f => f.estadoRemoto === 'inactive').length;
+  document.getElementById('conteo').textContent = todas.length + ' equipos activos' + (caidos ? ' · ' + caidos + ' desconectados en remote.it' : '');
+  document.getElementById('actualizado').textContent = dispositivosEn ? '· Actualizado ' + horaDe(new Date(dispositivosEn)) : '';
+  if (dispositivos.avisos?.length && estado.admin) document.getElementById('actualizado').textContent += ' · ' + dispositivos.avisos.join(' ');
+
+  const tabla = document.createElement('table');
+  const enc = tabla.createTHead().insertRow();
+  ['Centro', 'Equipo', 'remote.it', 'Última muestra', 'Abrir'].forEach(t => { const th = document.createElement('th'); th.textContent = t; th.style.cursor = 'default'; enc.appendChild(th); });
+  const cuerpo = tabla.createTBody();
+  filas.forEach(({ e, remote, estadoRemoto }) => {
+    const tr = cuerpo.insertRow();
+    const c = tr.insertCell();
+    c.className = 'centroEq';
+    c.innerHTML = '<strong></strong><span></span>';
+    c.firstChild.textContent = e.centro;
+    c.lastChild.textContent = e.empresa || '';
+    tr.insertCell().textContent = e.equipo || '';
+    const con = tr.insertCell();
+    const div = document.createElement('span');
+    div.className = 'conexion ' + estadoRemoto;
+    div.innerHTML = '<span class="puntoEstado"></span><span></span>';
+    div.firstChild.classList.add(estadoRemoto);
+    div.lastChild.textContent = estadoRemoto === 'sinRemoto' ? 'Sin dispositivo en remote.it'
+      : estadoRemoto === 'sinDato' ? 'Sin estado' : textoConexion(remote.find(d => d.estado === estadoRemoto) || remote[0]);
+    con.appendChild(div);
+    const ul = tr.insertCell();
+    ul.innerHTML = '<span></span><span class="cuentaHoyEq"></span>';
+    ul.firstChild.textContent = cuandoMuestra(e.ultima);
+    if (!e.hoy) ul.firstChild.className = 'muestraVieja';
+    ul.lastChild.textContent = e.hoy ? '· ' + e.hoy + (e.hoy === 1 ? ' muestra hoy' : ' muestras hoy') : '';
+    const ab = tr.insertCell();
+    const enlaces = enlacesDispositivo(e.centro);
+    if (enlaces) { enlaces.querySelector('.estadoDisp')?.remove(); ab.appendChild(enlaces); }
+  });
+  caja.innerHTML = '';
+  if (filas.length) caja.appendChild(tabla);
+  else caja.innerHTML = '<div class="mensajeCentro">No hay equipos con este filtro.</div>';
 }
 
 function tarjetaTicket(t) {
@@ -7301,6 +7488,9 @@ document.getElementById('btnPrograma').addEventListener('click', abrirPrograma);
 document.getElementById('btnMuestras').addEventListener('click', abrirMuestras);
 document.getElementById('btnPlataforma').addEventListener('click', abrirPlataforma);
 document.getElementById('btnOperaciones').addEventListener('click', abrirOperaciones);
+document.getElementById('btnEquipos').addEventListener('click', abrirEquipos);
+document.getElementById('btnRecargarEquipos').addEventListener('click', recargarEquipos);
+document.getElementById('buscarEquipos').addEventListener('input', dibujarEquipos);
 document.getElementById('btnRecargarOp').addEventListener('click', () => cargarOperaciones({ recargar: true }));
 document.getElementById('buscarOp').addEventListener('input', dibujarOperaciones);
 document.getElementById('terminadosOp').addEventListener('change', dibujarOperaciones);

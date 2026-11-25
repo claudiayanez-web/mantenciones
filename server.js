@@ -1139,7 +1139,11 @@ const SQL_DISPOSITIVOS = `
   SELECT d.id, d.code AS codigo, ce.name AS centro
   FROM devices d LEFT JOIN centers ce ON ce.id = d.center_id
   WHERE d.deleted_at IS NULL`;
-const CAMPOS_DISPOSITIVOS = 'devices(size: $size, from: $from, sort: "name") { total hasMore items { id name services { id name } } }';
+// Campos de cada dispositivo, del más completo al mínimo: si remote.it no reconoce "state" o "lastReported",
+// se usa el siguiente y la lista igual llega (solo sin el estado)
+const CAMPOS_REMOTEIT = ['id name state lastReported services { id name }', 'id name state services { id name }', 'id name services { id name }'];
+let camposRemoteit = 0;
+const camposDispositivos = () => 'devices(size: $size, from: $from, sort: "name") { total hasMore items { ' + CAMPOS_REMOTEIT[camposRemoteit] + ' } }';
 
 // Una consulta firmada a remote.it; devuelve data o lanza error con el mensaje de remote.it
 function pedirRemoteit(query, variables = {}) {
@@ -1176,12 +1180,26 @@ function pedirRemoteit(query, variables = {}) {
 
 // Todas las páginas de dispositivos: de la cuenta de la clave (cuenta = '') o de una organización (cuenta = id)
 async function paginasRemoteit(cuenta) {
-  const query = cuenta
-    ? 'query($id: String!, $size: Int, $from: Int) { login { account(id: $id) { ' + CAMPOS_DISPOSITIVOS + ' } } }'
-    : 'query($size: Int, $from: Int) { login { ' + CAMPOS_DISPOSITIVOS + ' } }';
+  const query = () => cuenta
+    ? 'query($id: String!, $size: Int, $from: Int) { login { account(id: $id) { ' + camposDispositivos() + ' } } }'
+    : 'query($size: Int, $from: Int) { login { ' + camposDispositivos() + ' } }';
   const todos = [];
   for (let desde = 0; desde < 20000; desde += 1000) {
-    const data = await pedirRemoteit(query, { id: cuenta || undefined, size: 1000, from: desde });
+    let data;
+    for (;;) {
+      const usados = camposRemoteit;
+      try { data = await pedirRemoteit(query(), { id: cuenta || undefined, size: 1000, from: desde }); break; }
+      catch (err) {
+        // Campo que remote.it no conoce: se prueba con menos campos
+        // (las consultas van en paralelo: solo se baja un nivel desde el que falló)
+        if (/cannot query field|unknown field|is not defined/i.test(err.message) && usados < CAMPOS_REMOTEIT.length - 1) {
+          console.error('remote.it sin ese campo, se usa uno más simple:', err.message);
+          camposRemoteit = Math.max(camposRemoteit, usados + 1);
+          continue;
+        }
+        throw err;
+      }
+    }
     const pagina = (cuenta ? data?.login?.account?.devices : data?.login?.devices) || { items: [], hasMore: false };
     todos.push(...(pagina.items || []));
     if (!pagina.hasMore) break;
@@ -1224,7 +1242,11 @@ async function dispositivosRemoteit() {
     return [];
   })));
   const porId = new Map();
-  listas.flat().forEach(d => porId.set(d.id, { id: d.id, nombre: d.name, servicios: (d.services || []).map(x => ({ id: x.id, nombre: x.name })) }));
+  listas.flat().forEach(d => porId.set(d.id, {
+    id: d.id, nombre: d.name, servicios: (d.services || []).map(x => ({ id: x.id, nombre: x.name })),
+    // "active" = conectado, "inactive" = desconectado ('' si remote.it no lo entregó)
+    estado: String(d.state || '').toLowerCase(), ultimo: d.lastReported || ''
+  }));
   console.log('remote.it:', porId.size, 'dispositivos en', cuentas.length, 'organizaciones/cuentas además de la propia');
   return [...porId.values()];
 }
