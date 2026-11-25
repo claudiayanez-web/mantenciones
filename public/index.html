@@ -831,6 +831,59 @@
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
   }
   .dialogoTicket::backdrop { background: rgba(0, 0, 0, 0.4); }
+  /* ---------- Panel (pantalla oscura tipo Grafana) ---------- */
+  .vistaPanel { min-height: 0; }
+  .panelPantalla { flex: 1; min-height: 0; overflow: auto; margin: 0 20px 20px; background: #161d28; color: #c9d1dc; border-radius: 12px; padding: 14px;
+    display: grid; gap: 10px; grid-template-rows: auto auto auto auto auto; font-size: 13px; }
+  .panelPantalla:fullscreen { margin: 0; border-radius: 0; padding: 18px; }
+  .panelBarra { display: flex; justify-content: flex-end; gap: 8px; margin: 0 20px 8px; }
+  .relojesPanel { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 10px; }
+  .relojPanel { text-align: center; }
+  .relojPanel strong { display: block; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: clamp(26px, 3.4vw, 46px); letter-spacing: 2px; font-weight: 700; }
+  .relojPanel span { font-size: 11px; letter-spacing: 3px; }
+  .relojPanel.mx { color: #4fc3a1; } .relojPanel.cl { color: #fff; } .relojPanel.no { color: #f0784a; }
+  .cifrasPanel { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+  .cifraPanel { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .cifraPanel span { font-size: 14px; color: #dfe5ee; }
+  .cifraPanel strong { font-size: clamp(30px, 3.6vw, 52px); font-weight: 700; color: #73bf69; line-height: 1; }
+  .cifraPanel.version { flex-direction: column; gap: 2px; }
+  .cifraPanel.version strong { color: #ff9830; }
+  .filaPanel { display: grid; gap: 10px; grid-template-columns: 1.3fr 1fr 1.2fr 1fr; }
+  .cuadroPanel { background: #1e2735; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; min-height: 150px; min-width: 0; }
+  .cuadroPanel > h4 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: #dfe5ee; }
+  .alertasPanel { flex: 1; display: grid; gap: 4px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); grid-auto-rows: minmax(54px, 1fr); }
+  .alertaPanel { border-radius: 4px; display: grid; place-items: center; text-align: center; padding: 6px; color: #fff; font-size: clamp(13px, 1.3vw, 19px); line-height: 1.25; }
+  .alertaPanel.roja { background: linear-gradient(135deg, #d8162c, #e0284a); }
+  .alertaPanel.amarilla { background: #e0b400; color: #2c2400; }
+  .alertaPanel.verde { background: #56a64b; }
+  .alertaPanel.gris { background: #2a3442; color: #8a96a6; font-size: 13px; }
+  .armadosPanel { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; text-align: center; align-content: center; }
+  .armadosPanel h5 { margin: 0 0 4px; font-size: 12px; color: #dfe5ee; text-align: left; }
+  .armadosPanel .par { display: grid; grid-template-columns: 1fr 1fr; }
+  .armadosPanel span { font-size: 13px; color: #dfe5ee; }
+  .armadosPanel strong { display: block; font-size: clamp(28px, 3vw, 44px); color: #dfe5ee; }
+  .armadosPanel .noruega strong { color: #ff9830; }
+  .pendientesPanel { flex: 1; display: grid; grid-template-columns: auto 1fr; gap: 8px; min-height: 0; }
+  .pendientesPanel .numero { background: #d8162c; color: #fff; border-radius: 4px; display: grid; place-items: center; font-size: 60px; font-weight: 700; padding: 0 18px; }
+  .pendientesPanel .tablaP { overflow: auto; max-height: 150px; }
+  .pendientesPanel table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .pendientesPanel td { background: #e8d23a; color: #2c2400; border: 1px solid #b9a62a; padding: 3px 6px; max-width: 140px; }
+  .wellboatsPanel { flex: 1; display: grid; gap: 6px; }
+  .mapaPanel { flex: 1; min-height: 140px; border-radius: 4px; background: #232c3a; }
+  .mapasPanel { display: grid; gap: 8px; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .mapasPanel .cuadroPanel { min-height: 220px; }
+  .panelPantalla .leaflet-container { background: #232c3a; }
+  .panelPantalla .leaflet-tooltip.etiquetaPanel { background: none; border: none; box-shadow: none; padding: 0; color: #dfe5ee; font-size: 9px; text-shadow: 0 0 2px #000, 0 0 2px #000; }
+  .panelPantalla .leaflet-tooltip.etiquetaPanel::before { display: none; }
+  .avisosPanel { font-size: 11px; color: #ff9830; }
+  @media (max-width: 1100px) {
+    .filaPanel { grid-template-columns: 1fr 1fr; }
+    .mapasPanel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 760px) {
+    .panelPantalla { margin: 0 8px 12px; padding: 10px; }
+    .filaPanel { grid-template-columns: 1fr; }
+  }
   /* Historial de tickets de un centro */
   .dialogoHistorial { width: min(780px, calc(100vw - 24px)); max-height: calc(100vh - 40px); border: none; border-radius: 14px; padding: 0;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); }
@@ -1465,6 +1518,10 @@
           <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3M7.5 14h9"/></svg>
           <span>Muestras</span>
         </button>
+        <button type="button" id="btnPanel" aria-selected="false">
+          <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M7 13l3-3 2 2 4-4"/></svg>
+          <span>Panel</span>
+        </button>
       </nav>
       <!-- Lo administrativo: para los técnicos el título dice "Equipo" (ven el programa y sus compensaciones) -->
       <div class="tituloMenu" id="tituloAdmin">Administración</div>
@@ -1702,6 +1759,17 @@
     </div>
     <div class="progBarra chips" id="filtroEquipos" role="group" aria-label="Filtrar equipos"></div>
     <div class="contenedorTabla equiposTabla" id="equiposContenido"></div>
+  </div>
+
+  <!-- Panel: pantalla tipo Grafana con alertas de Retina, SAMS, remote.it, tickets y wellboats -->
+  <div class="vista vistaPanel" id="vistaPanel" hidden>
+    <div class="panelBarra">
+      <button class="botonSecundario" id="btnPantallaPanel" type="button">Pantalla completa</button>
+      <button class="botonIcono" id="btnRecargarPanel" type="button" title="Recargar" aria-label="Recargar panel">
+        <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/></svg>
+      </button>
+    </div>
+    <div class="panelPantalla" id="panelPantalla"></div>
   </div>
 
   <div class="vista vistaMuestras" id="vistaMuestras" hidden>
@@ -1986,6 +2054,7 @@ async function iniciar() {
   else if (anterior.vista === 'plataforma' && estado.admin) abrirPlataforma();
   else if (anterior.vista === 'operaciones') abrirOperaciones();
   else if (anterior.vista === 'equipos') abrirEquipos();
+  else if (anterior.vista === 'panel') abrirPanelPantalla();
   else if (anterior.vista === 'checklists' && estado.admin) abrirChecklists();
   else abrirSolicitudes();
   if (anterior.vista && anterior.vista !== 'solicitudes') cargarSolicitudes({ silencioso: true });  // para la cantidad del menú
@@ -2090,6 +2159,8 @@ function mostrarVista(vista) {
   document.getElementById('vistaPlat').hidden = vista !== 'plataforma';
   document.getElementById('vistaOp').hidden = vista !== 'operaciones';
   document.getElementById('vistaEquipos').hidden = vista !== 'equipos';
+  document.getElementById('vistaPanel').hidden = vista !== 'panel';
+  document.getElementById('btnPanel').setAttribute('aria-selected', vista === 'panel' ? 'true' : 'false');
   document.getElementById('btnEquipos').setAttribute('aria-selected', vista === 'equipos' ? 'true' : 'false');
   document.getElementById('vistaCheck').hidden = vista !== 'checklists';
   document.getElementById('btnOperaciones').setAttribute('aria-selected', vista === 'operaciones' ? 'true' : 'false');
@@ -4320,6 +4391,222 @@ function dibujarEquipos() {
   caja.innerHTML = '';
   if (filas.length) caja.appendChild(tabla);
   else caja.innerHTML = '<div class="mensajeCentro">No hay equipos con este filtro.</div>';
+}
+
+// ---------- Panel (pantalla tipo Grafana) ----------
+// Se arma con: SAMS (contadores y mapas), /api/panel (Retina: muestras, foco, bomba; planilla de armados),
+// remote.it (desconectados), Solicitudes (mantenciones pendientes) y la pestaña wellboat de SAMS.
+let panelDatos = null, panelEn = 0, mapasPanel = {}, relojPanel = null, cargandoPanel = false;
+const ZONAS_PANEL = [
+  ['calbuco', 'Centros Calbuco', c => /los lagos/.test(c.region) && c.lat > -42.05],
+  ['chiloe', 'Centros Chiloé', c => /los lagos/.test(c.region) && c.lat <= -42.05],
+  ['aysen', 'Centros Aysén', c => /aysen/.test(c.region)],
+  ['melinka', 'Centros Melinka', c => /melinka/.test(c.region)],
+  ['mexico', 'México', c => /extranjero/.test(c.region) && c.lat > 13 && c.lat < 33],
+  ['noruega', 'Noruega', c => /extranjero/.test(c.region) && c.lat > 55]
+];
+
+async function abrirPanelPantalla() {
+  abrirMenu(false);
+  if (!cerrarPanel()) return;
+  mostrarVista('panel');
+  document.getElementById('tituloHoja').textContent = 'Panel';
+  document.getElementById('conteo').textContent = '';
+  document.getElementById('actualizado').textContent = '';
+  armarPanel();
+  if (!relojPanel) relojPanel = setInterval(actualizarRelojesPanel, 1000);
+  await cargarPanel();
+}
+
+async function cargarPanel(forzar) {
+  if (cargandoPanel) return;
+  cargandoPanel = true;
+  const boton = document.getElementById('btnRecargarPanel');
+  boton.classList.add('cargando');
+  const leerSams = async () => {
+    if (datosDeHoja('sams') && !forzar) return;
+    const r = await api('/api/hojas/sams');
+    if (r.ok) estado.cache.sams = prepararDatos(r);
+  };
+  const [panel] = await Promise.all([
+    api('/api/panel' + (forzar ? '?recargar=1' : '')), leerSams(), cargarDispositivos(true),
+    cargarSolicitudes({ silencioso: true }), cargarBuques()
+  ]);
+  boton.classList.remove('cargando');
+  cargandoPanel = false;
+  if (panel.ok) panelDatos = panel;
+  panelEn = Date.now();
+  if (estado.vista === 'panel') dibujarPanel();
+}
+
+// Se actualiza solo cada 60 segundos mientras está a la vista
+setInterval(() => {
+  if (estado.vista === 'panel' && !document.hidden && Date.now() - panelEn >= 60000) cargarPanel();
+}, 15000);
+
+function actualizarRelojesPanel() {
+  if (estado.vista !== 'panel') return;
+  const hora = zona => new Date().toLocaleTimeString('es-CL', { timeZone: zona, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+  [['mx', 'America/Mexico_City'], ['cl', 'America/Santiago'], ['no', 'Europe/Oslo']].forEach(([id, zona]) => {
+    const el = document.querySelector('#panelPantalla .relojPanel.' + id + ' strong');
+    if (el) el.textContent = hora(zona);
+  });
+}
+
+// Esqueleto fijo (los mapas se crean una vez); los datos se pintan en dibujarPanel
+function armarPanel() {
+  const p = document.getElementById('panelPantalla');
+  if (p.dataset.armado) return;
+  p.dataset.armado = '1';
+  p.innerHTML =
+    '<div class="relojesPanel"><div class="relojPanel mx"><strong>--:--:--</strong><span>MÉXICO</span></div>' +
+    '<div class="relojPanel cl"><strong>--:--:--</strong><span>CHILE</span></div><div class="relojPanel no"><strong>--:--:--</strong><span>NORUEGA</span></div></div>' +
+    '<div class="cifrasPanel" id="cifrasPanel"></div>' +
+    '<div class="filaPanel">' +
+    '  <div class="cuadroPanel"><h4>Muestras no subidas (primeras de cada profundidad, hoy)</h4><div class="alertasPanel" id="pMuestras"></div></div>' +
+    '  <div class="cuadroPanel"><h4>Foco</h4><div class="alertasPanel" id="pFoco"></div></div>' +
+    '  <div class="cuadroPanel"><h4>Equipos desconectados (remote.it)</h4><div class="alertasPanel" id="pDesconectados"></div></div>' +
+    '  <div class="cuadroPanel"><h4>Equipos armados</h4><div class="armadosPanel" id="pArmados"></div></div>' +
+    '</div><div class="filaPanel">' +
+    '  <div class="cuadroPanel"><h4>Mantenciones pendientes (en gestión)</h4><div class="pendientesPanel" id="pPendientes"></div></div>' +
+    '  <div class="cuadroPanel"><h4>Bomba</h4><div class="alertasPanel" id="pBomba"></div></div>' +
+    '  <div class="cuadroPanel"><h4>Wellboats</h4><div class="wellboatsPanel" id="pWellboats"></div></div>' +
+    '  <div class="cuadroPanel"><h4>Ubicación wellboats</h4><div class="mapaPanel" id="mapaPanel-wellboats"></div></div>' +
+    '</div><div class="mapasPanel">' + ZONAS_PANEL.map(([id, titulo]) =>
+      '<div class="cuadroPanel"><h4>' + titulo + '</h4><div class="mapaPanel" id="mapaPanel-' + id + '"></div></div>').join('') + '</div>' +
+    '<div class="avisosPanel" id="avisosPanel"></div>';
+  actualizarRelojesPanel();
+}
+
+// Centros activos de SAMS con región, versión y coordenadas
+function centrosPanel() {
+  const datos = datosDeHoja('sams');
+  if (!datos) return [];
+  const col = n => datos.columnas.find(x => normalizar(x.nombre) === n)?.nombre;
+  const c = { estado: col('estado'), centro: col('centro'), region: col('region'), version: col('version'), lat: col('lat'), lon: col('lon') };
+  const num = v => parseFloat(String(v ?? '').trim().replace(',', '.'));
+  return datos.filas.filter(f => /^activ/i.test(String(f.celdas[c.estado] || '').trim())).map(f => ({
+    centro: String(f.celdas[c.centro] || '').trim(), region: normalizar(f.celdas[c.region] || ''),
+    version: String(f.celdas[c.version] || '').trim(), lat: num(f.celdas[c.lat]), lon: num(f.celdas[c.lon])
+  })).filter(x => x.centro);
+}
+
+function alertasPanel(caja, lista, textoOk, color = () => 'roja') {
+  caja.innerHTML = '';
+  if (lista === null) { caja.innerHTML = '<div class="alertaPanel gris">Sin datos</div>'; return; }
+  if (!lista.length) { const d = document.createElement('div'); d.className = 'alertaPanel verde'; d.textContent = '✓ ' + textoOk; caja.appendChild(d); return; }
+  lista.forEach(x => {
+    const d = document.createElement('div');
+    d.className = 'alertaPanel ' + color(x);
+    d.textContent = x.centro + ' ⚠ ' + x.detalle;
+    caja.appendChild(d);
+  });
+}
+
+function dibujarPanel() {
+  armarPanel();
+  const centros = centrosPanel();
+  // Contadores
+  const cuenta = re => centros.filter(c => re.test(c.region)).length;
+  const cifras = [['Centros activos', centros.length], ['Región de Los Lagos', cuenta(/los lagos/)], ['Región de Aysén', cuenta(/aysen/)],
+    ['Melinka', cuenta(/melinka/)], ['Wellboats', cuenta(/wellboat/)], ['Extranjero', cuenta(/extranjero/)]];
+  const versiones = [['V4', '4'], ['V4.5', '4.5'], ['V4.5.1', '4.5.1']].map(([t, v]) => [t, centros.filter(c => c.version === v).length]);
+  const caja = document.getElementById('cifrasPanel');
+  caja.innerHTML = '';
+  cifras.forEach(([t, n]) => { const d = document.createElement('div'); d.className = 'cifraPanel'; d.innerHTML = '<span></span><strong></strong>'; d.firstChild.textContent = t; d.lastChild.textContent = n; caja.appendChild(d); });
+  versiones.forEach(([t, n]) => { const d = document.createElement('div'); d.className = 'cifraPanel version'; d.innerHTML = '<span></span><strong></strong>'; d.firstChild.textContent = t; d.lastChild.textContent = n; caja.appendChild(d); });
+
+  // Retina: muestras, foco y bomba
+  alertasPanel(document.getElementById('pMuestras'), panelDatos?.muestras ?? null, 'Todos los primeros bash OK');
+  alertasPanel(document.getElementById('pFoco'), panelDatos?.foco ? panelDatos.foco.map(x => ({ ...x, detalle: x.detalle.charAt(0).toUpperCase() + x.detalle.slice(1) + ' enfoque' })) : null,
+    'Todos los equipos con buen enfoque', x => /medio/i.test(x.detalle) ? 'amarilla' : 'roja');
+  alertasPanel(document.getElementById('pBomba'), panelDatos?.bomba ? panelDatos.bomba.map(x => ({ ...x, detalle: '(' + x.detalle + ')' })) : null, 'Todas las válvulas están OK');
+
+  // remote.it: centros activos con su equipo desconectado
+  const desconectados = dispositivos ? centros.filter(c => dispositivosDe(c.centro).remote.some(d => d.estado === 'inactive'))
+    .map(c => ({ centro: c.centro, detalle: textoConexion(dispositivosDe(c.centro).remote.find(d => d.estado === 'inactive')) })) : null;
+  alertasPanel(document.getElementById('pDesconectados'), desconectados, 'Todos los equipos conectados');
+
+  // Armados
+  const arm = document.getElementById('pArmados');
+  const a = panelDatos?.armados;
+  arm.innerHTML = '';
+  [['Chile', a?.chile, ''], ['Noruega', a?.noruega, 'noruega']].forEach(([titulo, d, clase]) => {
+    const div = document.createElement('div');
+    div.className = clase;
+    div.innerHTML = '<h5></h5><div class="par"><div><span>Listos</span><strong></strong></div><div><span>Armando</span><strong></strong></div></div>';
+    div.querySelector('h5').textContent = titulo;
+    const [l, r] = div.querySelectorAll('strong');
+    l.textContent = d ? d.listos.length : '–';
+    r.textContent = d ? d.armando.length : '–';
+    if (d) { l.title = 'Equipos ' + d.listos.join(', '); r.title = d.armando.map(x => x.id + ' (' + x.avance + '%)').join(', '); }
+    arm.appendChild(div);
+  });
+
+  // Mantenciones pendientes: tickets en gestión
+  const pend = document.getElementById('pPendientes');
+  const enGestion = (solicitudes?.tickets || []).filter(t => t.columna === 'gestion');
+  pend.innerHTML = '<div class="numero"></div><div class="tablaP"><table><tbody></tbody></table></div>';
+  pend.querySelector('.numero').textContent = enGestion.length;
+  enGestion.forEach(t => {
+    const tr = pend.querySelector('tbody').insertRow();
+    [t.id, t.centro, t.problema, estadoVisible(t)[0], haceCuanto(inicioGestion(t))].forEach(v => { tr.insertCell().textContent = v || ''; });
+  });
+
+  // Wellboats: link (columna Datos) y línea FAN (columna "Rango o no?")
+  const wb = document.getElementById('pWellboats');
+  wb.innerHTML = '';
+  const conDatos = buques.filter(b => b.datos);
+  const linkMalo = conDatos.filter(b => normalizar(b.datos) !== 'normal');
+  const conRango = buques.filter(b => b.rango);
+  const enFan = conRango.filter(b => !/norte|fuera/i.test(normalizar(b.rango)));
+  const tile = (clase, texto) => { const d = document.createElement('div'); d.className = 'alertaPanel ' + clase; d.textContent = texto; wb.appendChild(d); };
+  if (!buques.length) tile('gris', 'Sin datos de wellboats');
+  else {
+    tile(linkMalo.length ? 'roja' : 'verde', linkMalo.length ? linkMalo.map(b => nombreBuque(b.nombre) + ' ⚠ ' + b.datos).join(' · ') : '✓ Link Wellboat OK');
+    tile(enFan.length ? 'roja' : 'verde', enFan.length ? enFan.map(b => nombreBuque(b.nombre) + ' ⚠ ' + b.rango).join(' · ') : '✓ Wellboat fuera de línea FAN');
+  }
+
+  // Mapas
+  const alerta = new Set([...(panelDatos?.muestras || []), ...(panelDatos?.foco || []).filter(x => x.detalle === 'malo'), ...(panelDatos?.bomba || []), ...(desconectados || [])]
+    .map(x => claveDisp(x.centro)));
+  dibujarMapasPanel(centros, alerta);
+
+  const avisos = [...(panelDatos?.avisos || []), ...(dispositivos?.avisos || [])];
+  document.getElementById('avisosPanel').textContent = avisos.length && estado.admin ? avisos.join(' · ') : '';
+  document.getElementById('actualizado').textContent = '· Actualizado ' + horaDe(new Date());
+}
+
+async function dibujarMapasPanel(centros, alerta) {
+  try { await cargarLeaflet(); } catch { return; }
+  const crear = id => {
+    if (mapasPanel[id]) return mapasPanel[id];
+    const el = document.getElementById('mapaPanel-' + id);
+    if (!el) return null;
+    const m = L.map(el, { zoomControl: false, attributionControl: false });
+    // Mapa base gris oscuro de Esri (no pide clave), como el del Grafana
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 }).addTo(m);
+    mapasPanel[id] = { mapa: m, capa: L.layerGroup().addTo(m), encuadrado: false };
+    return mapasPanel[id];
+  };
+  const punto = (capa, lat, lon, nombre, rojo, color) => L.circleMarker([lat, lon], { radius: 4, color: '#11161f', weight: 1, fillColor: color || (rojo ? '#f2495c' : '#73bf69'), fillOpacity: 1 })
+    .bindTooltip(nombre, { permanent: true, direction: 'top', offset: [0, -3], className: 'etiquetaPanel' }).addTo(capa);
+  ZONAS_PANEL.forEach(([id, , pasa]) => {
+    const z = crear(id);
+    if (!z) return;
+    z.capa.clearLayers();
+    const lista = centros.filter(c => isFinite(c.lat) && isFinite(c.lon) && pasa(c));
+    lista.forEach(c => punto(z.capa, c.lat, c.lon, c.centro, alerta.has(claveDisp(c.centro))));
+    z.mapa.invalidateSize();
+    if (!z.encuadrado && lista.length) { z.mapa.fitBounds(L.latLngBounds(lista.map(c => [c.lat, c.lon])).pad(0.25), { maxZoom: 10 }); z.encuadrado = true; }
+  });
+  const w = crear('wellboats');
+  if (w) {
+    w.capa.clearLayers();
+    buques.forEach(b => punto(w.capa, b.lat, b.lon, nombreBuque(b.nombre).toUpperCase(), false, '#fade2a'));
+    w.mapa.invalidateSize();
+    if (!w.encuadrado && buques.length) { w.mapa.fitBounds(L.latLngBounds(buques.map(b => [b.lat, b.lon])).pad(0.5), { maxZoom: 8 }); w.encuadrado = true; }
+  }
 }
 
 // ---------- Historial de tickets de un centro (equipo) ----------
@@ -7883,6 +8170,17 @@ document.getElementById('btnMuestras').addEventListener('click', abrirMuestras);
 document.getElementById('btnPlataforma').addEventListener('click', abrirPlataforma);
 document.getElementById('btnOperaciones').addEventListener('click', abrirOperaciones);
 document.getElementById('btnEquipos').addEventListener('click', abrirEquipos);
+document.getElementById('btnPanel').addEventListener('click', abrirPanelPantalla);
+document.getElementById('btnRecargarPanel').addEventListener('click', () => cargarPanel(true));
+document.getElementById('btnPantallaPanel').addEventListener('click', () => {
+  const p = document.getElementById('panelPantalla');
+  if (document.fullscreenElement) document.exitFullscreen(); else p.requestFullscreen?.();
+});
+document.addEventListener('fullscreenchange', () => {
+  document.getElementById('btnPantallaPanel').textContent = document.fullscreenElement ? 'Salir de pantalla completa' : 'Pantalla completa';
+  // Los mapas cambian de tamaño
+  setTimeout(() => Object.values(mapasPanel).forEach(z => z.mapa.invalidateSize()), 300);
+});
 document.getElementById('btnRecargarEquipos').addEventListener('click', recargarEquipos);
 document.getElementById('buscarEquipos').addEventListener('input', dibujarEquipos);
 document.getElementById('btnRecargarOp').addEventListener('click', () => cargarOperaciones({ recargar: true }));

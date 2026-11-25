@@ -61,6 +61,7 @@ function doPost(e) {
 
       case 'platLeer':           return responder(platLeer());
       case 'platMarcar':         return responder(platMarcar(body));
+      case 'panelArmados':       return responder(panelArmados());
       // Notas y recordatorios del equipo (pestaña Notas del log)
       case 'notasLeer':          return responder(notasLeer());
       case 'notasGuardar':       return responder(notasGuardar(body));
@@ -1043,6 +1044,34 @@ function notasEliminar(body) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// ---------- Panel: equipos armados ----------
+// Planilla de armado de dispositivos (pestañas CHILE y NORUEGA, un equipo por columna). Solo lectura.
+// Listos: 100% de avance y en OFICINA. Armando: avance entre 0% y 100%.
+const ARMADOS = { archivoId: '1ycyFuGg4A-AZU7m7D8azkWog5G7Js7ETAeokU24-pDA', pestanas: ['CHILE', 'NORUEGA'] };
+
+function panelArmados() {
+  const ss = SpreadsheetApp.openById(ARMADOS.archivoId);
+  const armados = {};
+  ARMADOS.pestanas.forEach(nombre => {
+    const sheet = ss.getSheetByName(nombre);
+    if (!sheet) return;
+    const v = sheet.getDataRange().getDisplayValues();
+    const fila = etiqueta => v.find(f => normalizar(f[1]) === etiqueta);
+    const ids = fila('id') || [], avance = fila('% avance') || [], estado = fila('estado') || [], centro = fila('centro') || [];
+    const listos = [], armando = [];
+    for (let c = 2; c < Math.max(ids.length, avance.length); c++) {
+      const id = String(ids[c] || '').trim();
+      if (!id) continue;
+      const pct = parseFloat(String(avance[c] || '').replace(',', '.'));
+      const donde = normalizar(estado[c] || '');
+      if (pct >= 100 && donde === 'oficina') listos.push(id);
+      else if (pct > 0 && pct < 100) armando.push({ id: id, avance: pct });
+    }
+    armados[normalizar(nombre)] = { listos: listos, armando: armando };
+  });
+  return { ok: true, armados: armados };
 }
 
 // ---------- Programa de biólogos ----------

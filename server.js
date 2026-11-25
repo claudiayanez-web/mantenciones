@@ -1161,6 +1161,109 @@ function conexionRetina() {
   return poolRetina;
 }
 
+// ---------- Panel (pantalla tipo Grafana) ----------
+// Alertas de la base de Retina con las mismas consultas del Grafana: primeras muestras del día por
+// profundidad, estado del enfoque y válvulas de la bomba. Más los equipos armados (planilla de armado).
+const SQL_PANEL_MUESTRAS = `
+WITH centros AS (
+    SELECT c.id, c.name AS centro, cc.name AS pais,
+        CASE cc.name WHEN 'Noruega' THEN 'Europe/Oslo' WHEN 'Mexico' THEN 'America/Mexico_City' ELSE 'America/Santiago' END AS tz
+    FROM centers c
+    LEFT JOIN center_countries cc ON c.center_country_id = cc.id
+    WHERE c.is_active = true
+      AND c.name NOT IN ('Grip Explorer', 'Ronia Diamond')
+      AND EXISTS (SELECT 1 FROM samples s2 WHERE s2.center_id = c.id AND s2.collection_date >= now() - interval '7 days')
+),
+estado AS (
+    SELECT ce.centro, ce.pais,
+        COALESCE(bool_or(d.name = 'a'), false) AS a, COALESCE(bool_or(d.name = 'b'), false) AS b,
+        COALESCE(bool_or(d.name = 'c'), false) AS c, COALESCE(bool_or(d.name = 'd'), false) AS d,
+        COALESCE(bool_or(d.name = 'e'), false) AS e, COALESCE(bool_or(d.name = 'f'), false) AS f
+    FROM centros ce
+    LEFT JOIN samples s ON s.center_id = ce.id
+        AND s.collection_date >= (date_trunc('day', now() AT TIME ZONE ce.tz) AT TIME ZONE ce.tz)
+        AND s.collection_date <  ((date_trunc('day', now() AT TIME ZONE ce.tz) + interval '1 day') AT TIME ZONE ce.tz)
+    LEFT JOIN depths d ON s.depth_id = d.id
+    GROUP BY ce.id, ce.centro, ce.pais
+),
+faltantes_calc AS (
+    SELECT centro,
+        CASE
+            WHEN centro = 'Hefesto' THEN CONCAT_WS(', ', CASE WHEN NOT a THEN 'a' END)
+            WHEN centro = 'Domeyko' THEN CONCAT_WS(', ', CASE WHEN NOT a THEN 'a' END, CASE WHEN NOT b THEN 'b' END)
+            WHEN pais = 'Mexico' THEN CONCAT_WS(', ', CASE WHEN NOT a THEN 'a' END, CASE WHEN NOT b THEN 'b' END, CASE WHEN NOT c THEN 'c' END, CASE WHEN NOT d THEN 'd' END)
+            WHEN pais = 'Noruega' THEN CONCAT_WS(', ', CASE WHEN NOT a THEN 'a' END, CASE WHEN NOT b THEN 'b' END, CASE WHEN NOT c THEN 'c' END,
+                CASE WHEN NOT d THEN 'd' END, CASE WHEN NOT e THEN 'e' END, CASE WHEN NOT f THEN 'f' END)
+            ELSE CONCAT_WS(', ', CASE WHEN NOT a THEN 'a' END, CASE WHEN NOT b THEN 'b' END, CASE WHEN NOT c THEN 'c' END)
+        END AS faltantes
+    FROM estado
+)
+SELECT centro, faltantes AS detalle FROM faltantes_calc WHERE faltantes <> '' ORDER BY centro`;
+
+const SQL_PANEL_FOCO = `
+WITH latest_device_status AS (
+    SELECT DISTINCT ON (device_id) device_id, LOWER(focus) AS focus
+    FROM device_sample_data
+    ORDER BY device_id, created_at DESC
+),
+status_por_centro AS (
+    SELECT centers.name AS centro,
+        CASE
+            WHEN SUM(CASE WHEN latest_device_status.focus = 'malo' THEN 1 ELSE 0 END) > 0 THEN 'malo'
+            WHEN SUM(CASE WHEN latest_device_status.focus = 'medio' THEN 1 ELSE 0 END) > 0 THEN 'medio'
+            ELSE 'bueno'
+        END AS estado
+    FROM devices
+    JOIN centers ON centers.id = devices.center_id
+    LEFT JOIN latest_device_status ON latest_device_status.device_id = devices.id
+    WHERE centers.is_active = true AND latest_device_status.focus IN ('bueno', 'medio', 'malo')
+    GROUP BY centers.name
+)
+SELECT centro, estado AS detalle FROM status_por_centro WHERE estado IN ('malo', 'medio')
+ORDER BY CASE estado WHEN 'malo' THEN 0 ELSE 1 END, centro`;
+
+const SQL_PANEL_BOMBA = `
+WITH base AS (
+    SELECT c.name AS centro, ns.updated_at, ns.pump_prime
+    FROM next_samples ns
+    JOIN devices d ON d.id = ns.device_id
+    JOIN centers c ON c.id = d.center_id
+    WHERE c.is_active = true AND c.name NOT IN ('Grip Explorer', 'Ronia Diamond')
+),
+ultimos_por_centro AS (
+    SELECT DISTINCT ON (centro) centro, updated_at, pump_prime
+    FROM base
+    ORDER BY centro, updated_at DESC
+),
+bombas_bad AS (
+    SELECT centro, key AS letra
+    FROM ultimos_por_centro
+    CROSS JOIN LATERAL jsonb_object_keys((pump_prime->'bad')::jsonb) AS key
+    WHERE pump_prime->'bad' IS NOT NULL AND (pump_prime->'bad')::jsonb <> '{}'::jsonb
+)
+SELECT centro, string_agg(letra, ', ' ORDER BY letra) AS detalle FROM bombas_bad GROUP BY centro ORDER BY centro`;
+
+// Se guarda 1 minuto (la pantalla se actualiza sola); los armados, 10 minutos
+let panelCache = null, armadosCache = null;
+app.get('/api/panel', requiereSesion, async (req, res) => {
+  if (panelCache && Date.now() - panelCache.leido < 60000 && req.query.recargar !== '1') return res.json(panelCache.respuesta);
+  const respuesta = { ok: true, leido: new Date().toISOString(), muestras: null, foco: null, bomba: null, armados: null, avisos: [] };
+  const pool = conexionRetina();
+  const consulta = (clave, sql) => pool.query(sql).then(r => { respuesta[clave] = r.rows; })
+    .catch(err => { console.error('Panel ' + clave, err.message); respuesta.avisos.push('No se pudo leer ' + clave + ' en la base de Retina.'); });
+  const tareas = [];
+  if (pool) tareas.push(consulta('muestras', SQL_PANEL_MUESTRAS), consulta('foco', SQL_PANEL_FOCO), consulta('bomba', SQL_PANEL_BOMBA));
+  else respuesta.avisos.push('Falta RETINA_DB_URL en el servidor.');
+  if (armadosCache && Date.now() - armadosCache.leido < 10 * 60000) respuesta.armados = armadosCache.datos;
+  else tareas.push(llamarScript({ accion: 'panelArmados' }).then(r => {
+    if (r.ok) { armadosCache = { leido: Date.now(), datos: r.armados }; respuesta.armados = r.armados; }
+    else respuesta.avisos.push('Armados: ' + (r.error || 'no se pudo leer la planilla.'));
+  }).catch(err => { console.error('Panel armados', err.message); respuesta.avisos.push('No se pudo leer la planilla de armados.'); }));
+  await Promise.all(tareas);
+  panelCache = { leido: Date.now(), respuesta };
+  res.json(respuesta);
+});
+
 // ---------- Dispositivos: enlaces a la página de muestras (app2) y a la UI remota (remote.it) ----------
 // Retina: cada dispositivo con su centro (para el enlace a app2). remote.it: la lista de dispositivos de la cuenta,
 // pedida con la clave de acceso R3_ACCESS_KEY_ID / R3_SECRET_ACCESS_KEY (firma HTTP hmac-sha256).
