@@ -4370,7 +4370,10 @@ function dibujarHistorial(centro, equipo, inicio) {
   const c = claveDisp(centro);
   const todos = todosLosTickets().filter(t => claveDisp(t.centro) === c).map(t => ({ t, abierto: fechaTicket(t.fecha) }))
     .filter(x => x.abierto).sort((a, b) => b.abierto - a.abierto);
+  // Este mes (desde el día 1), 3 o 12 meses, o todo el tiempo del centro en SAMS (desde su INICIO)
+  const hoy = new Date();
   const desde = periodoHistorial === 'periodo' ? inicio
+    : periodoHistorial === 'mes' ? new Date(hoy.getFullYear(), hoy.getMonth(), 1)
     : periodoHistorial === 'todo' ? null : new Date(Date.now() - Number(periodoHistorial) * 30.44 * 864e5);
   const lista = todos.filter(x => !desde || x.abierto >= desde);
 
@@ -4387,11 +4390,12 @@ function dibujarHistorial(centro, equipo, inicio) {
     '<div class="lado"><div class="chips" id="periodoHist"></div><button type="button" class="cerrarDialogo" aria-label="Cerrar">&times;</button></div></div>' +
     '<div class="resumenHist"></div><svg class="franjaHist" role="img" aria-label="Tickets en el tiempo"></svg><div class="listaHist"></div></div>';
   dialogo.querySelector('h2').textContent = 'Historial de ' + centro;
-  dialogo.querySelector('.sub').textContent = [equipo ? 'Equipo ' + equipo : '', inicio ? 'periodo actual desde ' + inicio.toLocaleDateString('es-CL') : '',
+  dialogo.querySelector('.sub').textContent = [equipo ? 'Equipo ' + equipo : '', inicio ? 'en SAMS desde ' + inicio.toLocaleDateString('es-CL') : '',
     avisoAntiguos ? avisoAntiguos + ' Se muestran solo los de este mes.' : !ticketsAntiguos ? 'Cargando meses anteriores…' : ''].filter(Boolean).join(' · ');
   dialogo.querySelector('.cerrarDialogo').addEventListener('click', () => dialogo.close());
 
-  const periodos = [['periodo', 'Periodo actual'], ['3', '3 meses'], ['12', '12 meses'], ['todo', 'Todo']].filter(([id]) => id !== 'periodo' || inicio);
+  // Sin INICIO en SAMS, el último botón muestra todo lo que hay
+  const periodos = [['mes', 'Este mes'], ['3', '3 meses'], ['12', '12 meses'], inicio ? ['periodo', 'Tiempo completo en SAMS'] : ['todo', 'Todo']];
   periodos.forEach(([id, texto]) => {
     const b = document.createElement('button');
     b.type = 'button';
