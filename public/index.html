@@ -642,6 +642,32 @@
   .filtrosTablaSol[hidden] { display: none; }
   .filtrosTablaSol .buscador { flex: 0 1 280px; }
   #tablaSolicitudes[hidden], #tablero[hidden] { display: none; }
+  /* Línea de tiempo de Solicitudes: el último mes de los centros con tickets abiertos */
+  .lineaSol { flex: 1; min-width: 0; overflow: auto; background: white; border: 1px solid var(--borde); border-radius: 10px; padding: 10px 14px 14px; }
+  .lineaSol[hidden] { display: none; }
+  .lineaSol .leyendaL { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--suave); margin-bottom: 8px; }
+  .lineaSol .leyendaL span::before { content: ""; display: inline-block; width: 18px; height: 8px; border-radius: 3px; margin-right: 6px; vertical-align: 0; background: var(--c); }
+  .filaL { display: grid; grid-template-columns: 170px minmax(0, 1fr); align-items: center; min-height: 34px; border-top: 1px solid #f0f2f5; }
+  .filaL.ejeL { border-top: none; min-height: 22px; position: sticky; top: -10px; background: white; z-index: 2; }
+  .filaL .centroL { font-weight: 600; color: var(--azul); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px; cursor: pointer; }
+  .filaL .centroL span { display: block; font-weight: 400; color: var(--suave); font-size: 11px; }
+  .pistaL { position: relative; height: 100%; min-height: 34px; }
+  .pistaL .diaL { position: absolute; top: 0; bottom: 0; border-left: 1px solid #f0f2f5; }
+  .pistaL .diaL.lunes { border-left-color: #e2e6ec; }
+  .pistaL .hoyL { position: absolute; top: 0; bottom: 0; border-left: 2px dashed var(--error); z-index: 1; }
+  .ejeL .pistaL span { position: absolute; top: 3px; font-size: 11px; color: var(--suave); transform: translateX(-50%); white-space: nowrap; }
+  .barraL { position: absolute; z-index: 2; height: 14px; display: flex; border-radius: 4px; overflow: hidden; cursor: pointer; min-width: 6px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9); }
+  .barraL:hover { box-shadow: 0 0 0 2px var(--azul); z-index: 3; }
+  .barraL i { display: block; height: 100%; }
+  .barraL i.cierreL { flex: 0 0 4px; background: #2e8b57; }
+  .barraL.abierta { border-radius: 4px 0 0 4px; }
+  .tooltipL { position: fixed; z-index: 1000; pointer-events: none; max-width: 340px; background: #1f2937; color: #f3f4f6; border-radius: 8px; padding: 8px 10px;
+    font-size: 12px; line-height: 1.45; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
+  .tooltipL b { color: #fff; }
+  .tooltipL .pasosT { color: #cbd5e1; margin-top: 4px; }
+  .tooltipL .obsT { margin-top: 4px; white-space: pre-wrap; color: #e5e7eb; }
+  .tooltipL .tipoT { display: inline-block; margin-top: 4px; font-size: 11px; font-weight: 700; padding: 0 7px; border-radius: 999px; background: #22693f; color: #e3f3e8; }
+  .lineaSol .vacioL { color: var(--suave); padding: 20px; text-align: center; }
   /* Tablero o tabla a la izquierda y notas del equipo a la derecha */
   .cuerpoSolicitudes { flex: 1; min-height: 0; display: flex; gap: 12px; margin: 0 20px 20px; }
   .cuerpoSolicitudes > .tablero, .cuerpoSolicitudes > .contenedorTabla { margin: 0; min-width: 0; }
@@ -1725,6 +1751,7 @@
       <div class="selectorModo" id="selectorModo" role="group" aria-label="Ver solicitudes como">
         <button type="button" data-modo="tablero"><svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/></svg>Tablero</button>
         <button type="button" data-modo="tabla"><svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg>Tabla</button>
+        <button type="button" data-modo="linea"><svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h7M6 12h12M3 18h9"/><path d="M21 4v16" stroke-dasharray="2 2"/></svg>Línea de tiempo</button>
       </div>
       <div class="chips" id="filtroTecnico" role="group" aria-label="Filtrar por técnico"></div>
       <button class="botonIcono" id="btnRecargarSolicitudes" type="button" title="Recargar" aria-label="Recargar solicitudes">
@@ -1743,6 +1770,7 @@
     <div class="cuerpoSolicitudes">
       <div class="tablero" id="tablero"></div>
       <div class="contenedorTabla" id="tablaSolicitudes" hidden></div>
+      <div class="lineaSol" id="lineaSolicitudes" hidden></div>
       <aside class="panelNotas" id="panelNotas" aria-label="Notas del equipo" hidden>
         <div class="cabeza"><h3>Notas del equipo</h3><button type="button" class="cerrarNotas" id="cerrarNotas" aria-label="Cerrar notas">&times;</button></div>
         <form class="formNota" id="formNota" novalidate>
@@ -3841,7 +3869,7 @@ try { filtroTecnicoActual = localStorage.getItem(CLAVE_TECNICO) || ''; } catch {
 // Vista de tabla: todos los tickets (también los finalizados de otros días), con búsqueda y orden
 const CLAVE_MODO_SOLICITUDES = 'mantenciones.solicitudes.modo';
 let modoSolicitudes = 'tablero';
-try { if (localStorage.getItem(CLAVE_MODO_SOLICITUDES) === 'tabla') modoSolicitudes = 'tabla'; } catch {}
+try { const m = localStorage.getItem(CLAVE_MODO_SOLICITUDES); if (m === 'tabla' || m === 'linea') modoSolicitudes = m; } catch {}
 let estadoTablaSol = 'abiertos', busquedaSol = '', ordenSol = { campo: 'id', asc: false };
 // Tickets abiertos en la tabla (texto completo); se mantienen al recargar
 const ticketsAbiertosSol = new Set();
@@ -4134,9 +4162,10 @@ function dibujarSolicitudes() {
     finalizado: tickets.filter(t => t.columna === 'finalizado' && mismoDia(fechaTicket(t.fechaTecnico), hoy))
   };
 
-  const enTabla = modoSolicitudes === 'tabla';
+  const enTabla = modoSolicitudes === 'tabla', enLinea = modoSolicitudes === 'linea';
   document.querySelectorAll('#selectorModo button').forEach(b => b.setAttribute('aria-pressed', b.dataset.modo === modoSolicitudes ? 'true' : 'false'));
-  document.getElementById('tablero').hidden = enTabla;
+  document.getElementById('lineaSolicitudes').hidden = !enLinea;
+  document.getElementById('tablero').hidden = enTabla || enLinea;
   document.getElementById('tablaSolicitudes').hidden = !enTabla;
   document.getElementById('filtrosTablaSol').hidden = !enTabla;
   const enEstado = tickets.filter(t => estadoTablaSol === 'todos' || (estadoTablaSol === 'finalizados') === (t.columna === 'finalizado'));
@@ -4160,6 +4189,7 @@ function dibujarSolicitudes() {
     caja.appendChild(b);
   });
   if (enTabla) { dibujarTablaSolicitudes(enEstado); return; }
+  if (enLinea) { dibujarLineaSolicitudes(); return; }
   if (filtroTecnicoActual) ['curso', 'gestion', 'finalizado'].forEach(c => {
     columnas[c] = columnas[c].filter(t => t.tecnico === filtroTecnicoActual);
   });
@@ -5138,6 +5168,154 @@ function botonHistorialTicket(t) {
   b.addEventListener('click', e => { e.stopPropagation(); abrirHistorial(t.centro); });
   return b;
 }
+
+// ---------- Línea de tiempo de Solicitudes ----------
+// Una fila por centro con tickets abiertos; cada ticket del último mes es una barra:
+// gris mientras espera, azul en atención, morado en gestión. Al pasar el mouse se ve qué pasó.
+const DIAS_LINEA_SOL = 30;
+const COLORES_LINEA = { espera: '#c4c9d1', curso: '#4f79b5', gestion: '#8c7ab0', listo: '#2e8b57' };
+
+async function dibujarLineaSolicitudes() {
+  const caja = document.getElementById('lineaSolicitudes');
+  if (!ticketsAntiguos && !avisoAntiguos) {
+    caja.innerHTML = '<div class="vacioL">Cargando tickets…</div>';
+    await cargarTicketsAntiguos();
+    if (modoSolicitudes !== 'linea') return;
+  }
+  const fin = Date.now(), inicio = fin - DIAS_LINEA_SOL * 864e5;
+  const todos = todosLosTickets().map(t => ({ t, abierto: fechaTicket(t.fecha) })).filter(x => x.abierto);
+  const abiertos = todos.filter(x => x.t.columna !== 'finalizado' && (!filtroTecnicoActual || x.t.tecnico === filtroTecnicoActual));
+  const centros = [...new Set(abiertos.map(x => claveDisp(x.t.centro)))];
+  // Primero el centro con el ticket abierto más antiguo
+  const masAntiguo = c => Math.min(...abiertos.filter(x => claveDisp(x.t.centro) === c).map(x => x.abierto.getTime()));
+  centros.sort((a, b) => masAntiguo(a) - masAntiguo(b));
+  document.getElementById('conteo').textContent = centros.length + (centros.length === 1 ? ' centro' : ' centros') + ' con solicitudes abiertas · últimos ' + DIAS_LINEA_SOL + ' días';
+
+  caja.innerHTML = '<div class="leyendaL"><span style="--c:' + COLORES_LINEA.espera + '">Esperando que lo acepten</span><span style="--c:' + COLORES_LINEA.curso + '">En atención</span>' +
+    '<span style="--c:' + COLORES_LINEA.gestion + '">En gestión (centro o terreno)</span><span style="--c:' + COLORES_LINEA.listo + '">Cerrado</span></div>';
+  if (!centros.length) { caja.insertAdjacentHTML('beforeend', '<div class="vacioL">No hay centros con solicitudes abiertas.</div>'); return; }
+  const pos = ms => Math.min(100, Math.max(0, (ms - inicio) / (fin - inicio) * 100));
+
+  // Eje con los días
+  const eje = document.createElement('div');
+  eje.className = 'filaL ejeL';
+  eje.innerHTML = '<div></div><div class="pistaL"></div>';
+  const pistaEje = eje.lastChild;
+  const marcas = (pista, conTexto) => {
+    for (let d = new Date(new Date(inicio).toDateString()); d.getTime() <= fin; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+      if (d.getTime() < inicio) continue;
+      const l = document.createElement('div');
+      l.className = 'diaL' + (d.getDay() === 1 ? ' lunes' : '');
+      l.style.left = pos(d.getTime()) + '%';
+      pista.appendChild(l);
+      if (conTexto && (d.getDay() === 1 || d.getDate() === 1) && d.getTime() - (pista.ultimaEtiqueta || 0) >= 4 * 864e5) {
+        pista.ultimaEtiqueta = d.getTime();
+        const tx = document.createElement('span');
+        tx.style.left = pos(d.getTime()) + '%';
+        tx.textContent = d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }).replace('.', '');
+        pista.appendChild(tx);
+      }
+    }
+    const hoy = document.createElement('div');
+    hoy.className = 'hoyL';
+    hoy.style.left = '100%';
+    pista.appendChild(hoy);
+  };
+  marcas(pistaEje, true);
+  caja.appendChild(eje);
+
+  centros.forEach(c => {
+    const delCentro = todos.filter(x => claveDisp(x.t.centro) === c && (x.t.columna !== 'finalizado' || (fechaTicket(x.t.fechaTecnico) || x.abierto) >= inicio))
+      .sort((a, b) => a.abierto - b.abierto);
+    const fila = document.createElement('div');
+    fila.className = 'filaL';
+    const nombre = delCentro[delCentro.length - 1]?.t.centro || c;
+    const abiertosC = delCentro.filter(x => x.t.columna !== 'finalizado').length;
+    fila.innerHTML = '<div class="centroL" title="Ver el historial completo"></div><div class="pistaL"></div>';
+    fila.firstChild.textContent = nombre;
+    fila.firstChild.insertAdjacentHTML('beforeend', '<span>' + abiertosC + (abiertosC === 1 ? ' abierto' : ' abiertos') + ' · ' + delCentro.length + ' en el mes</span>');
+    fila.firstChild.addEventListener('click', () => abrirHistorial(nombre));
+    const pista = fila.lastChild;
+    marcas(pista, false);
+    // Tickets que se cruzan en el tiempo van en carriles distintos
+    const carriles = [];
+    delCentro.forEach(({ t, abierto }) => {
+      const abiertoAun = t.columna !== 'finalizado';
+      const cierre = abiertoAun ? fin : (fechaTicket(t.fechaTecnico) || abierto).getTime();
+      const a = Math.max(abierto.getTime(), inicio);
+      let carril = carriles.findIndex(fc => fc <= a);
+      if (carril === -1) { carril = carriles.length; carriles.push(0); }
+      carriles[carril] = cierre + 3600e3 * 6;
+      const aceptado = fechaTicket(t.aceptacion)?.getTime();
+      const gestion = inicioGestionReal(t)?.getTime();
+      // Tramos: espera (abierto→aceptado), atención (aceptado→gestión o cierre), gestión (gestión→cierre)
+      const tramos = [];
+      const corte1 = aceptado || (abiertoAun ? fin : cierre);
+      tramos.push(['espera', abierto.getTime(), Math.min(corte1, cierre)]);
+      if (aceptado) {
+        tramos.push(['curso', aceptado, gestion ? Math.min(gestion, cierre) : cierre]);
+        if (gestion) tramos.push(['gestion', gestion, cierre]);
+      }
+      const barra = document.createElement('div');
+      barra.className = 'barraL' + (abiertoAun ? ' abierta' : '');
+      const izq = pos(abierto.getTime()), ancho = Math.max(0, pos(cierre) - izq);
+      barra.style.width = 'max(10px, ' + ancho + '%)';
+      barra.style.left = 'min(' + izq + '%, calc(100% - max(10px, ' + ancho + '%)))';
+      barra.style.top = (6 + carril * 17) + 'px';
+      const largo = Math.max(1, cierre - Math.max(abierto.getTime(), inicio));
+      tramos.forEach(([tipo, desde, hasta]) => {
+        const d = Math.max(desde, inicio), h = Math.max(d, hasta);
+        if (h <= d) return;
+        const i = document.createElement('i');
+        i.style.flex = '1 1 ' + ((h - d) / largo * 100) + '%';
+        i.style.background = COLORES_LINEA[tipo];
+        barra.appendChild(i);
+      });
+      // Cerrado: una marca verde al final de la barra
+      if (!abiertoAun) { const fin = document.createElement('i'); fin.className = 'cierreL'; barra.appendChild(fin); }
+      barra.addEventListener('mouseenter', e => mostrarTooltipLinea(e, t, abierto));
+      barra.addEventListener('mousemove', moverTooltipLinea);
+      barra.addEventListener('mouseleave', ocultarTooltipLinea);
+      barra.addEventListener('click', () => abrirHistorial(nombre));
+      pista.appendChild(barra);
+    });
+    pista.style.height = (12 + carriles.length * 17) + 'px';
+    caja.appendChild(fila);
+  });
+}
+
+// Fecha en que pasó a gestión (centro o terreno), si pasó
+function inicioGestionReal(t) {
+  const fechas = [t.gestionCentro, t.gestionTerreno].map(fechaTicket).filter(Boolean);
+  return fechas.length ? new Date(Math.min(...fechas)) : null;
+}
+
+let tooltipLinea = null;
+function mostrarTooltipLinea(e, t, abierto) {
+  if (!tooltipLinea) { tooltipLinea = document.createElement('div'); tooltipLinea.className = 'tooltipL'; document.body.appendChild(tooltipLinea); }
+  const abiertoAun = t.columna !== 'finalizado';
+  const cierre = fechaTicket(t.fechaTecnico);
+  const pasos = ['Abierto ' + fechaCortaTicket(abierto) + (t.nombre ? ' por ' + t.nombre : '')];
+  if (fechaTicket(t.aceptacion)) pasos.push('Aceptado ' + fechaCortaTicket(fechaTicket(t.aceptacion)) + (t.tecnico ? ' · ' + t.tecnico : ''));
+  if (fechaTicket(t.gestionCentro)) pasos.push('Gestión con el centro ' + fechaCortaTicket(fechaTicket(t.gestionCentro)));
+  if (fechaTicket(t.gestionTerreno)) pasos.push('Gestión en terreno ' + fechaCortaTicket(fechaTicket(t.gestionTerreno)));
+  if (!abiertoAun && cierre) pasos.push('Cerrado ' + fechaCortaTicket(cierre) + ' · duró ' + duracionTicket(cierre - abierto));
+  else pasos.push(estadoVisible(t)[0] + ' · lleva ' + duracionTicket(Date.now() - abierto));
+  tooltipLinea.innerHTML = '<b></b><div class="pasosT"></div>';
+  tooltipLinea.querySelector('b').textContent = '#' + t.id + ' · ' + t.centro + ' · ' + (t.problema || 'Sin problema indicado');
+  tooltipLinea.querySelector('.pasosT').innerHTML = pasos.map(escaparHtml).join('<br>');
+  if (t.tipo) tooltipLinea.insertAdjacentHTML('beforeend', '<div class="tipoT"></div>'), tooltipLinea.lastChild.textContent = t.tipo;
+  if (t.observaciones) { const o = document.createElement('div'); o.className = 'obsT'; o.textContent = t.observaciones; tooltipLinea.appendChild(o); }
+  tooltipLinea.hidden = false;
+  moverTooltipLinea(e);
+}
+function moverTooltipLinea(e) {
+  if (!tooltipLinea) return;
+  const r = tooltipLinea.getBoundingClientRect();
+  tooltipLinea.style.left = Math.min(e.clientX + 14, innerWidth - r.width - 8) + 'px';
+  tooltipLinea.style.top = (e.clientY + 16 + r.height > innerHeight ? e.clientY - r.height - 12 : e.clientY + 16) + 'px';
+}
+function ocultarTooltipLinea() { if (tooltipLinea) tooltipLinea.hidden = true; }
 
 function tarjetaTicket(t) {
   const div = document.createElement('article');
