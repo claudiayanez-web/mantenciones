@@ -4654,6 +4654,7 @@ function dibujarPanel() {
   document.getElementById('actualizado').textContent = '· Actualizado ' + horaDe(new Date());
 }
 
+const ESCONDER_NOMBRES_TAPADOS = false;
 // Esconde los nombres que se pisan con otro ya visible (se revisa al cambiar el zoom)
 function ordenarEtiquetasPanel(mapa) {
   if (!mapa) return;
@@ -4661,6 +4662,8 @@ function ordenarEtiquetasPanel(mapa) {
   const etiquetas = [];
   mapa.eachLayer(l => { const el = l.getTooltip?.()?.getElement?.(); if (el && l.getTooltip().options.permanent) etiquetas.push(el); });
   etiquetas.forEach(el => el.classList.remove('tapada'));
+  // Se muestran todos los nombres aunque se sobrepongan (para volver a esconder los que se pisan, cambiar a true)
+  if (!ESCONDER_NOMBRES_TAPADOS) return;
   etiquetas.forEach(el => {
     const r = el.getBoundingClientRect();
     const choca = vistos.some(v => r.left < v.right + 2 && r.right > v.left - 2 && r.top < v.bottom && r.bottom > v.top);
