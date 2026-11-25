@@ -862,7 +862,8 @@
   .cifraPanel.version { flex-direction: column; gap: 2px; }
   .cifraPanel.version strong { color: #ff9830; }
   .filaPanel { position: relative; display: grid; gap: 10px; grid-template-columns: var(--columnasFila, 1.3fr 1fr 1.2fr 1fr); }
-  .filaPanel.fila2 { grid-template-columns: var(--columnasFila, 2.2fr 1fr 0.75fr 1fr); }
+  .filaPanel.fila2 { grid-template-columns: var(--columnasFila, 2.2fr 1fr 1.6fr); }
+  .wellboatsPanel.lado { flex: 0 0 auto; grid-template-columns: 1fr 1fr; margin-bottom: 6px; }
   .cuadroPanel { background: #1e2735; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; min-height: 150px; min-width: 0; }
   .cuadroPanel > h4 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: #dfe5ee; }
   .alertasPanel { flex: 1; display: grid; gap: 4px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); grid-auto-rows: minmax(54px, 1fr); }
@@ -4553,12 +4554,13 @@ const CLAVE_DISENO_PANEL = 'mantenciones.dashboard.diseno';
 const disenoOriginal = () => ({
   filas: [0.9, 1.15, 1.3],
   fila1: [1.3, 1, 1.2, 1],
-  fila2: [2.2, 1, 0.75, 1],
+  fila2: [2.2, 1, 1.6],
   mapas: ZONAS_PANEL.map(z => z[3])
 });
 let disenoPanel = disenoOriginal(), disenoEditando = false, arrastrandoPanel = false;
 try {
   const g = JSON.parse(localStorage.getItem(CLAVE_DISENO_PANEL) || 'null');
+  if (g && Array.isArray(g.fila2) && g.fila2.length === 4) g.fila2 = [g.fila2[0], g.fila2[1], g.fila2[2] + g.fila2[3]];
   if (g && ['filas', 'fila1', 'fila2', 'mapas'].every(k => Array.isArray(g[k]) && g[k].length === disenoPanel[k].length)) disenoPanel = g;
 } catch {}
 
@@ -4677,8 +4679,7 @@ function armarPanel() {
     '</div><div class="filaPanel fila2">' +
     '  <div class="cuadroPanel"><h4>Mantenciones pendientes (en gestión)</h4><div class="pendientesPanel" id="pPendientes"></div></div>' +
     '  <div class="cuadroPanel"><h4>Bomba</h4><div class="alertasPanel" id="pBomba"></div></div>' +
-    '  <div class="cuadroPanel"><h4>Wellboats</h4><div class="wellboatsPanel" id="pWellboats"></div></div>' +
-    '  <div class="cuadroPanel"><h4>Ubicación wellboats</h4><div class="mapaPanel" id="mapaPanel-wellboats"></div></div>' +
+    '  <div class="cuadroPanel"><h4>Wellboats</h4><div class="wellboatsPanel lado" id="pWellboats"></div><div class="mapaPanel" id="mapaPanel-wellboats"></div></div>' +
     '</div><div class="mapasPanel" style="--columnasMapas:' + ZONAS_PANEL.map(z => 'minmax(0, ' + z[3] + 'fr)').join(' ') + '">' + ZONAS_PANEL.map(([id, titulo]) =>
       '<div class="cuadroPanel"><h4 class="conBotones"><span>' + titulo + '</span><span class="botonesMapa">' +
       '<button type="button" data-fijar="' + id + '" title="Fijar esta posición del mapa (queda así siempre en este computador)">📌</button>' +
