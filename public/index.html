@@ -4321,9 +4321,15 @@ function dispositivosDe(centro) {
   const c = claveDisp(centro);
   if (!dispositivos || c.length < 3) return { retina: [], remote: [] };
   const retina = equiposRetinaDe(c);
-  const codigos = new Set(retina.map(d => String(d.codigo)));
   const lista = dispositivos.remote || [];
-  let remote = lista.filter(d => centroRemoteit(d.nombre) === c || codigos.has((String(d.nombre).match(/\bid\s*(\d+)/i) || [])[1]));
+  const idRemote = d => { const m = String(d.nombre).match(/\bid\s*(\d+)/i); return m ? String(Number(m[1])) : ''; };
+  const idsSams = idsSamsActivos()?.get(c);
+  if (idsSams?.size) {
+    const delSams = lista.filter(d => idsSams.has(idRemote(d)));
+    if (delSams.length) return { retina, remote: delSams };
+  }
+  const codigos = new Set(retina.map(d => String(Number(d.codigo))));
+  let remote = lista.filter(d => centroRemoteit(d.nombre) === c || codigos.has(idRemote(d)));
   if (!remote.length && c.length >= 5) remote = lista.filter(d => centroRemoteit(d.nombre).includes(c));
   return { retina, remote };
 }
@@ -4356,7 +4362,7 @@ function enlacesDispositivo(centro) {
     caja.lastChild.prepend(punto);
   });
   // Si el equipo está desconectado, se avisa bajo los enlaces
-  const caido = remote.find(d => d.estado === 'inactive');
+  const caido = !remote.some(d => d.estado === 'active') && remote.find(d => d.estado === 'inactive');
   if (caido) {
     const aviso = document.createElement('div');
     aviso.className = 'estadoDisp inactive';
@@ -4421,7 +4427,7 @@ function filasEquipos() {
     return !dispositivos?.retina?.length || equiposRetinaDe(c).some(d => d.id === e.equipo_id);
   }).map(e => {
     const remote = dispositivosDe(e.centro).remote;
-    const estadoRemoto = remote.some(d => d.estado === 'inactive') ? 'inactive' : remote.some(d => d.estado === 'active') ? 'active' : remote.length ? 'sinDato' : 'sinRemoto';
+    const estadoRemoto = remote.some(d => d.estado === 'active') ? 'active' : remote.some(d => d.estado === 'inactive') ? 'inactive' : remote.length ? 'sinDato' : 'sinRemoto';
     return { e, remote, estadoRemoto };
   });
 }
@@ -4805,7 +4811,8 @@ function dibujarDashboard() {
   alertasPanel(document.getElementById('pBomba'), panelDatos?.bomba ? panelDatos.bomba.map(x => ({ ...x, detalle: '(' + x.detalle + ')' })) : null, 'Todas las válvulas están OK');
 
   // remote.it: centros activos con su equipo desconectado
-  const desconectados = dispositivos ? centros.filter(c => dispositivosDe(c.centro).remote.some(d => d.estado === 'inactive'))
+  const caido = c => { const r = dispositivosDe(c.centro).remote; return !r.some(d => d.estado === 'active') && r.some(d => d.estado === 'inactive'); };
+  const desconectados = dispositivos ? centros.filter(caido)
     .map(c => ({ centro: c.centro, detalle: textoConexion(dispositivosDe(c.centro).remote.find(d => d.estado === 'inactive')) })) : null;
   alertasPanel(document.getElementById('pDesconectados'), desconectados, 'Todos los equipos conectados');
 
