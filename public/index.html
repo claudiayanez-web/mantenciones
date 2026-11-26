@@ -4323,14 +4323,13 @@ function dispositivosDe(centro) {
   const retina = equiposRetinaDe(c);
   const lista = dispositivos.remote || [];
   const idRemote = d => { const m = String(d.nombre).match(/\bid\s*(\d+)/i); return m ? String(Number(m[1])) : ''; };
-  const idsSams = idsSamsActivos()?.get(c);
-  if (idsSams?.size) {
-    const delSams = lista.filter(d => idsSams.has(idRemote(d)));
-    if (delSams.length) return { retina, remote: delSams };
-  }
-  const codigos = new Set(retina.map(d => String(Number(d.codigo))));
-  let remote = lista.filter(d => centroRemoteit(d.nombre) === c || codigos.has(idRemote(d)));
+  // Todos los que pueden ser del centro: el "ID nn" del ID V3 de SAMS, el "ID nn" del código en Retina y el que tiene
+  // el nombre del centro (puede ser un equipo antiguo). Los conectados van primero.
+  const ids = new Set([...(idsSamsActivos()?.get(c) || []), ...retina.map(d => String(Number(d.codigo)))]);
+  let remote = lista.filter(d => centroRemoteit(d.nombre) === c || ids.has(idRemote(d)));
   if (!remote.length && c.length >= 5) remote = lista.filter(d => centroRemoteit(d.nombre).includes(c));
+  const orden = d => d.estado === 'active' ? 0 : d.estado === 'inactive' ? 2 : 1;
+  remote = remote.slice().sort((a, b) => orden(a) - orden(b));
   return { retina, remote };
 }
 
