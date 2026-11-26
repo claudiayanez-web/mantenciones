@@ -1161,6 +1161,9 @@
   .chipBio[aria-pressed="true"] { border-color: var(--color); box-shadow: 0 0 0 1px var(--color); }
   .chipBio.fijo { cursor: default; }
   .chipPlancton { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; background: #eef0f3; color: var(--suave); }
+  button.chipPlancton { border: 1px solid transparent; font: inherit; font-size: 12px; cursor: pointer; }
+  button.chipPlancton:hover { border-color: #c9ced6; color: var(--texto, #1f2937); }
+  button.chipPlancton[aria-pressed="true"] { border-color: #9ca3af; box-shadow: 0 0 0 1px #9ca3af; }
   .progAviso { background: #fffdf5; border: 1px solid #e7c66b; border-radius: 12px; padding: 12px 14px; font-size: 13px; display: grid; gap: 6px; }
   .progAviso b { color: #7a5a00; }
   .progTabla { background: white; border: 1px solid var(--borde); border-radius: 12px; overflow-x: auto; }
@@ -6807,8 +6810,10 @@ const bioDe = sigla => programa.biologos.find(b => b.sigla === sigla);
 const colorBio = sigla => { const i = programa.biologos.findIndex(b => b.sigla === sigla); return i === -1 ? '#9ca3af' : COLORES_BIO[i % COLORES_BIO.length]; };
 const cargaBio = sigla => programa.centros.filter(c => c.semana === sigla || c.finde === sigla).length;
 
+const chipPlancton = (sigla, boton) => { const p = document.createElement(boton ? 'button' : 'span'); if (boton) p.type = 'button'; p.className = 'chipPlancton'; p.textContent = PLANCTON[sigla]; return p; };
+
 function chipBio(sigla, opciones = {}) {
-  if (PLANCTON[sigla]) { const p = document.createElement('span'); p.className = 'chipPlancton'; p.textContent = PLANCTON[sigla]; return p; }
+  if (PLANCTON[sigla]) return chipPlancton(sigla, opciones.boton);
   const b = document.createElement(opciones.boton ? 'button' : 'span');
   if (opciones.boton) b.type = 'button';
   b.className = 'chipBio' + (opciones.boton ? '' : ' fijo');
@@ -6825,7 +6830,7 @@ function chipBio(sigla, opciones = {}) {
 }
 
 function nombreBio(sigla, boton) {
-  if (PLANCTON[sigla]) { const p = document.createElement('span'); p.className = 'chipPlancton'; p.textContent = PLANCTON[sigla]; return p; }
+  if (PLANCTON[sigla]) return chipPlancton(sigla, boton);
   const el = document.createElement(boton ? 'button' : 'span');
   if (boton) { el.type = 'button'; el.title = 'Cambiar biólogo'; }
   el.className = 'bioNombre' + (sigla ? '' : ' sinAsignar');
@@ -7100,7 +7105,7 @@ function tablaCentros(filas, sams) {
     const fechaTabla = fechaVerProg();
     [['semana', c.semana], ['finde', c.finde]].forEach(([tramo, sigla]) => {
       const r = !PLANCTON[sigla] && reemplazoDe(c, tramo, fechaTabla);
-      const editable = estado.admin && !PLANCTON[sigla];
+      const editable = estado.admin;
       const el = nombreBio(r ? r.reemplazo : sigla, editable);
       // Con reemplazo vigente, tocar abre el reemplazo; si no, se cambia el titular
       if (editable) {
@@ -7183,8 +7188,7 @@ function tablaPlanilla(filas) {
       else td.title = (bioDe(sigla)?.nombre || sigla) + (r ? ' · hoy lo reemplaza ' + (bioDe(r.reemplazo)?.nombre || r.reemplazo) : '');
       if (r) td.classList.add('reemp');
       td.textContent = sigla || '—';
-      // Plancton Andino no lleva biólogo: esas celdas no se editan
-      if (estado.admin && !PLANCTON[sigla]) {
+      if (estado.admin) {
         td.classList.add('editable');
         td.addEventListener('mouseenter', () => tr.classList.add('sobre-' + tramo));
         td.addEventListener('mouseleave', () => tr.classList.remove('sobre-' + tramo));
@@ -7216,6 +7220,9 @@ function editarCeldaProg(td, c, tramo) {
   opcion('', '— Sin asignar');
   grupo(tramo === 'semana' ? 'Lunes a viernes' : 'Sábado y domingo', programa.biologos.filter(b => b.equipo === tramo));
   grupo('Otros', programa.biologos.filter(b => b.equipo !== tramo));
+  const gPl = document.createElement('optgroup'); gPl.label = 'Plancton Andino';
+  Object.entries(PLANCTON).forEach(([sigla, texto]) => { const o = document.createElement('option'); o.value = sigla; o.textContent = texto; gPl.appendChild(o); });
+  sel.appendChild(gPl);
   if (actual && ![...sel.options].some(o => o.value === actual)) opcion(actual, actual);
   sel.value = actual;
   const texto = td.textContent;
@@ -7638,9 +7645,25 @@ function abrirAsignarBio(c, tramo) {
     });
     opciones.appendChild(chip);
   });
+  // También se puede dejar el centro (o sacarlo) de Plancton Andino
+  const sepPl = document.createElement('div');
+  sepPl.style.cssText = 'width:100%;font-size:12px;color:var(--suave);margin-top:4px';
+  sepPl.textContent = 'Plancton Andino';
+  opciones.appendChild(sepPl);
+  Object.entries(PLANCTON).forEach(([sigla, texto]) => {
+    const chip = chipBio(sigla, { boton: true });
+    chip.setAttribute('aria-pressed', sigla === actual ? 'true' : 'false');
+    chip.addEventListener('click', async () => {
+      if (sigla === actual) { dialogo.close(); return; }
+      const ok = await guardarPrograma('asignar', { id: c.id, centro: c.centro, tramo, sigla }, chip,
+        c.centro + ': ' + texto + (tramo === 'semana' ? ' de lunes a viernes' : ' el fin de semana'));
+      if (ok) dialogo.close();
+    });
+    opciones.appendChild(chip);
+  });
   campos.appendChild(opciones);
   // Quitar el biólogo: el centro queda pendiente ("Sin asignar") hasta que se elija a alguien
-  if (actual && !PLANCTON[actual]) {
+  if (actual) {
     const quitar = document.createElement('button');
     quitar.type = 'button';
     quitar.className = 'botonSecundario ancho';

@@ -1478,7 +1478,6 @@ function progAsignar(body) {
   return conCentro(body, (ss, sheet, fila, centro) => {
     const celda = sheet.getRange(fila, PCOL[tramo]);
     const antes = celda.getDisplayValue().trim();
-    if (PROGRAMA.plancton.includes(antes)) return { ok: false, error: 'Los centros de Plancton Andino no llevan biólogo' };
     celda.setValue(comoTexto(sigla));
     marcarActualizado(sheet, fila, body.usuario);
     SpreadsheetApp.flush();
