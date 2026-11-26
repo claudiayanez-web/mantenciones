@@ -1264,6 +1264,39 @@ app.get('/api/panel', requiereSesion, async (req, res) => {
   res.json(respuesta);
 });
 
+// ---------- Analistas: a qué hora revisaron muestras cada día (base de Retina, solo admins) ----------
+// Por analista y día (hora de Chile): minuto de la primera y la última revisión, y el minuto en que partió cada una.
+const SQL_ANALISTAS = `
+  WITH r AS (
+    SELECT u.name AS analista, r.started_at AT TIME ZONE 'America/Santiago' AS ini,
+           coalesce(r.completed_at, r.started_at) AT TIME ZONE 'America/Santiago' AS fin
+    FROM reviews r JOIN users u ON u.id = r.reviewer_id
+    WHERE r.deleted_at IS NULL AND r.started_at IS NOT NULL
+      AND r.started_at >= ((now() AT TIME ZONE 'America/Santiago')::date - $1::int) AT TIME ZONE 'America/Santiago')
+  SELECT analista, to_char(ini::date, 'YYYY-MM-DD') AS dia, count(*)::int AS muestras,
+         round(extract(epoch FROM min(ini) - ini::date) / 60)::int AS primera,
+         round(extract(epoch FROM max(fin) - ini::date) / 60)::int AS ultima,
+         array_agg(round(extract(epoch FROM ini - ini::date) / 60)::int ORDER BY ini) AS inicios
+  FROM r GROUP BY analista, ini::date ORDER BY dia DESC, primera`;
+const analistasCache = new Map();
+app.get('/api/analistas', requiereSesion, async (req, res) => {
+  if (!esAdmin(req.usuario)) return res.status(403).json({ ok: false, error: 'Solo para administradores' });
+  const dias = Math.min(62, Math.max(1, parseInt(req.query.dias, 10) || 14));
+  const guardado = analistasCache.get(dias);
+  if (guardado && Date.now() - guardado.leido < 5 * 60000 && req.query.recargar !== '1') return res.json(guardado.respuesta);
+  const pool = conexionRetina();
+  if (!pool) return res.status(503).json({ ok: false, error: 'Falta configurar RETINA_DB_URL en el servidor.' });
+  try {
+    const r = await pool.query(SQL_ANALISTAS, [dias]);
+    const respuesta = { ok: true, dias, leido: new Date().toISOString(), filas: r.rows };
+    analistasCache.set(dias, { leido: Date.now(), respuesta });
+    res.json(respuesta);
+  } catch (err) {
+    console.error('Analistas', err.message);
+    res.status(502).json({ ok: false, error: 'No se pudo leer la base de Retina.' });
+  }
+});
+
 // ---------- Dispositivos: enlaces a la página de muestras (app2) y a la UI remota (remote.it) ----------
 // Retina: cada dispositivo con su centro (para el enlace a app2). remote.it: la lista de dispositivos de la cuenta,
 // pedida con la clave de acceso R3_ACCESS_KEY_ID / R3_SECRET_ACCESS_KEY (firma HTTP hmac-sha256).

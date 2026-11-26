@@ -1160,6 +1160,29 @@
   .chipBio .carga.cero { color: var(--error); font-weight: 600; }
   .chipBio[aria-pressed="true"] { border-color: var(--color); box-shadow: 0 0 0 1px var(--color); }
   .chipBio.fijo { cursor: default; }
+  /* Programa · Analistas: línea de tiempo del día (00 a 24 h) */
+  .analistas { display: flex; flex-direction: column; gap: 14px; }
+  .analistas .controlesAn { display: flex; gap: 10px 18px; flex-wrap: wrap; align-items: center; }
+  .analistas .notaAn { font-size: 12px; color: var(--suave); margin: 0; }
+  .resumenAn { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px; }
+  .resumenAn .tarjetaAn { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; border: 1px solid #e5e7eb; border-left: 4px solid var(--color); border-radius: 7px; padding: 4px 9px; background: #fff; font-size: 11px; color: var(--suave); }
+  .resumenAn .tarjetaAn b { font-size: 12.5px; color: var(--texto); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .resumenAn .tarjetaAn .horaAn { font-size: 14px; font-weight: 700; color: var(--texto); font-variant-numeric: tabular-nums; }
+  .resumenAn .tarjetaAn .detAn { grid-column: 1 / -1; }
+  .diaAn { border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; overflow: hidden; }
+  .diaAn h3 { margin: 0; padding: 7px 12px; font-size: 13px; background: #f6f7f9; border-bottom: 1px solid #e5e7eb; display: flex; gap: 8px; align-items: baseline; }
+  .diaAn h3 .finde { font-size: 11px; font-weight: 700; color: #6d28d9; background: #f1ebfe; padding: 0 7px; border-radius: 999px; }
+  .filaAn { display: grid; grid-template-columns: 170px 1fr 130px; align-items: center; gap: 10px; padding: 3px 12px; min-height: 26px; }
+  .filaAn + .filaAn { border-top: 1px solid #f1f2f4; }
+  .filaAn .nombreAn { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .filaAn .datoAn { font-size: 12px; color: var(--suave); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .pistaAn { position: relative; height: 18px; background: repeating-linear-gradient(to right, #e9ecf0 0 1px, transparent 1px 12.5%); border-radius: 3px; }
+  .pistaAn .barraAn { position: absolute; top: 3px; bottom: 3px; border-radius: 4px; background: color-mix(in srgb, var(--color) 28%, transparent); min-width: 4px; }
+  .pistaAn .marcaAn { position: absolute; top: 2px; bottom: 2px; width: 2px; margin-left: -1px; background: var(--color); border-radius: 1px; pointer-events: none; }
+  .ejeAn { display: grid; grid-template-columns: 170px 1fr 130px; gap: 10px; padding: 0 12px; font-size: 11px; color: var(--suave); text-align: right; }
+  .ejeAn .horasAn { position: relative; height: 16px; text-align: left; }
+  .ejeAn .horasAn span { position: absolute; transform: translateX(-50%); }
+  @media (max-width: 700px) { .filaAn, .ejeAn { grid-template-columns: 90px 1fr; } .filaAn .datoAn, .ejeAn > :last-child { display: none; } }
   .chipPlancton { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; background: #eef0f3; color: var(--suave); }
   button.chipPlancton { border: 1px solid transparent; font: inherit; font-size: 12px; cursor: pointer; }
   button.chipPlancton:hover { border-color: #c9ced6; color: var(--texto, #1f2937); }
@@ -6797,7 +6820,7 @@ const CLAVE_VISTA_PROG = 'mantenciones.programa.vista', CLAVE_TRAMO_PROG = 'mant
 let vistaProg = 'centros', tramoProg = 'semana', fechaProg = '';
 const MOTIVOS_REEMPLAZO = ['Vacaciones', 'Licencia', 'Pidió ayuda', 'Otro'];
 const fechaVerProg = () => fechaProg || hoyIso();
-try { const v = localStorage.getItem(CLAVE_VISTA_PROG); if (['tabla', 'biologos', 'segundas', 'reemplazos'].includes(v)) vistaProg = v; if (localStorage.getItem(CLAVE_TRAMO_PROG) === 'finde') tramoProg = 'finde'; } catch {}
+try { const v = localStorage.getItem(CLAVE_VISTA_PROG); if (['tabla', 'biologos', 'segundas', 'reemplazos', 'analistas'].includes(v)) vistaProg = v; if (localStorage.getItem(CLAVE_TRAMO_PROG) === 'finde') tramoProg = 'finde'; } catch {}
 const DIAS_CENTRO_NUEVO = 30;   // un centro es "nuevo" si su INICIO en SAMS es de los últimos 30 días
 const COLORES_BIO = ['#4f79b5', '#2e8b57', '#c0603a', '#7b68a6', '#c2477a', '#3e8e9a', '#b07800', '#5e7d2e', '#8a5a44', '#1f3f73', '#e0559b', '#6a7f8c'];
 const PLANCTON = { PA: 'Plancton Andino · Noruega', PAC: 'Plancton Andino · Chile' };
@@ -6948,7 +6971,7 @@ function dibujarPrograma() {
   const activas = programa.segundas.filter(sg => estadoSegunda(sg) === 'activa').length;
   const reempActivos = (programa.reemplazos || []).filter(r => estadoReemplazo(r) === 'activo').length;
   [['centros', 'Por centro'], ['tabla', 'Tabla'], ['biologos', 'Por biólogo'], ['segundas', 'Segundas muestras' + (activas ? ' (' + activas + ')' : '')],
-    ['reemplazos', 'Reemplazos' + (reempActivos ? ' (' + reempActivos + ')' : '')]].forEach(([id, texto]) => {
+    ['reemplazos', 'Reemplazos' + (reempActivos ? ' (' + reempActivos + ')' : '')]].concat(estado.admin ? [['analistas', 'Analistas']] : []).forEach(([id, texto]) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.textContent = texto;
@@ -6996,6 +7019,12 @@ function dibujarPrograma() {
   }
   caja.appendChild(vistas);
 
+  // Horarios de los analistas (solo administradores)
+  if (vistaProg === 'analistas') {
+    if (estado.admin) caja.appendChild(seccionAnalistas());
+    caja.scrollTop = scroll;
+    return;
+  }
   // Reemplazos en su propia pestaña
   if (vistaProg === 'reemplazos') {
     caja.appendChild(seccionReemplazos());
@@ -7290,6 +7319,154 @@ function tableroBiologos(filas, sams) {
   });
   if (!columnas.length) tablero.innerHTML = '<div class="vacia">No hay biólogos en este equipo.</div>';
   return tablero;
+}
+
+// ---------- Programa · Analistas: a qué hora revisaron muestras (base de Retina) ----------
+const CLAVE_ANALISTAS = 'mantenciones.programa.analistas';
+let analistasCfg = { dias: 14, filtro: 'todos' };
+try { Object.assign(analistasCfg, JSON.parse(localStorage.getItem(CLAVE_ANALISTAS) || '{}')); } catch {}
+let analistasDatos = null, analistasCargando = false, analistasError = '';
+const COLORES_AN = ['#2f6fb2', '#c2410c', '#15803d', '#7c3aed', '#b45309', '#0f766e', '#be185d', '#4b5563', '#1d4ed8', '#a16207'];
+const horaMin = m => { m = Math.max(0, Math.min(m, 1439)); return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const esFinde = iso => [0, 6].includes(new Date(iso + 'T12:00:00').getDay());
+
+async function cargarAnalistas(recargar) {
+  if (analistasCargando) return;
+  analistasCargando = true; analistasError = '';
+  const r = await api('/api/analistas?dias=' + analistasCfg.dias + (recargar ? '&recargar=1' : ''));
+  analistasCargando = false;
+  if (r.ok) analistasDatos = r; else analistasError = r.error || 'No se pudo leer la base de Retina.';
+  if (estado.vista === 'programa' && vistaProg === 'analistas') dibujarPrograma();
+}
+
+function seccionAnalistas() {
+  const caja = document.createElement('div');
+  caja.className = 'analistas';
+  const guardarCfg = () => { try { localStorage.setItem(CLAVE_ANALISTAS, JSON.stringify(analistasCfg)); } catch {} };
+  const grupoChips = (etiqueta, opciones, valor, alElegir) => {
+    const g = document.createElement('div');
+    g.className = 'chips'; g.setAttribute('role', 'group'); g.setAttribute('aria-label', etiqueta);
+    opciones.forEach(([id, texto]) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = texto;
+      b.setAttribute('aria-pressed', id === valor ? 'true' : 'false');
+      b.addEventListener('click', () => alElegir(id));
+      g.appendChild(b);
+    });
+    return g;
+  };
+  const controles = document.createElement('div');
+  controles.className = 'controlesAn';
+  controles.appendChild(grupoChips('Periodo', [[7, 'Última semana'], [14, '2 semanas'], [30, '30 días'], [60, '60 días']], analistasCfg.dias, id => {
+    analistasCfg.dias = id; guardarCfg(); analistasDatos = null; analistasError = ''; dibujarPrograma();
+  }));
+  controles.appendChild(grupoChips('Días', [['todos', 'Todos los días'], ['finde', 'Fines de semana'], ['semana', 'Lunes a viernes']], analistasCfg.filtro, id => {
+    analistasCfg.filtro = id; guardarCfg(); dibujarPrograma();
+  }));
+  const recargar = document.createElement('button');
+  recargar.type = 'button'; recargar.className = 'botonSecundario'; recargar.textContent = 'Actualizar';
+  recargar.addEventListener('click', () => { recargar.disabled = true; cargarAnalistas(true); });
+  controles.appendChild(recargar);
+  caja.appendChild(controles);
+
+  if (!analistasDatos || analistasDatos.dias !== analistasCfg.dias) {
+    const p = document.createElement('p'); p.className = 'notaAn';
+    p.textContent = analistasError || 'Cargando las revisiones de la base de Retina…';
+    caja.appendChild(p);
+    if (!analistasError) cargarAnalistas();
+    return caja;
+  }
+  const todas = analistasDatos.filas;
+  // Color fijo por analista (orden alfabético), aunque cambie el filtro
+  const nombres = [...new Set(todas.map(f => f.analista))].sort((a, b) => a.localeCompare(b, 'es'));
+  const colorAn = n => COLORES_AN[nombres.indexOf(n) % COLORES_AN.length];
+  const filas = todas.filter(f => analistasCfg.filtro === 'todos' || (analistasCfg.filtro === 'finde') === esFinde(f.dia));
+  if (!filas.length) {
+    const p = document.createElement('p'); p.className = 'notaAn'; p.textContent = 'No hay revisiones en ese periodo.';
+    caja.appendChild(p); return caja;
+  }
+
+  // Resumen: hora de inicio habitual (mediana) de cada analista en los días mostrados
+  const resumen = document.createElement('div');
+  resumen.className = 'resumenAn';
+  const porAnalista = new Map();
+  filas.forEach(f => porAnalista.set(f.analista, [...(porAnalista.get(f.analista) || []), f]));
+  [...porAnalista.entries()].map(([n, lista]) => {
+    const inicios = lista.map(f => f.primera).sort((a, b) => a - b);
+    return { n, lista, mediana: inicios[Math.floor((inicios.length - 1) / 2)], temprano: inicios[0] };
+  }).sort((a, b) => a.mediana - b.mediana).forEach(({ n, lista, mediana, temprano }) => {
+    const t = document.createElement('div');
+    t.className = 'tarjetaAn';
+    t.style.setProperty('--color', colorAn(n));
+    t.innerHTML = '<b></b><span class="horaAn"></span><span class="detAn"></span>';
+    t.title = 'Hora de inicio habitual (la del medio de los días mostrados)';
+    t.querySelector('b').textContent = n;
+    t.querySelector('.horaAn').textContent = horaMin(mediana);
+    const total = lista.reduce((s, f) => s + f.muestras, 0);
+    t.querySelector('.detAn').textContent = 'más temprano ' + horaMin(temprano) + ' · ' + lista.length + (lista.length === 1 ? ' día' : ' días') + ' · ' + total + (total === 1 ? ' muestra' : ' muestras');
+    resumen.appendChild(t);
+  });
+  const tituloRes = document.createElement('p');
+  tituloRes.className = 'notaAn';
+  tituloRes.textContent = 'Hora de inicio habitual de cada analista en los días mostrados (de más temprano a más tarde):';
+  caja.appendChild(tituloRes);
+  caja.appendChild(resumen);
+
+  // Eje de horas
+  const eje = document.createElement('div');
+  eje.className = 'ejeAn';
+  eje.innerHTML = '<span></span><div class="horasAn"></div><span>inicio–fin · muestras</span>';
+  for (let h = 0; h <= 24; h += 3) { const s = document.createElement('span'); s.style.left = (h / 24 * 100) + '%'; s.textContent = String(h).padStart(2, '0'); eje.querySelector('.horasAn').appendChild(s); }
+  caja.appendChild(eje);
+
+  const porDia = new Map();
+  filas.forEach(f => porDia.set(f.dia, [...(porDia.get(f.dia) || []), f]));
+  [...porDia.entries()].sort((a, b) => b[0].localeCompare(a[0])).forEach(([dia, lista]) => {
+    const bloque = document.createElement('section');
+    bloque.className = 'diaAn';
+    const titulo = new Date(dia + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'short' });
+    const tituloDia = titulo.charAt(0).toUpperCase() + titulo.slice(1);
+    bloque.innerHTML = '<h3><span></span></h3>';
+    bloque.querySelector('h3 span').textContent = tituloDia;
+    if (esFinde(dia)) bloque.querySelector('h3').insertAdjacentHTML('beforeend', '<span class="finde">Fin de semana</span>');
+    lista.sort((a, b) => a.primera - b.primera).forEach(f => {
+      const fila = document.createElement('div');
+      fila.className = 'filaAn';
+      fila.style.setProperty('--color', colorAn(f.analista));
+      fila.innerHTML = '<span class="nombreAn"></span><div class="pistaAn"><i class="barraAn"></i></div><span class="datoAn"></span>';
+      fila.querySelector('.nombreAn').textContent = f.analista;
+      fila.querySelector('.nombreAn').title = f.analista;
+      const fin = Math.min(f.ultima, 1439);
+      const pista = fila.querySelector('.pistaAn');
+      const barra = fila.querySelector('.barraAn');
+      barra.style.left = (f.primera / 1440 * 100) + '%';
+      barra.style.width = (Math.max(fin - f.primera, 0) / 1440 * 100) + '%';
+      f.inicios.forEach(m => { const i = document.createElement('i'); i.className = 'marcaAn'; i.style.left = (m / 1440 * 100) + '%'; pista.appendChild(i); });
+      fila.querySelector('.datoAn').textContent = horaMin(f.primera) + '–' + horaMin(fin) + ' · ' + f.muestras;
+      const lineas = ['Primera muestra ' + horaMin(f.primera), 'Terminó la última ' + horaMin(fin) + (f.ultima > 1439 ? ' (siguió pasada la medianoche)' : ''),
+        f.muestras + (f.muestras === 1 ? ' muestra revisada' : ' muestras revisadas'), 'De la primera a la última: ' + duracionTicket((fin - f.primera) * 60000)];
+      // El tooltip aparece al pasar por toda la pista, no solo por la barra
+      pista.addEventListener('mouseenter', e => mostrarTooltipSimple(e, f.analista + ' · ' + tituloDia, lineas));
+      pista.addEventListener('mousemove', moverTooltipLinea);
+      pista.addEventListener('mouseleave', ocultarTooltipLinea);
+      bloque.appendChild(fila);
+    });
+    caja.appendChild(bloque);
+  });
+  const nota = document.createElement('p');
+  nota.className = 'notaAn';
+  nota.textContent = 'Cada raya es una muestra que el analista abrió para revisar; la barra va desde la primera hasta que terminó la última. Hora de Chile, según la base de Retina.';
+  caja.appendChild(nota);
+  return caja;
+}
+
+function mostrarTooltipSimple(e, titulo, lineas) {
+  if (!tooltipLinea) { tooltipLinea = document.createElement('div'); tooltipLinea.className = 'tooltipL'; document.body.appendChild(tooltipLinea); }
+  tooltipLinea.innerHTML = '<b></b><div class="pasosT"></div>';
+  tooltipLinea.querySelector('b').textContent = titulo;
+  tooltipLinea.querySelector('.pasosT').innerHTML = lineas.map(escaparHtml).join('<br>');
+  tooltipLinea.hidden = false;
+  moverTooltipLinea(e);
 }
 
 function seccionReemplazos() {
